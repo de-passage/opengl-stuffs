@@ -10,10 +10,6 @@
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void processInput(GLFWwindow *window);
 
-// settings
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
-
 namespace dpsg {
 template <class F> struct on_scope_exit_t {
   F f;
@@ -97,9 +93,46 @@ decltype(auto) within_glfw_context(init_hint::value<I> hint,
   return within_glfw_context(std::forward<Args>(args)...);
 }
 
-struct window_hint {
+enum class profile {
+  core = GLFW_OPENGL_CORE_PROFILE,
+  any = GLFW_OPENGL_ANY_PROFILE,
+  compat = GLFW_OPENGL_COMPAT_PROFILE
+};
 
-  template <int Hint, class T> struct value {
+struct window_hint {
+private:
+  template <int Hint, class T> struct trait_impl {
+    template <class U,
+              std::enable_if_t<std::is_convertible_v<U &&, T>, int> = 0>
+    constexpr static void set_hint(U &&u) noexcept {
+      glfwWindowHint(Hint, static_cast<int>(std::forward<T>(u)));
+    }
+  };
+
+  template <int Hint> struct trait_impl<Hint, const char *> {
+    constexpr static void set_hint(const char *c) noexcept {
+      glfwWindowHintString(Hint, c);
+    }
+  };
+
+  template <int Hint> struct trait_impl<Hint, bool> {
+    constexpr static void set_hint(bool b) noexcept {
+      glfwWindowHint(Hint, b ? GLFW_TRUE : GLFW_FALSE);
+    }
+  };
+
+  template <int Hint, class T> struct trait : trait_impl<Hint, T> {
+    constexpr static inline int hint = Hint;
+    using type = T;
+  };
+
+  template <int Hint, class T> struct hint_type;
+  template <class... Args> struct hint_list;
+
+public:
+  template <class T> struct value;
+
+  template <int Hint, class T> struct value<hint_type<Hint, T>> {
     value(const value &) noexcept = default;
     value(value &&) noexcept = default;
     value &operator=(const value &) noexcept = default;
@@ -107,20 +140,22 @@ struct window_hint {
     ~value() noexcept = default;
 
   private:
-    T v = true;
+    T v = {};
     value() noexcept = default;
     constexpr explicit value(T t) noexcept : v(t) {}
     friend window_hint;
 
   public:
-    void operator()() noexcept { glfwInitHint(Hint, v); }
+    void operator()() noexcept { trait<Hint, T>::set_hint(v); }
   };
 
-  template <int I> using bool_hint = value<I, bool>;
+  template <int I, class T> using hint = value<hint_type<I, T>>;
 
-  template <int I> using string_hint = value<I, const char *>;
+  template <int I> using bool_hint = hint<I, bool>;
 
-  template <int I> using int_hint = value<I, int>;
+  template <int I> using string_hint = hint<I, const char *>;
+
+  template <int I> using int_hint = hint<I, int>;
 
   static constexpr int_hint<GLFW_CONTEXT_VERSION_MAJOR>
   context_version_major(int i) noexcept {
@@ -131,15 +166,50 @@ struct window_hint {
   context_version_minor(int i) noexcept {
     return int_hint<GLFW_CONTEXT_VERSION_MINOR>{i};
   }
+
+  static constexpr hint<GLFW_OPENGL_PROFILE, profile>
+  opengl_profile(profile p) noexcept {
+    return hint<GLFW_OPENGL_PROFILE, profile>{p};
+  }
+
+  static constexpr bool_hint<GLFW_OPENGL_FORWARD_COMPAT>
+  opengl_forward_compat(bool b) noexcept {
+    return bool_hint<GLFW_OPENGL_FORWARD_COMPAT>{b};
+  }
 };
 
-template <class T, int I, class... Args>
-decltype(auto) with_window(window_hint::value<I, T> hint, Args &&... args) {
+template <class T, class... Args>
+decltype(auto) with_window(window_hint::value<T> hint, Args &&... args) {
   hint();
   return with_window(std::forward<Args>(args)...);
 }
 
-struct window {};
+class window {
+public:
+  explicit window(GLFWwindow *w) : _window(w) {}
+  window(window &&w) noexcept : _window(std::exchange(w._window, nullptr)) {}
+  window(const window &) = delete;
+  window &operator=(window &&w) noexcept {
+    std::swap(w._window, _window);
+    w._clean();
+    return *this;
+  }
+  window &operator=(const window &) = delete;
+  ~window() { _clean(); }
+
+  constexpr const GLFWwindow *data() const noexcept { return _window; }
+  constexpr GLFWwindow *data() noexcept { return _window; }
+  GLFWwindow *release() &&noexcept { return std::exchange(_window, nullptr); }
+
+private:
+  void _clean() {
+    if (_window) {
+      glfwDestroyWindow(_window);
+    }
+  }
+  GLFWwindow *_window;
+};
+
 struct width {
   int value;
 };
@@ -148,68 +218,68 @@ struct height {
 };
 
 template <class F,
-          decltype((std::declval<F &&>(std::declval<window &>()), int{})) = 0>
+          decltype((std::declval<F &&>()(std::declval<window &>()), int{})) = 0>
 ExecutionStatus with_window(width w, height h, const char *title, F &&f) {
-  GLFWwindow *window = glfwCreateWindow(w.value, h.value, title, NULL, NULL);
-  if (!window) {
+  GLFWwindow *wptr = glfwCreateWindow(w.value, h.value, title, NULL, NULL);
+  if (!wptr) {
     return ExecutionStatus::Failure;
   }
-  auto on_exit = on_scope_exit([window] { glfwDestroyWindow(window); });
-  std::forward<F>(*w);
+  window win(wptr);
+  std::forward<F>(f)(win);
   return ExecutionStatus::Success;
 }
 
 } // namespace dpsg
 
+// settings
+constexpr dpsg::width SCR_WIDTH{800};
+constexpr dpsg::height SCR_HEIGHT{600};
+
 int main() {
   using namespace dpsg;
 
   return static_cast<int>(within_glfw_context([]() -> dpsg::ExecutionStatus {
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    using wh = window_hint;
+    return with_window(
+        wh::context_version_major(3), wh::context_version_minor(3),
+        wh::opengl_profile(profile::core),
 
 #ifdef __APPLE__
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+        wh::opengl_forward_compat(true),
 #endif
+        SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", [](window &window) -> void {
+          // glfw window creation
+          // --------------------
+          glfwMakeContextCurrent(window.data());
+          glfwSetFramebufferSizeCallback(window.data(),
+                                         framebuffer_size_callback);
 
-    // glfw window creation
-    // --------------------
-    GLFWwindow *window =
-        glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
-    if (window == NULL) {
-      std::cout << "Failed to create GLFW window" << std::endl;
-      return dpsg::ExecutionStatus::Failure;
-    }
-    glfwMakeContextCurrent(window);
-    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+          // glad: load all OpenGL function pointers
+          // ---------------------------------------
+          if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+            std::cout << "Failed to initialize GLAD" << std::endl;
+            return; // dpsg::ExecutionStatus::Failure;
+          }
 
-    // glad: load all OpenGL function pointers
-    // ---------------------------------------
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-      std::cout << "Failed to initialize GLAD" << std::endl;
-      return dpsg::ExecutionStatus::Failure;
-    }
+          // render loop
+          // -----------
+          while (!glfwWindowShouldClose(window.data())) {
+            // input
+            // -----
+            processInput(window.data());
 
-    // render loop
-    // -----------
-    while (!glfwWindowShouldClose(window)) {
-      // input
-      // -----
-      processInput(window);
+            // render
+            // ------
+            glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
 
-      // render
-      // ------
-      glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-      glClear(GL_COLOR_BUFFER_BIT);
-
-      // glfw: swap buffers and poll IO events (keys pressed/released, mouse
-      // moved etc.)
-      // -------------------------------------------------------------------------------
-      glfwSwapBuffers(window);
-      glfwPollEvents();
-    }
-    return dpsg::ExecutionStatus::Success;
+            // glfw: swap buffers and poll IO events (keys
+            // pressed/released, mouse moved etc.)
+            // -------------------------------------------------------------------------------
+            glfwSwapBuffers(window.data());
+            glfwPollEvents();
+          }
+        });
   }));
 }
 
