@@ -20,51 +20,121 @@ constexpr dpsg::window::height SCR_HEIGHT{600};
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void processInput(dpsg::window &window);
 
-int main() {
+template <class F> dpsg::ExecutionStatus make_window(F f) {
   using namespace dpsg;
 
-  auto r = within_glfw_context([]() -> dpsg::ExecutionStatus {
+  return within_glfw_context([f]() -> dpsg::ExecutionStatus {
     using wh = window_hint;
 
     return with_window(
         wh::context_version(3, 3), wh::opengl_profile(profile::core),
-
 #ifdef __APPLE__
         wh::opengl_forward_compat(true),
 #endif
         SCR_WIDTH, SCR_HEIGHT, window::title{"LearnOpenGL"},
-        [](window &wdw) -> ExecutionStatus {
+        [f](window &wdw) -> ExecutionStatus {
+          // glfw window creation
+          // --------------------
+          wdw.make_context_current();
+          wdw.set_framebuffer_size_callback(framebuffer_size_callback);
+
           // glad: load all OpenGL function pointers
           // ---------------------------------------
           if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
             std::cout << "Failed to initialize GLAD" << std::endl;
             return dpsg::ExecutionStatus::Failure;
           }
-          // glfw window creation
-          // --------------------
-          wdw.make_context_current();
-          wdw.set_framebuffer_size_callback(framebuffer_size_callback);
 
           // render loop
           // -----------
-          while (!wdw.should_close()) {
-            // input
-            // -----
-            processInput(wdw);
-
-            // render
-            // ------
-            glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-            glClear(GL_COLOR_BUFFER_BIT);
-
-            // glfw: swap buffers and poll IO events (keys
-            // pressed/released, mouse moved etc.)
-            // -------------------------------------------------------------------------------
-            wdw.swap_buffers();
-            glfwPollEvents();
-          }
+          f(wdw);
           return ExecutionStatus::Success;
         });
+  });
+}
+
+float vertices[] = {-0.5f, -0.5f, 0.0f, 0.5f, -0.5f, 0.0f, 0.0f, 0.5f, 0.0f};
+const char *vertex_shader_source =
+    "#version 330 core\n"
+    "layout (location = 0) in vec3 aPos;\n"
+    "void main()\n"
+    "{\n"
+    "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
+    "}\0";
+
+const char *fragment_shader_source = "#version 330 core\n"
+                                     "out vec4 fragColor;\n"
+                                     "void main() {"
+                                     "fragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);"
+                                     "}";
+
+int main() {
+  auto r = make_window([](dpsg::window &wdw) {
+    unsigned int vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertex_shader, 1, &vertex_shader_source, nullptr);
+    glCompileShader(vertex_shader);
+
+    int success;
+    glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &success);
+
+    if (success != GL_TRUE) {
+      char infoLog[512];
+      glGetShaderInfoLog(vertex_shader, 512, nullptr, infoLog);
+      std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n"
+                << infoLog << std::endl;
+    }
+
+    unsigned int fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragment_shader, 1, &fragment_shader_source, nullptr);
+    glCompileShader(fragment_shader);
+    glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &success);
+    if (success != GL_TRUE) {
+      char infoLog[512];
+      glGetShaderInfoLog(fragment_shader, 512, nullptr, infoLog);
+      std::cout << "ERROR: Fragment shader compilation failed:\n" << infoLog;
+    }
+
+    unsigned int shader_program = glCreateProgram();
+    glAttachShader(shader_program, vertex_shader);
+    glAttachShader(shader_program, fragment_shader);
+    glLinkProgram(shader_program);
+    glGetProgramiv(shader_program, GL_LINK_STATUS, &success);
+
+    if (success != GL_TRUE) {
+      char infoLog[512];
+      glGetProgramInfoLog(shader_program, 512, nullptr, infoLog);
+      std::cout << "ERROR: program linkage failed:\n" << infoLog;
+    }
+
+    unsigned int vbo;
+    glGenBuffers(1, &vbo);
+    unsigned int vao;
+    glGenVertexArrays(1, &vao);
+
+    glBindVertexArray(vao);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float),
+                          (void *)0);
+    glEnableVertexAttribArray(0);
+
+    wdw.render_loop([&] {
+      processInput(wdw);
+      // render
+      // ------
+      glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+      glClear(GL_COLOR_BUFFER_BIT);
+
+      glUseProgram(shader_program);
+      glBindVertexArray(vao);
+      glDrawArrays(GL_TRIANGLES, 0, 3);
+    });
+
+    glDeleteShader(vertex_shader);
+    glDeleteShader(fragment_shader);
+    glDeleteProgram(shader_program);
+    glDeleteBuffers(1, &vbo);
   });
 
   return static_cast<int>(r);
