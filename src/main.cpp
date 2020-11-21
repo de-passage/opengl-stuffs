@@ -32,6 +32,7 @@ template <class F> dpsg::ExecutionStatus make_window(F f) {
 
   return within_glfw_context([f]() -> dpsg::ExecutionStatus {
     using wh = window_hint;
+    glfwSwapInterval(1);
 
     return with_window(
         wh::context_version(3, 3), wh::opengl_profile(profile::core),
@@ -80,6 +81,70 @@ const char *fragment_shader_source = "#version 330 core\n"
                                      "fragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);"
                                      "}";
 
+const char *yellow_fragment_shader_source =
+    "#version 330 core\n"
+    "out vec4 fragColor;\n"
+    "void main() {"
+    "fragColor = vec4(1.0f, 1.0f, 0.0f, 1.0f);"
+    "}";
+
+struct drawing_modes {
+  static constexpr inline int gl_acceptable_values[11] = {
+      GL_POINTS,
+      GL_LINE_STRIP,
+      GL_LINE_LOOP,
+      GL_LINES,
+      GL_LINE_STRIP_ADJACENCY,
+      GL_LINES_ADJACENCY,
+      GL_TRIANGLE_STRIP,
+      GL_TRIANGLE_FAN,
+      GL_TRIANGLES,
+      GL_TRIANGLE_STRIP_ADJACENCY,
+      GL_TRIANGLES_ADJACENCY};
+
+  void rotate() {
+    ++_current_value;
+    if (_current_value >= sizeof(gl_acceptable_values) / sizeof(int)) {
+      _current_value = 0;
+    }
+  }
+
+  int current_value() const { return gl_acceptable_values[_current_value]; }
+
+private:
+  std::size_t _current_value = 0;
+};
+
+struct element_drawer : drawing_modes {
+  element_drawer(int vcount, int icount)
+      : vertice_count{vcount}, indice_count{icount} {}
+
+  void operator()() {
+    if (_draw_elem) {
+
+      glDrawElements(current_value(), indice_count, GL_UNSIGNED_INT,
+                     static_cast<void *>(0));
+    } else {
+      glDrawArrays(current_value(), 0, vertice_count);
+    }
+  }
+
+  void switch_render_func() { _draw_elem = !_draw_elem; }
+
+private:
+  bool _draw_elem = true;
+  int vertice_count;
+  int indice_count;
+};
+
+template <class V, class R = std::variant_alternative_t<0, V>>
+R get_or_throw(V &&v) {
+  if (auto *err = std::get_if<std::variant_alternative_t<1, V>>(&v)) {
+    throw std::runtime_error{err->what()};
+  }
+  return std::get<R>(std::forward<V>(v));
+}
+
 int main() {
   using namespace dpsg;
   using namespace dpsg::input;
@@ -106,21 +171,36 @@ int main() {
       }
       auto shader_program = std::get<dpsg::program>(std::move(pvar));
 
+      auto yfvar = fragment_shader::create(yellow_fragment_shader_source);
+      if (auto *ferror = std::get_if<shader_error>(&yfvar)) {
+        throw std::runtime_error{ferror->what()};
+      }
+      auto yfshader = std::get<fragment_shader>(std::move(yfvar));
+
+      auto ypvar = program::create(vshader, yfshader);
+      auto yprogram = get_or_throw(std::move(ypvar));
+
+      element_drawer elem_d{7, 18};
+
       key_mapper kmap;
       wdw.set_key_callback(window::key_callback{std::ref(kmap)});
 
       const auto exit = [](window &w) { w.should_close(true); };
-      kmap.on(key::I, exit);
+      const auto ignore = [](auto f) {
+        return [f = std::move(f)]([[maybe_unused]] window &w) { f(); };
+      };
+      kmap.on(key::I, ignore([&elem_d] { elem_d.switch_render_func(); }));
       kmap.on(key::escape, exit);
-      kmap.on(key::X, []([[maybe_unused]] window &w) {
-        static bool b = true;
-        b = !b;
-        if (!b) {
-          glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        } else {
-          glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-        }
-      });
+      kmap.on(key::X, ignore([] {
+                static bool b = true;
+                b = !b;
+                if (!b) {
+                  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+                } else {
+                  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+                }
+              }));
+      kmap.on(key::E, ignore([&elem_d] { elem_d.rotate(); }));
 
       dpsg::buffer vbo, ebo;
       unsigned int vao;
@@ -140,6 +220,17 @@ int main() {
                             (void *)0);
       glEnableVertexAttribArray(0);
 
+      float v2s[] = {-1.0f, 1.0f, 0.0f, -0.3f, 1.0f, 0.0f, -1.0f, 0.3f, 0.0f};
+      dpsg::buffer vbo2;
+      unsigned int vao2;
+      glGenVertexArrays(1, &vao2);
+      glBindVertexArray(vao2);
+      glBindBuffer(GL_ARRAY_BUFFER, vbo2.id());
+      glBufferData(GL_ARRAY_BUFFER, sizeof(v2s), v2s, GL_STATIC_DRAW);
+      glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float),
+                            static_cast<void *>(0));
+      glEnableVertexAttribArray(0);
+
       wdw.render_loop([&] {
         // render
         // ------
@@ -148,9 +239,12 @@ int main() {
 
         shader_program();
 
-        // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo.id());
-        glDrawElements(GL_TRIANGLES, 18, GL_UNSIGNED_INT, 0);
-        // glDrawArrays(GL_LINES, 0, 7);
+        glBindVertexArray(vao);
+        elem_d();
+
+        yprogram();
+        glBindVertexArray(vao2);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
       });
     });
 
