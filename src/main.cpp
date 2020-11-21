@@ -26,7 +26,6 @@ constexpr dpsg::window::width SCR_WIDTH{800};
 constexpr dpsg::window::height SCR_HEIGHT{600};
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
-void processInput(dpsg::window &window);
 
 template <class F> dpsg::ExecutionStatus make_window(F f) {
   using namespace dpsg;
@@ -108,8 +107,20 @@ int main() {
       auto shader_program = std::get<dpsg::program>(std::move(pvar));
 
       key_mapper kmap;
-      kmap.on(key::I, [](window &w) { w.should_close(true); });
       wdw.set_key_callback(window::key_callback{std::ref(kmap)});
+
+      const auto exit = [](window &w) { w.should_close(true); };
+      kmap.on(key::I, exit);
+      kmap.on(key::escape, exit);
+      kmap.on(key::X, []([[maybe_unused]] window &w) {
+        static bool b = true;
+        b = !b;
+        if (!b) {
+          glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        } else {
+          glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        }
+      });
 
       dpsg::buffer vbo, ebo;
       unsigned int vao;
@@ -130,7 +141,6 @@ int main() {
       glEnableVertexAttribArray(0);
 
       wdw.render_loop([&] {
-        processInput(wdw);
         // render
         // ------
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
@@ -139,8 +149,8 @@ int main() {
         shader_program();
 
         // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo.id());
-        // glDrawElements(GL_TRIANGLES, 18, GL_UNSIGNED_INT, 0);
-        glDrawArrays(GL_LINES, 0, 7);
+        glDrawElements(GL_TRIANGLES, 18, GL_UNSIGNED_INT, 0);
+        // glDrawArrays(GL_LINES, 0, 7);
       });
     });
 
@@ -151,32 +161,6 @@ int main() {
   }
 
   return static_cast<int>(r);
-}
-
-// process all input: query GLFW whether relevant keys are pressed/released this
-// frame and react accordingly
-// ---------------------------------------------------------------------------------------------------------
-void processInput(dpsg::window &window) {
-  using namespace dpsg::input;
-  static bool swap = false;
-
-  if (window.get_key(key::escape) == status::pressed) {
-    window.should_close(true);
-  } else if (window.get_key(key::X) == status::pressed) {
-    swap = true;
-  } else if (window.get_key(key::X) == status::released) {
-    if (swap) {
-      using namespace std::chrono;
-      static bool b = true;
-      b = !b;
-      swap = false;
-      if (!b) {
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-      } else {
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-      }
-    }
-  }
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback
