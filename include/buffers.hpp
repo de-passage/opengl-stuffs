@@ -39,7 +39,45 @@ template <std::size_t N> class buffer_array : public buffer_array_impl<N> {};
 
 class buffer : buffer_array_impl<1> {
 public:
-  explicit operator unsigned int() const { return values[0]; }
+  explicit operator unsigned int() const noexcept { return values[0]; }
+  [[nodiscard]] unsigned int id() const noexcept { return values[0]; }
+};
+
+template <std::size_t N> class vertex_array_impl {
+public:
+  vertex_array_impl() noexcept {
+    glGenVertexArrays(N, static_cast<unsigned int *>(values));
+  }
+  vertex_array_impl(const vertex_array_impl &) = delete;
+  vertex_array_impl(vertex_array_impl &&a) noexcept {
+    for (std::size_t i; i < N; ++i) {
+      values[i] = std::exchange(a.values[i], 0);
+    }
+  }
+
+  vertex_array_impl &operator=(vertex_array_impl &&) noexcept {
+
+    for (std::size_t i; i < N; ++i) {
+      values[i] = std::exchange(a.values[i], 0);
+    }
+  }
+  vertex_array_impl &operator=(const vertex_array_impl &) = delete;
+  ~vertex_array_impl() noexcept {
+    glDeleteVertexArrays(N, static_cast<unsigned int *>(values));
+  }
+
+  unsigned int operator[](std::size_t s) const noexcept { return values[s]; }
+
+protected:
+  unsigned int values[N]; // NOLINT
+};
+
+template <std::size_t N> class vertex_array : public vertex_array_impl<N> {};
+
+class vertex : vertex_array_impl<1> {
+public:
+  explicit operator unsigned int() const noexcept { return values[0]; }
+  [[nodiscard]] unsigned int id() const noexcept { return values[0]; }
 };
 } // namespace dpsg
 

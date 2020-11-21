@@ -10,6 +10,7 @@
 
 #include <GLFW/glfw3.h>
 
+#include <chrono>
 #include <cstdlib>
 #include <iostream>
 #include <stdexcept>
@@ -58,7 +59,11 @@ template <class F> dpsg::ExecutionStatus make_window(F f) {
   });
 }
 
-float vertices[] = {-0.5f, -0.5f, 0.0f, 0.5f, -0.5f, 0.0f, 0.0f, 0.5f, 0.0f};
+float vertices[] = {0.5f,  0.5f, 0.0f, 0.5f,  -0.5f, 0.0f,
+                    -0.5f, 0.5f, 0.0f, -0.5f, -0.5f, -0.5f};
+
+unsigned int indices[] = {0, 2, 3, 0, 1, 3};
+
 const char *vertex_shader_source =
     "#version 330 core\n"
     "layout (location = 0) in vec3 aPos;\n"
@@ -96,14 +101,20 @@ int main() {
       }
       auto shader_program = std::get<dpsg::program>(std::move(pvar));
 
-      dpsg::buffer vbo;
+      dpsg::buffer vbo, ebo;
       unsigned int vao;
       glGenVertexArrays(1, &vao);
 
       glBindVertexArray(vao);
 
-      glBindBuffer(GL_ARRAY_BUFFER, static_cast<unsigned int>(vbo));
-      glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+      glBindBuffer(GL_ARRAY_BUFFER, vbo.id());
+      glBufferData(GL_ARRAY_BUFFER, sizeof(vertices),
+                   static_cast<void *>(vertices), GL_STATIC_DRAW);
+
+      glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo.id());
+      glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices),
+                   static_cast<void *>(indices), GL_STATIC_DRAW);
+
       glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float),
                             (void *)0);
       glEnableVertexAttribArray(0);
@@ -116,8 +127,9 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT);
 
         shader_program();
-        glBindVertexArray(vao);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+
+        // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo.id());
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
       });
     });
 
@@ -134,9 +146,25 @@ int main() {
 // frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
 void processInput(dpsg::window &window) {
-  if (window.get_key(dpsg::input::key::escape) ==
-      dpsg::input::status::pressed) {
+  using namespace dpsg::input;
+  static bool swap = false;
+
+  if (window.get_key(key::escape) == status::pressed) {
     window.should_close(true);
+  } else if (window.get_key(key::X) == status::pressed) {
+    swap = true;
+  } else if (window.get_key(key::X) == status::released) {
+    if (swap) {
+      using namespace std::chrono;
+      static bool b = true;
+      b = !b;
+      swap = false;
+      if (!b) {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+      } else {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+      }
+    }
   }
 }
 
