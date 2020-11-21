@@ -4,6 +4,7 @@
 #include "buffers.hpp"
 #include "glfw_context.hpp"
 #include "input/keys.hpp"
+#include "key_mapper.hpp"
 #include "shaders.hpp"
 #include "utility.hpp"
 #include "window.hpp"
@@ -16,6 +17,7 @@
 #include <stdexcept>
 #include <string_view>
 #include <type_traits>
+#include <unordered_map>
 #include <utility>
 #include <variant>
 
@@ -59,10 +61,11 @@ template <class F> dpsg::ExecutionStatus make_window(F f) {
   });
 }
 
-float vertices[] = {0.5f,  0.5f, 0.0f, 0.5f,  -0.5f, 0.0f,
-                    -0.5f, 0.5f, 0.0f, -0.5f, -0.5f, -0.5f};
+float vertices[] = {0.f,   0.f,  0.f,    0.f,    0.5f, 0.f,   -0.5f,
+                    0.25f, 0.f,  -0.5f,  -0.25f, 0.f,  0.f,   -0.5f,
+                    0.f,   0.5f, -0.25f, 0.f,    0.5f, 0.25f, 0.f};
 
-unsigned int indices[] = {0, 2, 3, 0, 1, 3};
+unsigned int indices[] = {0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 5, 0, 5, 6, 0, 6, 1};
 
 const char *vertex_shader_source =
     "#version 330 core\n"
@@ -79,8 +82,11 @@ const char *fragment_shader_source = "#version 330 core\n"
                                      "}";
 
 int main() {
+  using namespace dpsg;
+  using namespace dpsg::input;
 
   dpsg::ExecutionStatus r = dpsg::ExecutionStatus::Failure;
+
   try {
     r = make_window([](dpsg::window &wdw) {
       auto vvar = dpsg::vertex_shader::create(vertex_shader_source);
@@ -100,6 +106,10 @@ int main() {
         throw std::runtime_error{perror->what()};
       }
       auto shader_program = std::get<dpsg::program>(std::move(pvar));
+
+      key_mapper kmap;
+      kmap.on(key::I, [](window &w) { w.should_close(true); });
+      wdw.set_key_callback(window::key_callback{std::ref(kmap)});
 
       dpsg::buffer vbo, ebo;
       unsigned int vao;
@@ -129,7 +139,8 @@ int main() {
         shader_program();
 
         // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo.id());
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        // glDrawElements(GL_TRIANGLES, 18, GL_UNSIGNED_INT, 0);
+        glDrawArrays(GL_LINES, 0, 7);
       });
     });
 
