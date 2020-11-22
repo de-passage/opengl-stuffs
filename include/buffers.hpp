@@ -37,10 +37,23 @@ protected:
 
 template <std::size_t N> class buffer_array : public buffer_array_impl<N> {};
 
+enum class buffer_type {
+  array = GL_ARRAY_BUFFER,
+  copy_read = GL_COPY_READ_BUFFER,
+  copy_write = GL_COPY_WRITE_BUFFER,
+  element_array = GL_ELEMENT_ARRAY_BUFFER,
+  pixel_pack = GL_PIXEL_PACK_BUFFER,
+  pixel_unpack = GL_PIXEL_UNPACK_BUFFER,
+  texture = GL_TEXTURE_BUFFER,
+  transform_feedback = GL_TRANSFORM_FEEDBACK_BUFFER,
+  uniform = GL_UNIFORM_BUFFER
+};
+
 class buffer : buffer_array_impl<1> {
 public:
   explicit operator unsigned int() const noexcept { return values[0]; }
   [[nodiscard]] unsigned int id() const noexcept { return values[0]; }
+  void bind(buffer_type bt) const { glBindBuffer(static_cast<int>(bt), id()); }
 };
 
 template <std::size_t N> class vertex_array_impl {
@@ -72,13 +85,15 @@ protected:
   unsigned int values[N]; // NOLINT
 };
 
-template <std::size_t N> class vertex_array : public vertex_array_impl<N> {};
+template <std::size_t N> class vertex_array_n : public vertex_array_impl<N> {};
 
-class vertex : vertex_array_impl<1> {
+class vertex_array : vertex_array_impl<1> {
 public:
   explicit operator unsigned int() const noexcept { return values[0]; }
   [[nodiscard]] unsigned int id() const noexcept { return values[0]; }
+  void bind() const { glBindVertexArray(id()); }
 };
+
 } // namespace dpsg
 
 #endif // GUARD_DPSG_BUFFERS_HEADER

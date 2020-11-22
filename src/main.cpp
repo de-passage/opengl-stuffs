@@ -112,7 +112,7 @@ struct drawing_modes {
   int current_value() const { return gl_acceptable_values[_current_value]; }
 
 private:
-  std::size_t _current_value = 0;
+  std::size_t _current_value = 7;
 };
 
 struct element_drawer : drawing_modes {
@@ -153,32 +153,13 @@ int main() {
 
   try {
     r = make_window([](dpsg::window &wdw) {
-      auto vvar = dpsg::vertex_shader::create(vertex_shader_source);
-      if (auto *verror = std::get_if<dpsg::shader_error>(&vvar)) {
-        throw std::runtime_error{verror->what()};
-      }
-      auto vshader = std::get<dpsg::vertex_shader>(std::move(vvar));
-
-      auto fvar = dpsg::fragment_shader::create(fragment_shader_source);
-      if (auto *ferror = std::get_if<dpsg::shader_error>(&fvar)) {
-        throw std::runtime_error{ferror->what()};
-      }
-      auto fshader = std::get<dpsg::fragment_shader>(std::move(fvar));
-
-      auto pvar = dpsg::program::create(vshader, fshader);
-      if (auto *perror = std::get_if<dpsg::program_error>(&pvar)) {
-        throw std::runtime_error{perror->what()};
-      }
-      auto shader_program = std::get<dpsg::program>(std::move(pvar));
-
-      auto yfvar = fragment_shader::create(yellow_fragment_shader_source);
-      if (auto *ferror = std::get_if<shader_error>(&yfvar)) {
-        throw std::runtime_error{ferror->what()};
-      }
-      auto yfshader = std::get<fragment_shader>(std::move(yfvar));
-
-      auto ypvar = program::create(vshader, yfshader);
-      auto yprogram = get_or_throw(std::move(ypvar));
+      auto vshader = get_or_throw(vertex_shader::create(vertex_shader_source));
+      auto fshader =
+          get_or_throw(fragment_shader::create(fragment_shader_source));
+      auto shader_program = get_or_throw(program::create(vshader, fshader));
+      auto yfshader =
+          get_or_throw(fragment_shader::create(yellow_fragment_shader_source));
+      auto yprogram = get_or_throw(program::create(vshader, yfshader));
 
       element_drawer elem_d{7, 18};
 
@@ -203,10 +184,9 @@ int main() {
       kmap.on(key::E, ignore([&elem_d] { elem_d.rotate(); }));
 
       dpsg::buffer vbo, ebo;
-      unsigned int vao;
-      glGenVertexArrays(1, &vao);
+      vertex_array vao;
 
-      glBindVertexArray(vao);
+      glBindVertexArray(vao.id());
 
       glBindBuffer(GL_ARRAY_BUFFER, vbo.id());
       glBufferData(GL_ARRAY_BUFFER, sizeof(vertices),
@@ -222,9 +202,8 @@ int main() {
 
       float v2s[] = {-1.0f, 1.0f, 0.0f, -0.3f, 1.0f, 0.0f, -1.0f, 0.3f, 0.0f};
       dpsg::buffer vbo2;
-      unsigned int vao2;
-      glGenVertexArrays(1, &vao2);
-      glBindVertexArray(vao2);
+      vertex_array vao2;
+      glBindVertexArray(vao2.id());
       glBindBuffer(GL_ARRAY_BUFFER, vbo2.id());
       glBufferData(GL_ARRAY_BUFFER, sizeof(v2s), v2s, GL_STATIC_DRAW);
       glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float),
@@ -239,11 +218,11 @@ int main() {
 
         shader_program();
 
-        glBindVertexArray(vao);
+        glBindVertexArray(vao.id());
         elem_d();
 
         yprogram();
-        glBindVertexArray(vao2);
+        glBindVertexArray(vao2.id());
         glDrawArrays(GL_TRIANGLES, 0, 3);
       });
     });
