@@ -3,8 +3,10 @@
 
 #include "glad/glad.h"
 
+#include <optional>
 #include <stdexcept>
 #include <variant>
+
 
 namespace dpsg {
 class shader_error : public std::exception {
@@ -110,6 +112,26 @@ public:
   }
 
   void operator()() const noexcept { glUseProgram(id); }
+
+  class uniform {
+    int _id;
+    explicit uniform(int i) : _id{i} {}
+    friend class program;
+
+  public:
+    int id() { return _id; }
+
+    void bind(float r, float g, float b, float a) {
+      glUniform4f(_id, r, g, b, a);
+    }
+  };
+
+  std::optional<uniform> uniform_location(const char *c) {
+    int i = glGetUniformLocation(id, c);
+    if (i < 0)
+      return {};
+    return {uniform{i}};
+  }
 
 private:
   unsigned int id;

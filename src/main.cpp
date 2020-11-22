@@ -61,24 +61,27 @@ template <class F> dpsg::ExecutionStatus make_window(F f) {
   });
 }
 
-float vertices[] = {0.f,   0.f,  0.f,    0.f,    0.5f, 0.f,   -0.5f,
-                    0.25f, 0.f,  -0.5f,  -0.25f, 0.f,  0.f,   -0.5f,
-                    0.f,   0.5f, -0.25f, 0.f,    0.5f, 0.25f, 0.f};
+float vertices[] = {
+    0.f,    0.f, 0.f,   0.5f, -0.5f,  0.25f, -0.5f,
+    -0.25f, 0.f, -0.5f, 0.5f, -0.25f, 0.5f,  0.25f,
+};
 
 unsigned int indices[] = {0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 5, 0, 5, 6, 0, 6, 1};
 
-const char *vertex_shader_source =
-    "#version 330 core\n"
-    "layout (location = 0) in vec3 aPos;\n"
-    "void main()\n"
-    "{\n"
-    "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-    "}\0";
+const char *vertex_shader_source = "#version 330 core\n"
+                                   "layout (location = 0) in vec2 aPos;\n"
+                                   "out vec4 vertexColor;\n"
+                                   "void main()\n"
+                                   "{\n"
+                                   "   gl_Position = vec4(aPos, 1.0, 1.0);\n"
+                                   "   vertexColor = vec4(0.5, 0.0, 0.0, 1.0);"
+                                   "}";
 
 const char *fragment_shader_source = "#version 330 core\n"
                                      "out vec4 fragColor;\n"
+                                     "in vec4 vertexColor;"
                                      "void main() {"
-                                     "fragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);"
+                                     "fragColor = vertexColor;"
                                      "}";
 
 const char *yellow_fragment_shader_source =
@@ -87,6 +90,22 @@ const char *yellow_fragment_shader_source =
     "void main() {"
     "fragColor = vec4(1.0f, 1.0f, 0.0f, 1.0f);"
     "}";
+
+const char *lerp_fshader =
+    "#version 330 core\n"
+    "out vec4 outputColor;\n"
+    "void main() {"
+    "  float lerpValue = gl_FragCoord.y / 500.0f;"
+    "  outputColor = mix(vec4(1.0f, 1.0f, 1.0f, 1.0f),"
+    "                     vec4(0.2f, 0.2f, 0.2f, 1.0f), lerpValue);"
+    "}";
+
+const char *uniform_fshader = "#version 330 core\n"
+                              "out vec4 outputColor;"
+                              "uniform vec4 ourColor;"
+                              "void main() {"
+                              "  outputColor = ourColor;"
+                              "}";
 
 struct drawing_modes {
   static constexpr inline int gl_acceptable_values[11] = {
@@ -157,19 +176,27 @@ int main() {
       auto fshader =
           get_or_throw(fragment_shader::create(fragment_shader_source));
       auto shader_program = get_or_throw(program::create(vshader, fshader));
-      auto yfshader =
-          get_or_throw(fragment_shader::create(yellow_fragment_shader_source));
-      auto yprogram = get_or_throw(program::create(vshader, yfshader));
+      auto yfshader = get_or_throw(fragment_shader::create(lerp_fshader));
+      auto infshader = get_or_throw(fragment_shader::create(uniform_fshader));
+      auto yprogram = get_or_throw(program::create(vshader, infshader));
 
       element_drawer elem_d{7, 18};
 
       key_mapper kmap;
       wdw.set_key_callback(window::key_callback{std::ref(kmap)});
 
+      float r = 1.0f, g = 0.0f, b = 1.0f, a = 1.0f;
       const auto exit = [](window &w) { w.should_close(true); };
       const auto ignore = [](auto f) {
         return [f = std::move(f)]([[maybe_unused]] window &w) { f(); };
       };
+      const auto switch_f = [&](float &f) {
+        return ignore([&f] { f = 1.0 - f; });
+      };
+      kmap.on(key::A, switch_f(a));
+      kmap.on(key::R, switch_f(r));
+      kmap.on(key::G, switch_f(g));
+      kmap.on(key::B, switch_f(b));
       kmap.on(key::I, ignore([&elem_d] { elem_d.switch_render_func(); }));
       kmap.on(key::escape, exit);
       kmap.on(key::X, ignore([] {
@@ -186,29 +213,33 @@ int main() {
       dpsg::buffer vbo, ebo;
       vertex_array vao;
 
-      glBindVertexArray(vao.id());
+      vao.bind();
 
-      glBindBuffer(GL_ARRAY_BUFFER, vbo.id());
+      vbo.bind(buffer_type::array);
       glBufferData(GL_ARRAY_BUFFER, sizeof(vertices),
                    static_cast<void *>(vertices), GL_STATIC_DRAW);
 
-      glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo.id());
+      ebo.bind(buffer_type::element_array);
       glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices),
                    static_cast<void *>(indices), GL_STATIC_DRAW);
 
-      glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float),
+      glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float),
                             (void *)0);
       glEnableVertexAttribArray(0);
 
-      float v2s[] = {-1.0f, 1.0f, 0.0f, -0.3f, 1.0f, 0.0f, -1.0f, 0.3f, 0.0f};
+      float v2s[] = {
+          -1.0f, 0.3f, -0.3f, 1.0f, -1.0f, 1.0f,
+      };
       dpsg::buffer vbo2;
       vertex_array vao2;
-      glBindVertexArray(vao2.id());
-      glBindBuffer(GL_ARRAY_BUFFER, vbo2.id());
+      vao2.bind();
+      vbo2.bind(buffer_type::array);
       glBufferData(GL_ARRAY_BUFFER, sizeof(v2s), v2s, GL_STATIC_DRAW);
-      glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float),
+      glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float),
                             static_cast<void *>(0));
       glEnableVertexAttribArray(0);
+
+      auto unifPos = yprogram.uniform_location("ourColor").value();
 
       wdw.render_loop([&] {
         // render
@@ -222,6 +253,7 @@ int main() {
         elem_d();
 
         yprogram();
+        unifPos.bind(r, g, b, a);
         glBindVertexArray(vao2.id());
         glDrawArrays(GL_TRIANGLES, 0, 3);
       });
