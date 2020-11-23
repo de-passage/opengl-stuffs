@@ -69,7 +69,7 @@ float vertices[] = {
 unsigned int indices[] = {0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 5, 0, 5, 6, 0, 6, 1};
 
 const char *vertex_shader_source = "#version 330 core\n"
-                                   "layout (location = 0) in vec2 aPos;\n"
+                                   "layout location = 0) in vec2 aPos;\n"
                                    "out vec4 vertexColor;\n"
                                    "void main()\n"
                                    "{\n"
@@ -159,7 +159,7 @@ private:
 template <class V, class R = std::variant_alternative_t<0, V>>
 R get_or_throw(V &&v) {
   if (auto *err = std::get_if<std::variant_alternative_t<1, V>>(&v)) {
-    throw std::runtime_error{err->what()};
+    throw *err;
   }
   return std::get<R>(std::forward<V>(v));
 }

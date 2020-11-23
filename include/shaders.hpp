@@ -3,26 +3,38 @@
 
 #include "glad/glad.h"
 
+#include "c_str_wrapper.hpp"
+
 #include <optional>
 #include <stdexcept>
 #include <variant>
 
-
 namespace dpsg {
+
 class shader_error : public std::exception {
 public:
   constexpr static inline std::size_t buffer_size = 512;
-  explicit shader_error(unsigned int i) : id(i) {}
+  explicit shader_error(unsigned int i) : id(i) {
+    int out_i{};
+    glGetShaderiv(id, GL_INFO_LOG_LENGTH, &out_i);
+    _what.realloc(out_i);
+    if (_what != nullptr) {
+      glGetShaderInfoLog(id, out_i, nullptr, _what.c_str());
+    }
+  }
 
   [[nodiscard]] const char *what() const override {
-    glGetShaderInfoLog(id, buffer_size, nullptr, info);
-    return info;
+    if (!_what) {
+      return "error unavailable: bad alloc";
+    }
+    return _what.c_str();
   }
 
 private:
   unsigned int id;
-  static inline char info[buffer_size]{};
+  c_str_wrapper _what;
 };
+
 template <int Type> class shader {
 public:
   explicit shader(unsigned int i) noexcept : id{i} {}
@@ -63,16 +75,26 @@ using fragment_shader = shader<GL_FRAGMENT_SHADER>;
 class program_error : public std::exception {
 public:
   constexpr static inline std::size_t buffer_size = 512;
-  explicit program_error(unsigned int i) : id{i} {}
+  explicit program_error(unsigned int i) : id{i} {
+    int len{};
+    glGetProgramiv(id, GL_INFO_LOG_LENGTH, &len);
+    _what.realloc(len);
+    if (_what != nullptr) {
+      glGetProgramInfoLog(id, len, nullptr, _what.c_str());
+    }
+  }
 
   [[nodiscard]] const char *what() const override {
-    glGetProgramInfoLog(id, 512, nullptr, info);
-    return info;
+    if (_what == nullptr) {
+      return "error unavailable: bad alloc";
+    }
+
+    return _what.c_str();
   }
 
 private:
   unsigned int id;
-  static inline char info[buffer_size];
+  c_str_wrapper _what;
 };
 
 class program {
@@ -119,17 +141,18 @@ public:
     friend class program;
 
   public:
-    int id() { return _id; }
+    [[nodiscard]] int id() const { return _id; }
 
-    void bind(float r, float g, float b, float a) {
+    void bind(float r, float g, float b, float a) const {
       glUniform4f(_id, r, g, b, a);
     }
   };
 
-  std::optional<uniform> uniform_location(const char *c) {
+  std::optional<uniform> uniform_location(const char *c) const {
     int i = glGetUniformLocation(id, c);
-    if (i < 0)
+    if (i < 0) {
       return {};
+    }
     return {uniform{i}};
   }
 
