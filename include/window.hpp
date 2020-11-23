@@ -14,6 +14,16 @@
 
 namespace dpsg {
 
+struct width {
+  int value;
+};
+struct height {
+  int value;
+};
+struct title {
+  const char *value;
+};
+
 template <class T, class... Args>
 decltype(auto) with_window(window_hint::value<T> hint, Args &&... args) {
   hint();
@@ -45,11 +55,6 @@ struct window_impl {
     GLFWwindow *release() &&noexcept { return std::exchange(_window, nullptr); }
 
     void make_context_current() const { glfwMakeContextCurrent(_window); }
-
-    GLFWframebuffersizefun
-    set_framebuffer_size_callback(GLFWframebuffersizefun f) const {
-      return glfwSetFramebufferSizeCallback(_window, f);
-    }
 
     [[nodiscard]] bool should_close() const noexcept {
       return glfwWindowShouldClose(_window) == GLFW_TRUE;
@@ -101,9 +106,10 @@ template <class T> T *get_window_ptr(GLFWwindow *w) {
 }
 } // namespace detail
 
-template <class R = void> struct function_key_cb {
+struct function_key_cb {
   template <class B> struct type : B {
-    using signature = R(real_type_t<B> &, input::key, int, input::status, int);
+    using signature = void(real_type_t<B> &, input::key, int, input::status,
+                           int);
     using key_callback = std::function<signature>;
 
     template <class... Args>
@@ -138,31 +144,57 @@ template <class R = void> struct function_key_cb {
   };
 };
 
-class window : public mixin<window, function_key_cb<>, window_impl> {
-  using base = mixin<window, function_key_cb<>, window_impl>;
+struct framebuffer_size_cb {
+  template <class B> struct type : B {
+    using signature = void(real_type_t<B> &, width, height);
+    using framebuffer_size_callback = std::function<signature>;
+
+    template <class... Args>
+    constexpr explicit type(Args &&... args) noexcept(
+        std::is_nothrow_constructible_v<B, Args...>)
+        : B(std::forward<Args>(args)...) {}
+
+    framebuffer_size_callback
+    set_framebuffer_size_callback(framebuffer_size_callback &&f) {
+      if (f != nullptr) {
+        glfwSetFramebufferSizeCallback(B::_window, &call);
+      } else {
+        glfwSetFramebufferSizeCallback(B::_window, nullptr);
+      }
+      return std::exchange(_cb, f);
+    }
+
+  private:
+    static void call(GLFWwindow *wdw, int w, int h) {
+      auto *ptr = detail::get_window_ptr<type>(wdw);
+      if (auto &f = ptr->_cb) {
+        f(static_cast<real_type_t<B> &>(*ptr), width{w}, height{h});
+      }
+    }
+
+    framebuffer_size_callback _cb;
+  };
+};
+
+namespace detail {
+template <class Window>
+using window_mixin =
+    mixin<Window, function_key_cb, framebuffer_size_cb, window_impl>;
+} // namespace detail
+
+class window : public detail::window_mixin<window> {
+  using base = detail::window_mixin<window>;
 
 public:
   explicit window(GLFWwindow *w) : base(w) {}
-
-  struct width {
-    int value;
-  };
-  struct height {
-    int value;
-  };
-  struct title {
-    const char *value;
-  };
 };
 
 template <class F,
           std::enable_if_t<!std::is_same_v<std::invoke_result_t<F &&, window &>,
                                            ExecutionStatus>,
                            int> = 0>
-ExecutionStatus with_window(window::width w, window::height h,
-                            window::title title, F &&f) {
-  GLFWwindow *wptr =
-      glfwCreateWindow(w.value, h.value, title.value, NULL, NULL);
+ExecutionStatus with_window(width w, height h, title ttle, F &&f) {
+  GLFWwindow *wptr = glfwCreateWindow(w.value, h.value, ttle.value, NULL, NULL);
   if (!wptr) {
     return ExecutionStatus::Failure;
   }
@@ -175,10 +207,8 @@ template <class F,
           std::enable_if_t<std::is_same_v<std::invoke_result_t<F &&, window &>,
                                           ExecutionStatus>,
                            int> = 0>
-ExecutionStatus with_window(window::width w, window::height h,
-                            window::title title, F &&f) {
-  GLFWwindow *wptr =
-      glfwCreateWindow(w.value, h.value, title.value, NULL, NULL);
+ExecutionStatus with_window(width w, height h, title ttle, F &&f) {
+  GLFWwindow *wptr = glfwCreateWindow(w.value, h.value, ttle.value, NULL, NULL);
   if (!wptr) {
     return ExecutionStatus::Failure;
   }

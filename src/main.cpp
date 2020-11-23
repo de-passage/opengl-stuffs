@@ -22,15 +22,13 @@
 #include <variant>
 
 // settings
-constexpr dpsg::window::width SCR_WIDTH{800};
-constexpr dpsg::window::height SCR_HEIGHT{600};
-
-void framebuffer_size_callback(GLFWwindow *window, int width, int height);
+constexpr dpsg::width SCR_WIDTH{800};
+constexpr dpsg::height SCR_HEIGHT{600};
 
 template <class F> dpsg::ExecutionStatus make_window(F f) {
   using namespace dpsg;
 
-  return within_glfw_context([f]() -> dpsg::ExecutionStatus {
+  return within_glfw_context([f = std::move(f)]() -> dpsg::ExecutionStatus {
     using wh = window_hint;
     glfwSwapInterval(1);
 
@@ -39,16 +37,19 @@ template <class F> dpsg::ExecutionStatus make_window(F f) {
 #ifdef __APPLE__
         wh::opengl_forward_compat(true),
 #endif
-        SCR_WIDTH, SCR_HEIGHT, window::title{"LearnOpenGL"},
+        SCR_WIDTH, SCR_HEIGHT, title{"LearnOpenGL"},
         [f](window &wdw) -> ExecutionStatus {
           // glfw window creation
           // --------------------
           wdw.make_context_current();
-          wdw.set_framebuffer_size_callback(framebuffer_size_callback);
+          wdw.set_framebuffer_size_callback(
+              []([[maybe_unused]] dpsg::window &unused, dpsg::width w,
+                 dpsg::height h) { glViewport(0, 0, w.value, h.value); });
 
           // glad: load all OpenGL function pointers
           // ---------------------------------------
-          if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+          if (!gladLoadGLLoader(
+                  reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
             std::cout << "Failed to initialize GLAD" << std::endl;
             return dpsg::ExecutionStatus::Failure;
           }
@@ -69,7 +70,7 @@ float vertices[] = {
 unsigned int indices[] = {0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 5, 0, 5, 6, 0, 6, 1};
 
 const char *vertex_shader_source = "#version 330 core\n"
-                                   "layout location = 0) in vec2 aPos;\n"
+                                   "layout (location = 0) in vec2 aPos;\n"
                                    "out vec4 vertexColor;\n"
                                    "void main()\n"
                                    "{\n"
@@ -119,7 +120,8 @@ struct drawing_modes {
       GL_TRIANGLE_FAN,
       GL_TRIANGLES,
       GL_TRIANGLE_STRIP_ADJACENCY,
-      GL_TRIANGLES_ADJACENCY};
+      GL_TRIANGLES_ADJACENCY,
+  };
 
   void rotate() {
     ++_current_value;
