@@ -139,12 +139,12 @@ private:
 
 template <class CharT>
 bool operator==(const basic_c_str_wrapper<CharT> &lhs, std::nullptr_t) {
-  return lhs;
+  return !lhs;
 }
 
 template <class CharT>
 bool operator==(nullptr_t, const basic_c_str_wrapper<CharT> &rhs) {
-  return rhs;
+  return !rhs;
 }
 
 template <class CharT>

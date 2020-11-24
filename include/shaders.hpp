@@ -7,10 +7,10 @@
 
 #include <optional>
 #include <stdexcept>
+#include <type_traits>
 #include <variant>
 
 namespace dpsg {
-
 class shader_error : public std::exception {
 public:
   constexpr static inline std::size_t buffer_size = 512;
@@ -97,6 +97,19 @@ private:
   c_str_wrapper _what;
 };
 
+namespace detail {
+template <class T, class... Args>
+using is_one_of = std::disjunction<std::is_same<T, Args>...>;
+template <class T, class... Args>
+constexpr static inline bool is_one_of_v = is_one_of<T, Args...>::value;
+
+} // namespace detail
+template <std::size_t N, class T> struct vec {
+  static_assert(detail::is_one_of_v<T, float, int, unsigned int>,
+                "invalid type in opengl vec specification");
+  static_assert(N > 1 && N <= 4, "invalid vec size");
+};
+
 class program {
 public:
   explicit program(unsigned int i) noexcept : id{i} {}
@@ -135,25 +148,51 @@ public:
 
   void operator()() const noexcept { glUseProgram(id); }
 
-  class uniform {
+private:
+  template <class B, class T> struct bind_impl;
+
+  template <class B> struct bind_impl<B, float> {
+    void bind(float f1) const {
+      glUniform1f(static_cast<const B *>(this)->id(), f1);
+    }
+  };
+
+  template <class B> struct bind_impl<B, vec<2, float>> {
+    void bind(float f1, float f2) const {
+      glUniform2f(static_cast<const B *>(this)->id(), f1, f2);
+    }
+  };
+
+  template <class B> struct bind_impl<B, vec<3, float>> {
+    void bind(float f1, float f2, float f3) const {
+      glUniform2f(static_cast<const B *>(this)->id(), f1, f2, f3);
+    }
+  };
+
+  template <class B> struct bind_impl<B, vec<4, float>> {
+    void bind(float f1, float f2, float f3, float f4) const {
+      glUniform4f(static_cast<const B *>(this)->id(), f1, f2, f3, f4);
+    }
+  };
+
+public:
+  template <class T> class uniform : bind_impl<uniform<T>, T> {
     int _id;
     explicit uniform(int i) : _id{i} {}
     friend class program;
 
   public:
+    using bind_impl<uniform<T>, T>::bind;
     [[nodiscard]] int id() const { return _id; }
-
-    void bind(float r, float g, float b, float a) const {
-      glUniform4f(_id, r, g, b, a);
-    }
   };
 
-  std::optional<uniform> uniform_location(const char *c) const {
+  template <class S>
+  std::optional<uniform<S>> uniform_location(const char *c) const {
     int i = glGetUniformLocation(id, c);
     if (i < 0) {
       return {};
     }
-    return {uniform{i}};
+    return {uniform<S>{i}};
   }
 
 private:

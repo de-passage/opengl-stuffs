@@ -1,4 +1,3 @@
-#include <exception>
 #include <glad/glad.h>
 
 #include "buffers.hpp"
@@ -13,6 +12,7 @@
 
 #include <chrono>
 #include <cstdlib>
+#include <exception>
 #include <iostream>
 #include <stdexcept>
 #include <string_view>
@@ -127,21 +127,29 @@ int main() {
 
   try {
     r = make_window([](dpsg::window &wdw) {
-      auto fragment_shader_source = load_from_disk(fs_filename{"shaders/basic.fs"});
-      auto vertex_shader_source = load_from_disk(vs_filename{"shaders/basic.vs"});
+      auto fragment_shader_source =
+          load_from_disk(fs_filename{"shaders/basic.fs"});
+      auto vertex_shader_source =
+          load_from_disk(vs_filename{"shaders/basic.vs"});
       auto uniform_fshader = load_from_disk(fs_filename{"shaders/uniform.fs"});
+      auto yellow_shader = load_from_disk(fs_filename{"shaders/yellow.fs"});
+      auto positionable_vertices =
+          load_from_disk(vs_filename{"shaders/positionable_triangle.vs"});
+      auto lerp_fshader = load_from_disk(fs_filename{"shaders/lerp.fs"});
       auto shader_program =
           create_program(vertex_shader_source, fragment_shader_source);
       auto yprogram = create_program(vertex_shader_source, uniform_fshader);
+      auto posProg = create_program(positionable_vertices, lerp_fshader);
 
       element_drawer elem_d{7, 18};
 
       key_mapper kmap;
       wdw.set_key_callback(window::key_callback{std::ref(kmap)});
 
-      float r = 1.0f, g = 0.0f, b = 1.0f, a = 1.0f;
-      const auto exit = [](window &w) { w.should_close(true); };
-      const auto ignore = [](auto f) {
+      float r = 1.0f, g = 0.0f, b = 1.0f, a = 1.0f, x_offset = 0.f,
+            y_offset = 0.0f;
+      constexpr auto exit = [](window &w) { w.should_close(true); };
+      constexpr auto ignore = [](auto f) {
         return [f = std::move(f)]([[maybe_unused]] window &w) { f(); };
       };
       const auto switch_f = [&](float &f) {
@@ -164,6 +172,22 @@ int main() {
               }));
       kmap.on(key::E, ignore([&elem_d] { elem_d.rotate(); }));
 
+      constexpr auto move_axis = [ignore](float &target) {
+        return [&](float of) {
+          return ignore([&target, of] {
+            target += of;
+            std::cout << "value changed: " << target << std::endl;
+          });
+        };
+      };
+      const auto move_y = move_axis(y_offset);
+      const auto move_x = move_axis(x_offset);
+      constexpr float std_offset = 0.01f;
+      kmap.on(key::left, move_x(-std_offset));
+      kmap.on(key::right, move_x(+std_offset));
+      kmap.on(key::up, move_y(-std_offset));
+      kmap.on(key::down, move_y(+std_offset));
+
       dpsg::buffer vbo, ebo;
       vertex_array vao;
 
@@ -181,6 +205,16 @@ int main() {
                             (void *)0);
       glEnableVertexAttribArray(0);
 
+      float v3s[] = {0.6f, 0.6f, 0.5f, 0.55f, 0.7f, 0.5f};
+      buffer vbo3;
+      vertex_array vao3;
+      vao3.bind();
+      vbo3.bind(buffer_type::array);
+      glBufferData(GL_ARRAY_BUFFER, sizeof(v3s), v3s, GL_STATIC_DRAW);
+      glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float),
+                            static_cast<void *>(0));
+      glEnableVertexAttribArray(0);
+
       float v2s[] = {
           -1.0f, 0.3f, -0.3f, 1.0f, -1.0f, 1.0f,
       };
@@ -193,7 +227,10 @@ int main() {
                             static_cast<void *>(0));
       glEnableVertexAttribArray(0);
 
-      auto unifPos = yprogram.uniform_location("ourColor").value();
+      auto unifPos =
+          yprogram.uniform_location<vec<4, float>>("ourColor").value();
+      auto xy_unif =
+          posProg.uniform_location<vec<2, float>>("xyOffset").value();
 
       wdw.render_loop([&] {
         // render
@@ -202,13 +239,17 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT);
 
         shader_program();
-
         glBindVertexArray(vao.id());
         elem_d();
 
         yprogram();
         unifPos.bind(r, g, b, a);
-        glBindVertexArray(vao2.id());
+        vao2.bind();
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+
+        posProg();
+        xy_unif.bind(x_offset, y_offset);
+        vao3.bind();
         glDrawArrays(GL_TRIANGLES, 0, 3);
       });
     });
@@ -220,15 +261,4 @@ int main() {
   }
 
   return static_cast<int>(r);
-}
-
-// glfw: whenever the window size changed (by OS or user resize) this callback
-// function executes
-// ---------------------------------------------------------------------------------------------
-void framebuffer_size_callback([[maybe_unused]] GLFWwindow *window, int width,
-                               int height) {
-  // make sure the viewport matches the new window dimensions; note that width
-  // and height will be significantly larger than specified on retina
-  // displays.
-  glViewport(0, 0, width, height);
 }
