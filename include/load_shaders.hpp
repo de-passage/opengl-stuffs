@@ -3,6 +3,8 @@
 
 #include "c_str.hpp"
 #include "shaders.hpp"
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <type_traits>
 #include <variant>
@@ -16,50 +18,57 @@ R get_or_throw(V &&v) {
   return std::get<R>(std::forward<V>(v));
 }
 
-namespace detail {
+// NOLINTNEXTLINE
+#define DPSG_LAZY_STR_WRAPPER_IMPL(name)                                       \
+  template <class T> class name {                                              \
+    T _value;                                                                  \
+                                                                               \
+  public:                                                                      \
+    template <class I,                                                         \
+              std::enable_if_t<std::is_same_v<std::decay_t<I>, T>, int> = 0>   \
+    constexpr explicit name(I &&v) noexcept : _value(std::forward<T>(v)){};    \
+    const auto *c_str() const { return ::dpsg::c_str(_value); }                \
+  };                                                                           \
+  template <class T> name(T &&) -> name<std::decay_t<T>>;
 
-template <class T>
-using deduce_shader_source_contained_type =
-    std::conditional_t<detail::is_char_ptr_v<T>, std::decay_t<T>, T>;
-} // namespace detail
+DPSG_LAZY_STR_WRAPPER_IMPL(vs_source) // NOLINT
+DPSG_LAZY_STR_WRAPPER_IMPL(fs_source) // NOLINT
 
-template <class T> class vs_source {
-  T _value;
-
-public:
-  template <class I,
-            std::enable_if_t<std::is_same_v<std::decay_t<I>, T>, int> = 0>
-  // NOLINTNEXTLINE the SFINAE check guarantees no shadowing
-  constexpr explicit vs_source(I &&v) noexcept : _value(std::forward<T>(v)){};
-  T c_str() const { return detail::c_str(_value); }
-};
-
-template <class T>
-vs_source(T &&) -> vs_source<detail::deduce_shader_source_contained_type<T>>;
-
-template <class T> class fs_source {
-  T _value;
-
-public:
-  template <class I,
-            std::enable_if_t<std::is_same_v<std::decay_t<I>, T>, int> = 0>
-  // NOLINTNEXTLINE the SFINAE check guarantees no shadowing
-  constexpr explicit fs_source(I &&v) noexcept : _value(std::forward<I>(v)){};
-  T c_str() const { return detail::c_str(_value); }
-};
-
-template <class T>
-fs_source(T &&) -> fs_source<detail::deduce_shader_source_contained_type<T>>;
-
-template <class T>
+template <class T, class U>
 program create_program(const vs_source<T> &vshader_source,
-                       const fs_source<T> &fshader_source) {
-  auto vshader =
-      get_or_throw(vertex_shader::create(detail::c_str(vshader_source)));
-  auto fshader =
-      get_or_throw(fragment_shader::create(detail::c_str(fshader_source)));
+                       const fs_source<U> &fshader_source) {
+  auto vshader = get_or_throw(vertex_shader::create(c_str(vshader_source)));
+  auto fshader = get_or_throw(fragment_shader::create(c_str(fshader_source)));
   auto prog = get_or_throw(program::create(vshader, fshader));
   return prog;
+}
+
+DPSG_LAZY_STR_WRAPPER_IMPL(vs_filename) // NOLINT
+DPSG_LAZY_STR_WRAPPER_IMPL(fs_filename) // NOLINT
+
+namespace detail {
+template <class... Args>
+inline std::string load_from_stream(std::basic_istream<Args...> &stream) {
+  std::stringstream sstream;
+  sstream << stream.rdbuf();
+  return sstream.str();
+}
+
+inline std::string load_from_disk(const char *name) {
+  std::ifstream file(name);
+  file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+  return load_from_stream(file);
+}
+} // namespace detail
+
+template <class T>
+fs_source<std::string> load_from_disk(const fs_filename<T> &fname) {
+  return fs_source{detail::load_from_disk(c_str(fname))};
+}
+
+template <class T>
+vs_source<std::string> load_from_disk(const vs_filename<T> &fname) {
+  return vs_source{detail::load_from_disk(c_str(fname))};
 }
 
 } // namespace dpsg

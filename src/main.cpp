@@ -69,48 +69,6 @@ float vertices[] = {
 
 unsigned int indices[] = {0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 5, 0, 5, 6, 0, 6, 1};
 
-constexpr static inline auto vertex_shader_source =
-    dpsg::vs_source{"#version 330 core\n"
-                    "layout (location = 0) in vec2 aPos;\n"
-                    "out vec4 vertexColor;\n"
-                    "void main()\n"
-                    "{\n"
-                    "   gl_Position = vec4(aPos, 1.0, 1.0);\n"
-                    "   vertexColor = vec4(0.5, 0.0, 0.0, 1.0);"
-                    "}"};
-
-constexpr static inline auto fragment_shader_source =
-    dpsg::fs_source{"#version 330 core\n"
-                    "out vec4 fragColor;\n"
-                    "in vec4 vertexColor;"
-                    "void main() {"
-                    "fragColor = vertexColor;"
-                    "}"};
-
-constexpr static inline auto yellow_fragment_shader_source =
-    dpsg::fs_source{"#version 330 core\n"
-                    "out vec4 fragColor;\n"
-                    "void main() {"
-                    "fragColor = vec4(1.0f, 1.0f, 0.0f, 1.0f);"
-                    "}"};
-
-constexpr static inline auto lerp_fshader = dpsg::fs_source{
-    "#version 330 core\n"
-    "out vec4 outputColor;\n"
-    "void main() {"
-    "  float lerpValue = gl_FragCoord.y / 500.0f;"
-    "  outputColor = mix(vec4(1.0f, 1.0f, 1.0f, 1.0f),"
-    "                     vec4(0.2f, 0.2f, 0.2f, 1.0f), lerpValue);"
-    "}"};
-
-constexpr static inline auto uniform_fshader =
-    dpsg::fs_source{"#version 330 core\n"
-                    "out vec4 outputColor;"
-                    "uniform vec4 ourColor;"
-                    "void main() {"
-                    "  outputColor = ourColor;"
-                    "}"};
-
 struct drawing_modes {
   static constexpr inline int gl_acceptable_values[11] = {
       GL_POINTS,
@@ -169,6 +127,9 @@ int main() {
 
   try {
     r = make_window([](dpsg::window &wdw) {
+      auto fragment_shader_source = load_from_disk(fs_filename{"shaders/basic.fs"});
+      auto vertex_shader_source = load_from_disk(vs_filename{"shaders/basic.vs"});
+      auto uniform_fshader = load_from_disk(fs_filename{"shaders/uniform.fs"});
       auto shader_program =
           create_program(vertex_shader_source, fragment_shader_source);
       auto yprogram = create_program(vertex_shader_source, uniform_fshader);
@@ -267,6 +228,7 @@ int main() {
 void framebuffer_size_callback([[maybe_unused]] GLFWwindow *window, int width,
                                int height) {
   // make sure the viewport matches the new window dimensions; note that width
-  // and height will be significantly larger than specified on retina displays.
+  // and height will be significantly larger than specified on retina
+  // displays.
   glViewport(0, 0, width, height);
 }
