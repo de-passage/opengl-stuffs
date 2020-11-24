@@ -5,7 +5,7 @@
 #include "glfw_context.hpp"
 #include "input/keys.hpp"
 #include "key_mapper.hpp"
-#include "shaders.hpp"
+#include "load_shaders.hpp"
 #include "utility.hpp"
 #include "window.hpp"
 
@@ -69,44 +69,47 @@ float vertices[] = {
 
 unsigned int indices[] = {0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 5, 0, 5, 6, 0, 6, 1};
 
-const char *vertex_shader_source = "#version 330 core\n"
-                                   "layout (location = 0) in vec2 aPos;\n"
-                                   "out vec4 vertexColor;\n"
-                                   "void main()\n"
-                                   "{\n"
-                                   "   gl_Position = vec4(aPos, 1.0, 1.0);\n"
-                                   "   vertexColor = vec4(0.5, 0.0, 0.0, 1.0);"
-                                   "}";
+constexpr static inline auto vertex_shader_source =
+    dpsg::vs_source{"#version 330 core\n"
+                    "layout (location = 0) in vec2 aPos;\n"
+                    "out vec4 vertexColor;\n"
+                    "void main()\n"
+                    "{\n"
+                    "   gl_Position = vec4(aPos, 1.0, 1.0);\n"
+                    "   vertexColor = vec4(0.5, 0.0, 0.0, 1.0);"
+                    "}"};
 
-const char *fragment_shader_source = "#version 330 core\n"
-                                     "out vec4 fragColor;\n"
-                                     "in vec4 vertexColor;"
-                                     "void main() {"
-                                     "fragColor = vertexColor;"
-                                     "}";
+constexpr static inline auto fragment_shader_source =
+    dpsg::fs_source{"#version 330 core\n"
+                    "out vec4 fragColor;\n"
+                    "in vec4 vertexColor;"
+                    "void main() {"
+                    "fragColor = vertexColor;"
+                    "}"};
 
-const char *yellow_fragment_shader_source =
-    "#version 330 core\n"
-    "out vec4 fragColor;\n"
-    "void main() {"
-    "fragColor = vec4(1.0f, 1.0f, 0.0f, 1.0f);"
-    "}";
+constexpr static inline auto yellow_fragment_shader_source =
+    dpsg::fs_source{"#version 330 core\n"
+                    "out vec4 fragColor;\n"
+                    "void main() {"
+                    "fragColor = vec4(1.0f, 1.0f, 0.0f, 1.0f);"
+                    "}"};
 
-const char *lerp_fshader =
+constexpr static inline auto lerp_fshader = dpsg::fs_source{
     "#version 330 core\n"
     "out vec4 outputColor;\n"
     "void main() {"
     "  float lerpValue = gl_FragCoord.y / 500.0f;"
     "  outputColor = mix(vec4(1.0f, 1.0f, 1.0f, 1.0f),"
     "                     vec4(0.2f, 0.2f, 0.2f, 1.0f), lerpValue);"
-    "}";
+    "}"};
 
-const char *uniform_fshader = "#version 330 core\n"
-                              "out vec4 outputColor;"
-                              "uniform vec4 ourColor;"
-                              "void main() {"
-                              "  outputColor = ourColor;"
-                              "}";
+constexpr static inline auto uniform_fshader =
+    dpsg::fs_source{"#version 330 core\n"
+                    "out vec4 outputColor;"
+                    "uniform vec4 ourColor;"
+                    "void main() {"
+                    "  outputColor = ourColor;"
+                    "}"};
 
 struct drawing_modes {
   static constexpr inline int gl_acceptable_values[11] = {
@@ -158,14 +161,6 @@ private:
   int indice_count;
 };
 
-template <class V, class R = std::variant_alternative_t<0, V>>
-R get_or_throw(V &&v) {
-  if (auto *err = std::get_if<std::variant_alternative_t<1, V>>(&v)) {
-    throw *err;
-  }
-  return std::get<R>(std::forward<V>(v));
-}
-
 int main() {
   using namespace dpsg;
   using namespace dpsg::input;
@@ -174,13 +169,9 @@ int main() {
 
   try {
     r = make_window([](dpsg::window &wdw) {
-      auto vshader = get_or_throw(vertex_shader::create(vertex_shader_source));
-      auto fshader =
-          get_or_throw(fragment_shader::create(fragment_shader_source));
-      auto shader_program = get_or_throw(program::create(vshader, fshader));
-      auto yfshader = get_or_throw(fragment_shader::create(lerp_fshader));
-      auto infshader = get_or_throw(fragment_shader::create(uniform_fshader));
-      auto yprogram = get_or_throw(program::create(vshader, infshader));
+      auto shader_program =
+          create_program(vertex_shader_source, fragment_shader_source);
+      auto yprogram = create_program(vertex_shader_source, uniform_fshader);
 
       element_drawer elem_d{7, 18};
 
