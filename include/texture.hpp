@@ -64,8 +64,16 @@ public:
     glGenTextures(1, &_id);
 
     glBindTexture(GL_TEXTURE_2D, _id);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, I::width(), I::height(), 0, GL_RGB,
                  I::pointer_type(), I::texture());
+
+    glGenerateMipmap(GL_TEXTURE_2D);
   }
   texture() = default;
   texture(const texture &) = delete;
@@ -79,6 +87,8 @@ public:
   }
   ~texture() noexcept { glDeleteTextures(1, &_id); }
 
+  void bind() const noexcept { glBindTexture(GL_TEXTURE_2D, _id); }
+
 private:
   unsigned int _id{};
 };
@@ -86,8 +96,8 @@ private:
 DPSG_LAZY_STR_WRAPPER_IMPL(texture_filename) // NOLINT
 
 template <class T>
-std::optional<texture<stbi_wrapper>>
-load_from_disk(const texture_filename<T> &texture, int requested_channels = 0) {
+std::optional<texture<stbi_wrapper>> load(const texture_filename<T> &texture,
+                                          int requested_channels = 0) {
   int h{};
   int w{};
   int c{};

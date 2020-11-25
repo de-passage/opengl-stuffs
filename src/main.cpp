@@ -12,6 +12,7 @@
 
 #include <GLFW/glfw3.h>
 
+#include <array>
 #include <chrono>
 #include <cstdlib>
 #include <exception>
@@ -148,8 +149,15 @@ struct vertex_array_renderer {
     glEnableVertexAttribArray(0); // Needs to be in its own function?
   }
 
-  vertex_array_renderer(const std::array<T, N> &arr)
-      : vertex_array_renderer(arr.data()) {}
+  vertex_array_renderer(const std::array<T, N * S> &arr) {
+    vao.bind();
+    vbo.bind(dpsg::buffer_type::array);
+    glBufferData(GL_ARRAY_BUFFER, N * S * sizeof(T), arr.data(),
+                 GL_STATIC_DRAW);
+    glVertexAttribPointer(0, S, GL_FLOAT, GL_FALSE, S * sizeof(T),
+                          static_cast<void *>(0));
+    glEnableVertexAttribArray(0); // Needs to be in its own function?
+  }
 
   void render(dpsg::program &prog, drawing_mode dm) const {
     prog();
@@ -165,6 +173,18 @@ private:
   dpsg::vertex_array vao;
 };
 
+template <std::size_t Dimensions, std::size_t Vertices, std::size_t Elements>
+struct element_renderer {
+  template <class T, class U> element_renderer() {}
+
+private:
+  dpsg::buffer vbo;
+  dpsg::buffer ebo;
+  dpsg::vertex_array vao;
+};
+
+namespace opengl {}
+
 int main() {
   using namespace dpsg;
   using namespace dpsg::input;
@@ -173,116 +193,31 @@ int main() {
 
   try {
     r = make_window([](dpsg::window &wdw) {
-      auto fragment_shader_source =
-          load_from_disk(fs_filename{"shaders/basic.fs"});
-      auto vertex_shader_source =
-          load_from_disk(vs_filename{"shaders/basic.vs"});
-      auto uniform_fshader = load_from_disk(fs_filename{"shaders/uniform.fs"});
-      auto yellow_shader = load_from_disk(fs_filename{"shaders/yellow.fs"});
-      auto positionable_vertices =
-          load_from_disk(vs_filename{"shaders/positionable_triangle.vs"});
-      auto lerp_fshader = load_from_disk(fs_filename{"shaders/lerp.fs"});
-      auto shader_program =
-          create_program(vertex_shader_source, fragment_shader_source);
-      auto yprogram = create_program(vertex_shader_source, uniform_fshader);
-      auto posProg = create_program(positionable_vertices, lerp_fshader);
-      auto wall_texture =
-          load_from_disk(texture_filename{"assets/container.jpg"}).value();
-
-      element_drawer elem_d{7, 18};
-
+      auto prog = load(vs_filename{"shaders/textured.vs"},
+                       fs_filename{"shaders/textured.fs"});
+      auto wallText = load(texture_filename{"assets/wall.jpg"}).value();
       key_mapper kmap;
       wdw.set_key_callback(window::key_callback{std::ref(kmap)});
 
-      float r = 1.0f, g = 0.0f, b = 1.0f, a = 1.0f, x_offset = 0.f,
-            y_offset = 0.0f;
       constexpr auto exit = [](window &w) { w.should_close(true); };
       constexpr auto ignore = [](auto f) {
         return [f = std::move(f)]([[maybe_unused]] window &w) { f(); };
       };
-      const auto switch_f = [&](float &f) {
-        return ignore([&f] { f = 1.0 - f; });
-      };
-      kmap.on(key::A, switch_f(a));
-      kmap.on(key::R, switch_f(r));
-      kmap.on(key::G, switch_f(g));
-      kmap.on(key::B, switch_f(b));
-      kmap.on(key::I, ignore([&elem_d] { elem_d.switch_render_func(); }));
       kmap.on(key::escape, exit);
-      kmap.on(key::X, ignore([] {
-                static bool b = true;
-                b = !b;
-                if (!b) {
-                  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-                } else {
-                  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-                }
-              }));
-      kmap.on(key::E, ignore([&elem_d] { elem_d.rotate(); }));
 
-      constexpr auto move_axis = [ignore](float &target) {
-        return [&](float of) {
-          return ignore([&target, of] {
-            target += of;
-            std::cout << "value changed: " << target << std::endl;
-          });
-        };
+      float vertices[] = {
+          // positions        // colors         // texture coords
+          0.5f,  0.5f,  0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, // top right
+          0.5f,  -0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, // bottom right
+          -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, // bottom left
+          -0.5f, 0.5f,  0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f  // top left
       };
-      const auto move_y = move_axis(y_offset);
-      const auto move_x = move_axis(x_offset);
-      constexpr float std_offset = 0.01f;
-      kmap.on(key::left, move_x(-std_offset));
-      kmap.on(key::right, move_x(+std_offset));
-      kmap.on(key::up, move_y(+std_offset));
-      kmap.on(key::down, move_y(-std_offset));
-
-      dpsg::buffer vbo, ebo;
-      vertex_array vao;
-
-      vao.bind();
-
-      vbo.bind(buffer_type::array);
-      glBufferData(GL_ARRAY_BUFFER, sizeof(vertices),
-                   static_cast<void *>(vertices), GL_STATIC_DRAW);
-
-      ebo.bind(buffer_type::element_array);
-      glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices),
-                   static_cast<void *>(indices), GL_STATIC_DRAW);
-
-      glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float),
-                            (void *)0);
-      glEnableVertexAttribArray(0);
-
-      float v3s[] = {0.6f, 0.6f, 0.5f, 0.55f, 0.7f, 0.5f};
-      vertex_array_renderer<2, 3> var(v3s);
-
-      float v2s[] = {
-          -1.0f, 0.3f, -0.3f, 1.0f, -1.0f, 1.0f,
-      };
-      vertex_array_renderer<2, 3> var2(v2s);
-
-      auto unifPos =
-          yprogram.uniform_location<vec<4, float>>("ourColor").value();
-      auto xy_unif =
-          posProg.uniform_location<vec<2, float>>("xyOffset").value();
 
       glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
       wdw.render_loop([&] {
         // render
         // ------
         glClear(GL_COLOR_BUFFER_BIT);
-
-        shader_program();
-        glBindVertexArray(vao.id());
-        elem_d();
-
-        yprogram();
-        unifPos.bind(r, g, b, a);
-        var2.render();
-
-        posProg();
-        xy_unif.bind(x_offset, y_offset);
-        var.render();
       });
     });
 

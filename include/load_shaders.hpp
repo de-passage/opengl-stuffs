@@ -5,7 +5,6 @@
 #include "common.hpp"
 #include "shaders.hpp"
 
-
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -51,14 +50,17 @@ inline std::string load_from_disk(const char *name) {
 }
 } // namespace detail
 
-template <class T>
-fs_source<std::string> load_from_disk(const fs_filename<T> &fname) {
+template <class T> fs_source<std::string> load(const fs_filename<T> &fname) {
   return fs_source{detail::load_from_disk(c_str(fname))};
 }
 
-template <class T>
-vs_source<std::string> load_from_disk(const vs_filename<T> &fname) {
+template <class T> vs_source<std::string> load(const vs_filename<T> &fname) {
   return vs_source{detail::load_from_disk(c_str(fname))};
+}
+
+template <class T, class U>
+program load(const vs_filename<T> &vs, const fs_filename<U> &fs) {
+  return create_program(load(vs), load(fs));
 }
 
 } // namespace dpsg
