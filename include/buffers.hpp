@@ -18,11 +18,12 @@ public:
     }
   }
 
-  buffer_array_impl &operator=(buffer_array_impl &&) noexcept {
+  buffer_array_impl &operator=(buffer_array_impl &&a) noexcept {
 
     for (std::size_t i; i < N; ++i) {
       values[i] = std::exchange(a.values[i], 0);
     }
+    return *this;
   }
   buffer_array_impl &operator=(const buffer_array_impl &) = delete;
   ~buffer_array_impl() noexcept {
@@ -54,6 +55,7 @@ public:
   explicit operator unsigned int() const noexcept { return values[0]; }
   [[nodiscard]] unsigned int id() const noexcept { return values[0]; }
   void bind(buffer_type bt) const { glBindBuffer(static_cast<int>(bt), id()); }
+  static void unbind(buffer_type bt) { glBindBuffer(static_cast<int>(bt), 0); }
 };
 
 template <std::size_t N> class vertex_array_impl {
@@ -68,11 +70,13 @@ public:
     }
   }
 
-  vertex_array_impl &operator=(vertex_array_impl &&) noexcept {
+  vertex_array_impl &operator=(vertex_array_impl &&a) noexcept {
 
     for (std::size_t i; i < N; ++i) {
       values[i] = std::exchange(a.values[i], 0);
     }
+
+    return *this;
   }
   vertex_array_impl &operator=(const vertex_array_impl &) = delete;
   ~vertex_array_impl() noexcept {
@@ -92,6 +96,7 @@ public:
   explicit operator unsigned int() const noexcept { return values[0]; }
   [[nodiscard]] unsigned int id() const noexcept { return values[0]; }
   void bind() const { glBindVertexArray(id()); }
+  static void unbind() { glBindVertexArray(0); }
 };
 
 } // namespace dpsg

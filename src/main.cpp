@@ -5,6 +5,7 @@
 #include "input/keys.hpp"
 #include "key_mapper.hpp"
 #include "load_shaders.hpp"
+#include "shaders.hpp"
 #include "utility.hpp"
 #include "window.hpp"
 
@@ -48,8 +49,8 @@ template <class F> dpsg::ExecutionStatus make_window(F f) {
 
           // glad: load all OpenGL function pointers
           // ---------------------------------------
-          if (!gladLoadGLLoader(
-                  reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
+          if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>( // NOLINT
+                  glfwGetProcAddress))) {
             std::cout << "Failed to initialize GLAD" << std::endl;
             return dpsg::ExecutionStatus::Failure;
           }
@@ -119,6 +120,50 @@ private:
   int indice_count;
 };
 
+enum class drawing_mode {
+  points = GL_POINTS,
+  line_strip = GL_LINE_STRIP,
+  line_loop = GL_LINE_LOOP,
+  lines = GL_LINES,
+  line_strip_adjacency = GL_LINE_STRIP_ADJACENCY,
+  lines_adjacency = GL_LINES_ADJACENCY,
+  triangle_strip = GL_TRIANGLE_STRIP,
+  triangle_fan = GL_TRIANGLE_FAN,
+  triangles = GL_TRIANGLES,
+  triangle_strip_adjacency = GL_TRIANGLE_STRIP_ADJACENCY,
+  triangles_adjacency = GL_TRIANGLES_ADJACENCY,
+};
+
+template <std::size_t S, std::size_t N, class T = float>
+struct vertex_array_renderer {
+  // NOLINTNEXTLINE
+  vertex_array_renderer(T (&arr)[S * N]) {
+    vao.bind();
+    vbo.bind(dpsg::buffer_type::array);
+    glBufferData(GL_ARRAY_BUFFER, N * S * sizeof(T), static_cast<void *>(arr),
+                 GL_STATIC_DRAW);
+    glVertexAttribPointer(0, S, GL_FLOAT, GL_FALSE, S * sizeof(T),
+                          static_cast<void *>(0));
+    glEnableVertexAttribArray(0); // Needs to be in its own function?
+  }
+
+  vertex_array_renderer(const std::array<T, N> &arr)
+      : vertex_array_renderer(arr.data()) {}
+
+  void render(dpsg::program &prog, drawing_mode dm) const {
+    prog();
+    render(dm);
+  }
+  void render(drawing_mode dm = drawing_mode::triangles) const {
+    vao.bind();
+    glDrawArrays(static_cast<int>(dm), 0, N);
+  }
+
+private:
+  dpsg::buffer vbo;
+  dpsg::vertex_array vao;
+};
+
 int main() {
   using namespace dpsg;
   using namespace dpsg::input;
@@ -185,8 +230,8 @@ int main() {
       constexpr float std_offset = 0.01f;
       kmap.on(key::left, move_x(-std_offset));
       kmap.on(key::right, move_x(+std_offset));
-      kmap.on(key::up, move_y(-std_offset));
-      kmap.on(key::down, move_y(+std_offset));
+      kmap.on(key::up, move_y(+std_offset));
+      kmap.on(key::down, move_y(-std_offset));
 
       dpsg::buffer vbo, ebo;
       vertex_array vao;
@@ -206,36 +251,22 @@ int main() {
       glEnableVertexAttribArray(0);
 
       float v3s[] = {0.6f, 0.6f, 0.5f, 0.55f, 0.7f, 0.5f};
-      buffer vbo3;
-      vertex_array vao3;
-      vao3.bind();
-      vbo3.bind(buffer_type::array);
-      glBufferData(GL_ARRAY_BUFFER, sizeof(v3s), v3s, GL_STATIC_DRAW);
-      glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float),
-                            static_cast<void *>(0));
-      glEnableVertexAttribArray(0);
+      vertex_array_renderer<2, 3> var(v3s);
 
       float v2s[] = {
           -1.0f, 0.3f, -0.3f, 1.0f, -1.0f, 1.0f,
       };
-      dpsg::buffer vbo2;
-      vertex_array vao2;
-      vao2.bind();
-      vbo2.bind(buffer_type::array);
-      glBufferData(GL_ARRAY_BUFFER, sizeof(v2s), v2s, GL_STATIC_DRAW);
-      glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float),
-                            static_cast<void *>(0));
-      glEnableVertexAttribArray(0);
+      vertex_array_renderer<2, 3> var2(v2s);
 
       auto unifPos =
           yprogram.uniform_location<vec<4, float>>("ourColor").value();
       auto xy_unif =
           posProg.uniform_location<vec<2, float>>("xyOffset").value();
 
+      glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
       wdw.render_loop([&] {
         // render
         // ------
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         shader_program();
@@ -244,13 +275,11 @@ int main() {
 
         yprogram();
         unifPos.bind(r, g, b, a);
-        vao2.bind();
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        var2.render();
 
         posProg();
         xy_unif.bind(x_offset, y_offset);
-        vao3.bind();
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        var.render();
       });
     });
 

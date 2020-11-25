@@ -9,6 +9,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 include(CPack)
 
 set(SOURCES
+    src/stb_image.c
     src/main.cpp
     src/glad.c)
 add_executable(hello ${SOURCES})
