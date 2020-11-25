@@ -6,6 +6,7 @@
 #include "key_mapper.hpp"
 #include "load_shaders.hpp"
 #include "shaders.hpp"
+#include "texture.hpp"
 #include "utility.hpp"
 #include "window.hpp"
 
@@ -185,6 +186,8 @@ int main() {
           create_program(vertex_shader_source, fragment_shader_source);
       auto yprogram = create_program(vertex_shader_source, uniform_fshader);
       auto posProg = create_program(positionable_vertices, lerp_fshader);
+      auto wall_texture =
+          load_from_disk(texture_filename{"assets/container.jpg"}).value();
 
       element_drawer elem_d{7, 18};
 

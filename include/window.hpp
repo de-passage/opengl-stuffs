@@ -1,6 +1,7 @@
 #ifndef GUARD_DPSG_WINDOW_HEADER
 #define GUARD_DPSG_WINDOW_HEADER
 
+#include "common.hpp"
 #include "input/keys.hpp"
 #include "meta/mixin.hpp"
 #include "utility.hpp"
@@ -13,16 +14,6 @@
 #include <utility>
 
 namespace dpsg {
-
-struct width {
-  int value;
-};
-struct height {
-  int value;
-};
-struct title {
-  const char *value;
-};
 
 template <class T, class... Args>
 decltype(auto) with_window(window_hint::value<T> hint, Args &&... args) {
@@ -189,12 +180,13 @@ public:
   explicit window(GLFWwindow *w) : base(w) {}
 };
 
-template <class F,
+template <class F, class T,
           std::enable_if_t<!std::is_same_v<std::invoke_result_t<F &&, window &>,
                                            ExecutionStatus>,
                            int> = 0>
-ExecutionStatus with_window(width w, height h, title ttle, F &&f) {
-  GLFWwindow *wptr = glfwCreateWindow(w.value, h.value, ttle.value, NULL, NULL);
+ExecutionStatus with_window(width w, height h, title<T> ttle, F &&f) {
+  GLFWwindow *wptr =
+      glfwCreateWindow(w.value, h.value, c_str(ttle), NULL, NULL);
   if (!wptr) {
     return ExecutionStatus::Failure;
   }
@@ -203,12 +195,13 @@ ExecutionStatus with_window(width w, height h, title ttle, F &&f) {
   return ExecutionStatus::Success;
 }
 
-template <class F,
+template <class F, class T,
           std::enable_if_t<std::is_same_v<std::invoke_result_t<F &&, window &>,
                                           ExecutionStatus>,
                            int> = 0>
-ExecutionStatus with_window(width w, height h, title ttle, F &&f) {
-  GLFWwindow *wptr = glfwCreateWindow(w.value, h.value, ttle.value, NULL, NULL);
+ExecutionStatus with_window(width w, height h, title<T> ttle, F &&f) {
+  GLFWwindow *wptr =
+      glfwCreateWindow(w.value, h.value, ttle.c_str(), NULL, NULL);
   if (!wptr) {
     return ExecutionStatus::Failure;
   }

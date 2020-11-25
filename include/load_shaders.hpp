@@ -2,7 +2,10 @@
 #define GUARD_DPSG_LOAD_SHADERS_HEADER
 
 #include "c_str.hpp"
+#include "common.hpp"
 #include "shaders.hpp"
+
+
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -17,19 +20,6 @@ R get_or_throw(V &&v) {
   }
   return std::get<R>(std::forward<V>(v));
 }
-
-// NOLINTNEXTLINE
-#define DPSG_LAZY_STR_WRAPPER_IMPL(name)                                       \
-  template <class T> class name {                                              \
-    T _value;                                                                  \
-                                                                               \
-  public:                                                                      \
-    template <class I,                                                         \
-              std::enable_if_t<std::is_same_v<std::decay_t<I>, T>, int> = 0>   \
-    constexpr explicit name(I &&v) noexcept : _value(std::forward<T>(v)){};    \
-    const auto *c_str() const { return ::dpsg::c_str(_value); }                \
-  };                                                                           \
-  template <class T> name(T &&) -> name<std::decay_t<T>>;
 
 DPSG_LAZY_STR_WRAPPER_IMPL(vs_source) // NOLINT
 DPSG_LAZY_STR_WRAPPER_IMPL(fs_source) // NOLINT
