@@ -58,6 +58,24 @@ public:
   static void unbind(buffer_type bt) { glBindBuffer(static_cast<int>(bt), 0); }
 };
 
+class vertex_buffer : buffer {
+public:
+  void bind() const { buffer::bind(buffer_type::array); }
+
+  using buffer::id;
+  using buffer::unbind;
+  using buffer::operator unsigned int;
+};
+
+class element_buffer : buffer {
+public:
+  void bind() const { buffer::bind(buffer_type::element_array); }
+
+  using buffer::id;
+  using buffer::unbind;
+  using buffer::operator unsigned int;
+};
+
 template <std::size_t N> class vertex_array_impl {
 public:
   vertex_array_impl() noexcept {
@@ -78,6 +96,7 @@ public:
 
     return *this;
   }
+
   vertex_array_impl &operator=(const vertex_array_impl &) = delete;
   ~vertex_array_impl() noexcept {
     glDeleteVertexArrays(N, static_cast<unsigned int *>(values));

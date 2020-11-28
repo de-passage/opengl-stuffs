@@ -1,6 +1,8 @@
 #ifndef GUARD_DPSG_COMMON_HEADER
 #define GUARD_DPSG_COMMON_HEADER
 
+#include "glad/glad.h"
+
 #include "c_str.hpp"
 #include <type_traits>
 
@@ -26,6 +28,20 @@ struct height {
   template <class T> name(T &&) -> name<std::decay_t<T>>;
 
 DPSG_LAZY_STR_WRAPPER_IMPL(title) // NOLINT
+
+enum class drawing_mode {
+  points = GL_POINTS,
+  line_strip = GL_LINE_STRIP,
+  line_loop = GL_LINE_LOOP,
+  lines = GL_LINES,
+  line_strip_adjacency = GL_LINE_STRIP_ADJACENCY,
+  lines_adjacency = GL_LINES_ADJACENCY,
+  triangle_strip = GL_TRIANGLE_STRIP,
+  triangle_fan = GL_TRIANGLE_FAN,
+  triangles = GL_TRIANGLES,
+  triangle_strip_adjacency = GL_TRIANGLE_STRIP_ADJACENCY,
+  triangles_adjacency = GL_TRIANGLES_ADJACENCY,
+};
 
 } // namespace dpsg
 

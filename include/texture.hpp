@@ -5,6 +5,7 @@
 #include "load_shaders.hpp"
 #include "stb_image.h"
 
+#include <cassert>
 #include <optional>
 
 namespace dpsg {
@@ -57,11 +58,12 @@ private:
   }
 };
 
-template <class I> class texture : I {
+class texture {
 
 public:
-  template <class J> explicit texture(J &&i) noexcept : I{std::forward<I>(i)} {
+  template <class J> explicit texture(J &&i) noexcept {
     glGenTextures(1, &_id);
+    assert(_id > 0);
 
     glBindTexture(GL_TEXTURE_2D, _id);
 
@@ -70,24 +72,23 @@ public:
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, I::width(), I::height(), 0, GL_RGB,
-                 I::pointer_type(), I::texture());
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, i.width(), i.height(), 0, GL_RGB,
+                 i.pointer_type(), i.texture());
 
     glGenerateMipmap(GL_TEXTURE_2D);
   }
   texture() = default;
   texture(const texture &) = delete;
-  texture(texture &&txt) noexcept
-      : I(static_cast<I &&>(txt)), _id(std::exchange(txt._id, 0)) {}
+  texture(texture &&txt) noexcept : _id(std::exchange(txt._id, 0)) {}
   texture &operator=(const texture &) = delete;
   texture &operator=(texture &&texture) noexcept {
-    static_cast<I &>(*this) = static_cast<I &&>(texture);
-    _id = std::exchange(txt._id, 0);
+    _id = std::exchange(texture._id, 0);
     return *this;
   }
   ~texture() noexcept { glDeleteTextures(1, &_id); }
 
   void bind() const noexcept { glBindTexture(GL_TEXTURE_2D, _id); }
+  unsigned int id() const noexcept { return _id; }
 
 private:
   unsigned int _id{};
@@ -96,16 +97,16 @@ private:
 DPSG_LAZY_STR_WRAPPER_IMPL(texture_filename) // NOLINT
 
 template <class T>
-std::optional<texture<stbi_wrapper>> load(const texture_filename<T> &texture,
-                                          int requested_channels = 0) {
+std::optional<texture> load(const texture_filename<T> &filename,
+                            int requested_channels = 0) {
   int h{};
   int w{};
   int c{};
-  stbi_uc *ptr = stbi_load(texture.c_str(), &h, &w, &c, requested_channels);
+  stbi_uc *ptr = stbi_load(filename.c_str(), &h, &w, &c, requested_channels);
   if (ptr == nullptr) {
     return {};
   }
-  return ::dpsg::texture<stbi_wrapper>{stbi_wrapper{ptr, h, w, c}};
+  return texture{stbi_wrapper{ptr, h, w, c}};
 }
 
 } // namespace dpsg

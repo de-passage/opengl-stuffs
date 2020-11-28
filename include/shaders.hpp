@@ -4,6 +4,7 @@
 #include "glad/glad.h"
 
 #include "c_str_wrapper.hpp"
+#include "texture.hpp"
 
 #include <optional>
 #include <stdexcept>
@@ -150,6 +151,11 @@ public:
 
 private:
   template <class B, class T> struct bind_impl;
+  template <class B> struct bind_impl<B, int> {
+    void bind(int i1) const {
+      glUniform1i(static_cast<const B *>(this)->id(), i1);
+    }
+  };
 
   template <class B> struct bind_impl<B, float> {
     void bind(float f1) const {
@@ -172,6 +178,12 @@ private:
   template <class B> struct bind_impl<B, vec<4, float>> {
     void bind(float f1, float f2, float f3, float f4) const {
       glUniform4f(static_cast<const B *>(this)->id(), f1, f2, f3, f4);
+    }
+  };
+
+  template <class B> struct bind_impl<B, texture> {
+    void bind(const texture &txt) const {
+      glUniform1i(static_cast<const B *>(this)->id(), txt.id());
     }
   };
 

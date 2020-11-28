@@ -122,57 +122,6 @@ private:
   int indice_count;
 };
 
-enum class drawing_mode {
-  points = GL_POINTS,
-  line_strip = GL_LINE_STRIP,
-  line_loop = GL_LINE_LOOP,
-  lines = GL_LINES,
-  line_strip_adjacency = GL_LINE_STRIP_ADJACENCY,
-  lines_adjacency = GL_LINES_ADJACENCY,
-  triangle_strip = GL_TRIANGLE_STRIP,
-  triangle_fan = GL_TRIANGLE_FAN,
-  triangles = GL_TRIANGLES,
-  triangle_strip_adjacency = GL_TRIANGLE_STRIP_ADJACENCY,
-  triangles_adjacency = GL_TRIANGLES_ADJACENCY,
-};
-
-template <std::size_t S, std::size_t N, class T = float>
-struct vertex_array_renderer {
-  // NOLINTNEXTLINE
-  vertex_array_renderer(T (&arr)[S * N]) {
-    vao.bind();
-    vbo.bind(dpsg::buffer_type::array);
-    glBufferData(GL_ARRAY_BUFFER, N * S * sizeof(T), static_cast<void *>(arr),
-                 GL_STATIC_DRAW);
-    glVertexAttribPointer(0, S, GL_FLOAT, GL_FALSE, S * sizeof(T),
-                          static_cast<void *>(0));
-    glEnableVertexAttribArray(0); // Needs to be in its own function?
-  }
-
-  vertex_array_renderer(const std::array<T, N * S> &arr) {
-    vao.bind();
-    vbo.bind(dpsg::buffer_type::array);
-    glBufferData(GL_ARRAY_BUFFER, N * S * sizeof(T), arr.data(),
-                 GL_STATIC_DRAW);
-    glVertexAttribPointer(0, S, GL_FLOAT, GL_FALSE, S * sizeof(T),
-                          static_cast<void *>(0));
-    glEnableVertexAttribArray(0); // Needs to be in its own function?
-  }
-
-  void render(dpsg::program &prog, drawing_mode dm) const {
-    prog();
-    render(dm);
-  }
-  void render(drawing_mode dm = drawing_mode::triangles) const {
-    vao.bind();
-    glDrawArrays(static_cast<int>(dm), 0, N);
-  }
-
-private:
-  dpsg::buffer vbo;
-  dpsg::vertex_array vao;
-};
-
 template <std::size_t Dimensions, std::size_t Vertices, std::size_t Elements>
 struct element_renderer {
   template <class T, class U> element_renderer() {}
@@ -213,11 +162,45 @@ int main() {
           -0.5f, 0.5f,  0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f  // top left
       };
 
+      unsigned int indices[] = {
+          0, 1, 3, // first triangle
+          1, 2, 3  // second triangle
+      };
+
+      vertex_buffer vbo;
+      vertex_array vao;
+      element_buffer ebo;
+      vao.bind();
+      vbo.bind();
+      glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+      ebo.bind();
+      glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices,
+                   GL_STATIC_DRAW);
+
+      glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
+                            (void *)0);
+
+      glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
+                            (void *)(3 * sizeof(float)));
+
+      glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
+                            (void *)(6 * sizeof(float)));
+      glEnableVertexAttribArray(0);
+      glEnableVertexAttribArray(1);
+      glEnableVertexAttribArray(2);
+
       glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+      prog();
+      prog.uniform_location<int>("ourTexture").value().bind(0);
       wdw.render_loop([&] {
         // render
         // ------
         glClear(GL_COLOR_BUFFER_BIT);
+        glActiveTexture(GL_TEXTURE0);
+
+        wallText.bind();
+        vao.bind();
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
       });
     });
 
