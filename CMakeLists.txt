@@ -12,7 +12,9 @@ set(SOURCES
     src/stb_image.c
     src/main.cpp
     src/glad.c
-    src/examples/textures.cpp)
+    src/examples/utils.cpp
+    src/examples/textures.cpp
+    src/examples/moving_polygon.cpp)
 add_executable(hello ${SOURCES})
 target_link_libraries(hello ${CMAKE_SOURCE_DIR}/lib/glfw3.lib)
 target_include_directories(hello PUBLIC include)

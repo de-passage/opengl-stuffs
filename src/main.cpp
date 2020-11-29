@@ -2,28 +2,18 @@
 
 #include "examples/make_window.hpp"
 
-#include "examples/textures.hpp"
+#include "examples/moving_polygon.hpp"
 
-#include <array>
-#include <chrono>
-#include <cstdlib>
 #include <exception>
 #include <iostream>
-#include <stdexcept>
-#include <string_view>
-#include <type_traits>
-#include <unordered_map>
-#include <utility>
-#include <variant>
 
 int main() {
   using namespace dpsg;
-  using namespace dpsg::input;
 
   ExecutionStatus r = ExecutionStatus::Failure;
 
   try {
-    r = make_window(texture_example);
+    r = make_window(moving_polygon);
 
   } catch (std::exception &e) {
     std::cerr << "Exception in main: " << e.what() << std::endl;

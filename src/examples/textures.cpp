@@ -1,6 +1,7 @@
 #include "glad/glad.h"
 
 #include "textures.hpp"
+#include "utils.hpp"
 
 #include "buffers.hpp"
 #include "input/keys.hpp"
@@ -19,11 +20,7 @@ void texture_example(dpsg::window &wdw) {
   key_mapper kmap;
   wdw.set_key_callback(window::key_callback{std::ref(kmap)});
 
-  constexpr auto exit = [](window &w) { w.should_close(true); };
-  constexpr auto ignore = [](auto f) {
-    return [f = std::move(f)]([[maybe_unused]] window &w) { f(); };
-  };
-  kmap.on(key::escape, exit);
+  kmap.on(key::escape, close);
 
   float vertices[] = {
       // positions        // colors         // texture coords

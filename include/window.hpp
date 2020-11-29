@@ -1,6 +1,8 @@
 #ifndef GUARD_DPSG_WINDOW_HEADER
 #define GUARD_DPSG_WINDOW_HEADER
 
+#include "glad/glad.h"
+
 #include "common.hpp"
 #include "input/keys.hpp"
 #include "meta/mixin.hpp"
