@@ -6,6 +6,7 @@
 #include "glfw_context.hpp"
 #include "window.hpp"
 
+#include <iostream>
 
 // settings
 constexpr static inline dpsg::width SCR_WIDTH{800};
@@ -23,7 +24,7 @@ template <class F> dpsg::ExecutionStatus make_window(F f) {
 #ifdef __APPLE__
         wh::opengl_forward_compat(true),
 #endif
-        SCR_WIDTH, SCR_HEIGHT, title{"LearnOpenGL"},
+        SCR_WIDTH, SCR_HEIGHT, title{"OpenGL example"},
         [f](window &wdw) -> ExecutionStatus {
           // glfw window creation
           // --------------------
@@ -46,6 +47,23 @@ template <class F> dpsg::ExecutionStatus make_window(F f) {
           return ExecutionStatus::Success;
         });
   });
+}
+
+template <class F> int windowed(F &&func) {
+  using namespace dpsg;
+
+  ExecutionStatus r = ExecutionStatus::Failure;
+
+  try {
+    r = make_window(std::forward<F>(func));
+
+  } catch (std::exception &e) {
+    std::cerr << "Exception in main: " << e.what() << std::endl;
+  } catch (...) {
+    std::cerr << "Unhandled error occured" << std::endl;
+  }
+
+  return static_cast<int>(r);
 }
 
 #endif // GUARD_MAKE_WINDOW_HEADER

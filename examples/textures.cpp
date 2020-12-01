@@ -1,6 +1,4 @@
-#include "glad/glad.h"
-
-#include "textures.hpp"
+#include "make_window.hpp"
 #include "utils.hpp"
 
 #include "buffers.hpp"
@@ -70,3 +68,5 @@ void texture_example(dpsg::window &wdw) {
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
   });
 }
+
+int main() { return windowed(texture_example); }
