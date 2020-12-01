@@ -1,13 +1,14 @@
 #include "moving_polygon.hpp"
+
 #include "buffers.hpp"
 #include "key_mapper.hpp"
-#include "utils.hpp"
 #include "load_shaders.hpp"
+#include "utils.hpp"
+#include "common.hpp"
+
 #include <type_traits>
 
-using namespace dpsg;
-using namespace dpsg::input;
-
+namespace dpsg {
 template <std::size_t N>
 struct group : std::integral_constant<std::size_t, N> {
   static_assert(N >= 1 && N <= 4, "Unacceptable OpenGL vec size");
@@ -49,7 +50,7 @@ template<std::size_t I, auto ...Ss> constexpr static inline auto sum_to_v = sum_
 
 template <class T, std::size_t... Args>
 struct layout<T, packed<group<Args>...>> {
-  constexpr static inline std::size_t total_size = (Args + ...);
+  constexpr static inline std::size_t count = (Args + ...);
   using layout_type = packed<group<Args>...>;
   using value_type = std::remove_cv_t<std::remove_reference_t<T>>;
 
@@ -60,7 +61,8 @@ struct layout<T, packed<group<Args>...>> {
 private:
   template <std::size_t N, std::size_t... Is>
   static void set_attrib_pointer_impl([[maybe_unused]] std::index_sequence<Is...> indices) {
-    (glVertexAttribPointer(Is, ::detail::at_v<Is, Args...>, ::detail::deduce_gl_enum_v<value_type>, GL_FALSE, total_size * sizeof(value_type), reinterpret_cast<void*>(sizeof(value_type) * ::detail::sum_to_v<Is, Args...>)), ...);
+    // NOLINTNEXTLINE
+    (glVertexAttribPointer(Is, detail::at_v<Is, Args...>, detail::deduce_gl_enum_v<value_type>, GL_FALSE, count * sizeof(value_type), reinterpret_cast<void*>(sizeof(value_type) * detail::sum_to_v<Is, Args...>)), ...);
     (glEnableVertexAttribArray(Is), ...);
   }
 };
@@ -68,41 +70,90 @@ private:
 template <class Layout> struct structured_buffer {
   using layout_type = typename Layout::layout_type;
   using value_type = typename Layout::value_type;
+  constexpr static inline std::size_t layout_count = Layout::count;
 
-  private:
-  template<class Input>
-  using same_type = std::is_same<value_type, std::remove_cv_t<std::remove_reference_t<Input>>>;
+  protected:
   template<class L>
   using same_layout = std::is_same<layout_type, std::remove_cv_t<std::remove_reference_t<L>>>;
+  template<class Input>
+  using same_type = std::is_same<value_type, std::remove_cv_t<std::remove_reference_t<Input>>>;
 
   public:
   template<class Input, class L, std::size_t N, std::enable_if_t<std::conjunction_v<same_type<Input>, same_layout<L>> , int> = 0>
+  // NOLINTNEXTLINE
   structured_buffer([[maybe_unused]] L l, Input (&i)[N]) : structured_buffer(i) {}
 
   template <class Input, std::size_t N,
             std::enable_if_t<
                 same_type<Input>::value,
                 int> = 0>
+                // NOLINTNEXTLINE
   explicit structured_buffer(Input (&i)[N]) {
-    static_assert(N % Layout::total_size == 0,
-                  "Invalid array dimension: the input size must be a multiple "
-                  "of the layout size");
+    static_assert(N % layout_count == 0,
+                  "Invalid array dimension: the input array size must be a multiple "
+                  "of the layout element count");
     vao.bind();
     vbo.bind();
     vbo.set_data(i);
     Layout::template set_attrib_pointer<N>();
   }
 
+  [[nodiscard]] const vertex_array& get_vertex_array() const { return vao; }
+  [[nodiscard]] const vertex_buffer& get_vertex_buffer() const { return vbo; }
+
+private:
   vertex_buffer vbo;
   vertex_array vao;
 };
 
+namespace detail {
+template<class T, class L> using decayed_layout = layout<std::remove_cv_t<std::remove_reference_t<T>>, std::remove_cv_t<std::remove_reference_t<L>>>;
+} // namespace detail
+
 template<class Input, class Layout, std::size_t N> 
-structured_buffer(Layout, Input (&)[N]) -> structured_buffer<layout<Input, Layout>>;
+// NOLINTNEXTLINE
+structured_buffer(Layout, Input (&)[N]) -> structured_buffer<detail::decayed_layout<Input, Layout>>;
 
+template<class Layout, std::size_t N> struct fixed_size_structured_buffer : structured_buffer<Layout> {
+  private:
+  using base = structured_buffer<Layout>;
+  constexpr static inline std::size_t element_count = N;
+  constexpr static inline std::size_t layout_count = Layout::count;
+  constexpr static inline std::size_t buffer_count = layout_count * element_count;
 
+  template<std::size_t S> struct eq_buffer_count : std::integral_constant<bool, S == buffer_count> {};
+  template<std::size_t S, class T>
+  using match_type_and_count = std::conjunction<eq_buffer_count<S>, typename base::template same_type<T>>;
+  template<std::size_t S, class T, class L>
+  using deduceable_layout = std::conjunction<match_type_and_count<S, T>, typename base::template same_layout<L>>;
 
-void moving_polygon(window &wdw) {
+  public:
+  template<class Input, std::size_t M, std::enable_if_t<match_type_and_count<M, Input>::value, int> = 0>
+  // NOLINTNEXTLINE
+  explicit fixed_size_structured_buffer(Input (&data)[M]) : base{data} {
+  }
+
+  template<class Input, std::size_t M, class L, 
+    std::enable_if_t<deduceable_layout<M, Input, L>::value, int> = 0>
+    // NOLINTNEXTLINE
+  fixed_size_structured_buffer([[maybe_unused]] L layout, Input (&data)[M]) : base{layout, data} {}
+
+  void draw_array(drawing_mode mode = drawing_mode::triangles, std::size_t first = 0, std::size_t count = element_count) const {
+    assert(first + count <= element_count);
+    base::get_vertex_array().bind();
+    glDrawArrays(static_cast<int>(mode), first, element_count);
+  }
+};
+
+template<std::size_t N, class Input, class Layout>
+//NOLINTNEXTLINE
+fixed_size_structured_buffer(Layout, Input (&data)[N]) -> fixed_size_structured_buffer<detail::decayed_layout<Input, Layout>, N / detail::decayed_layout<Input, Layout>::count>;
+} // namespace dpsg
+
+void moving_polygon(dpsg::window &wdw) {
+
+using namespace dpsg;
+using namespace dpsg::input;
   key_mapper kmap;
   kmap.on(key::escape, close);
   wdw.set_key_callback(kmap);
@@ -116,14 +167,13 @@ void moving_polygon(window &wdw) {
       0.0f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f    // top 
   };    
   using packed_layout = packed<group<3>, group<3>>;
-  structured_buffer b(packed_layout{}, vertices);
+  fixed_size_structured_buffer b(packed_layout{}, vertices);
 
   shader.use();
   glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
   wdw.render_loop([&] {
     glClear(GL_COLOR_BUFFER_BIT);
 
-    b.vao.bind();
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    b.draw_array();
   });
 }
