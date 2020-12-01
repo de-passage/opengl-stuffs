@@ -105,6 +105,7 @@ template <class T, class... Args>
 constexpr static inline bool is_one_of_v = is_one_of<T, Args...>::value;
 
 } // namespace detail
+
 template <std::size_t N, class T> struct vec {
   static_assert(detail::is_one_of_v<T, float, int, unsigned int>,
                 "invalid type in opengl vec specification");
@@ -147,7 +148,7 @@ public:
                                                 id};
   }
 
-  void operator()() const noexcept { glUseProgram(id); }
+  void use() const noexcept { glUseProgram(id); }
 
 private:
   template <class B, class T> struct bind_impl;
