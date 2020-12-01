@@ -2,8 +2,8 @@
 
 #include "examples/make_window.hpp"
 
-#include "examples/textures.hpp"
 #include "examples/moving_polygon.hpp"
+#include "examples/textures.hpp"
 
 #include <exception>
 #include <iostream>
