@@ -1,8 +1,6 @@
 #ifndef GUARD_DPSG_STRUCTURED_BUFFERS_HEADER
 #define GUARD_DPSG_STRUCTURED_BUFFERS_HEADER
 
-#include "glad/glad.h"
-
 #include "buffers.hpp"
 #include "common.hpp"
 #include "layout.hpp"
@@ -17,7 +15,7 @@ namespace dpsg {
 template <class Layout> struct structured_buffer {
   using layout_type = typename Layout::layout_type;
   using value_type = typename Layout::value_type;
-  constexpr static inline std::size_t layout_count = Layout::count;
+  constexpr static inline gl::element_count layout_count = Layout::count;
 
 protected:
   template <class L>
@@ -41,7 +39,7 @@ public:
   // NOLINTNEXTLINE
   explicit structured_buffer(Input (&i)[N]) {
     static_assert(
-        N % layout_count == 0,
+        N % layout_count.value == 0,
         "Invalid array dimension: the input array size must be a multiple "
         "of the layout element count");
     vao.bind();
@@ -117,7 +115,7 @@ template <std::size_t N, class Input, class Layout>
 fixed_size_structured_buffer(Layout, Input (&data)[N])
     ->fixed_size_structured_buffer<
         detail::decayed_layout<Input, Layout>,
-        N / detail::decayed_layout<Input, Layout>::count>;
+        N / detail::decayed_layout<Input, Layout>::count.value>;
 
 } // namespace dpsg
 

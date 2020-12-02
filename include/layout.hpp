@@ -7,10 +7,7 @@
 #include <utility>
 
 namespace dpsg {
-template <std::size_t N> struct group : std::integral_constant<std::size_t, N> {
-  static_assert(N >= 1 && N <= 4,
-                "Invalid OpenGL vec size. Must be between 1 and 4.");
-};
+template<std::size_t N> using group = gl::vec_t<N>;
 template <class... Ts> struct packed {};
 template <class... Ts> struct sequenced {};
 template <class T, class L> struct layout {};
@@ -43,7 +40,7 @@ constexpr static inline auto sum_to_v = sum_to<I, Ss...>::value;
 
 template <class T, std::size_t... Args>
 struct layout<T, packed<group<Args>...>> {
-  constexpr static inline std::size_t count = (Args + ...);
+  constexpr static inline gl::element_count count{(Args + ...)};
   using layout_type = packed<group<Args>...>;
   using value_type = std::remove_cv_t<std::remove_reference_t<T>>;
 
@@ -59,7 +56,7 @@ private:
     (glVertexAttribPointer(
          Is, detail::at_v<Is, Args...>,
          gl::detail::deduce_gl_enum_v<value_type>, GL_FALSE,
-         count * sizeof(value_type),
+         count.value * sizeof(value_type),
          reinterpret_cast<void *>(sizeof(value_type) *
                                   detail::sum_to_v<Is, Args...>)),
      ...);

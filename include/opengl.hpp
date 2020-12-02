@@ -397,6 +397,14 @@ inline auto enable_vertex_attrib_array(Args &&... is) noexcept ->
   (glEnableVertexAttribArray(detail::value(is)), ...);
 }
 
+template<class T>
+inline void draw_elements(drawing_mode mode, element_count count, offset o = offset{0}) noexcept {
+    constexpr int gl_type = detail::deduce_gl_enum_v<T>;
+    static_assert(gl_type == GL_UNSIGNED_BYTE || gl_type == GL_UNSIGNED_SHORT || gl_type == GL_UNSIGNED_INT,
+        "Input type to element rendering must be an unsigned integral type");
+    glDrawElements(static_cast<int>(mode), count.value, gl_type, reinterpret_cast<void*>(o.value * sizeof(T)));
+}
+
 } // namespace dpsg::gl
 
 #endif
