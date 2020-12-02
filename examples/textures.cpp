@@ -6,6 +6,7 @@
 #include "input/keys.hpp"
 #include "key_mapper.hpp"
 #include "load_shaders.hpp"
+#include "texture.hpp"
 #include "utility.hpp"
 #include "window.hpp"
 
@@ -21,7 +22,7 @@ void texture_example(dpsg::window &wdw) {
 
   kmap.on(key::escape, close);
 
-  float vertices[] = {
+  constexpr float vertices[] = {
       // positions        // colors         // texture coords
       0.5F,  0.5F,  0.0F, 1.0F, 0.0F, 0.0F, 1.0F, 1.0F, // top right NOLINT
       0.5F,  -0.5F, 0.0F, 0.0F, 1.0F, 0.0F, 1.0F, 0.0F, // bottom right NOLINT
@@ -29,7 +30,7 @@ void texture_example(dpsg::window &wdw) {
       -0.5F, 0.5F,  0.0F, 1.0F, 1.0F, 0.0F, 0.0F, 1.0F  // top left NOLINT
   };
 
-  unsigned int indices[] = {
+  constexpr unsigned int indices[] = {
       0, 1, 3, // first triangle
       1, 2, 3  // second triangle
   };
@@ -39,21 +40,18 @@ void texture_example(dpsg::window &wdw) {
   element_buffer ebo;
   vao.bind();
   vbo.bind();
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+  gl::buffer_data(gl::buffer_type::array, vertices, gl::data_hint::static_draw);
 
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
+  gl::vertex_attrib_pointer<float>(gl::index{0}, gl::vec<3>, gl::stride{8});
+  gl::vertex_attrib_pointer<float>(gl::index{1}, gl::element_count{3},
+                                   gl::stride{8}, gl::offset{3});
+  gl::vertex_attrib_pointer<float>(gl::index{2}, gl::vec<2>, gl::stride{8},
+                                   gl::offset{6});
+  gl::enable_vertex_attrib_array(0, gl::position{1}, 2);
 
-  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
-                        (void *)(3 * sizeof(float)));
-
-  glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
-                        (void *)(6 * sizeof(float)));
-  glEnableVertexAttribArray(0);
-  glEnableVertexAttribArray(1);
-  glEnableVertexAttribArray(2);
   ebo.bind();
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices,
-               GL_STATIC_DRAW);
+  gl::buffer_data(gl::buffer_type::element_array, indices,
+                  gl::data_hint::static_draw);
 
   gl::clear_color(gl::r{0.2F}, gl::g{0.3F}, gl::b{0.3F});
   prog.use();

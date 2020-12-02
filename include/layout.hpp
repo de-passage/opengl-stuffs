@@ -1,7 +1,7 @@
 #ifndef GUARD_DPSG_LAYOUT_HEADER
 #define GUARD_DPSG_LAYOUT_HEADER
 
-#include "glad/glad.h"
+#include "opengl.hpp"
 
 #include <type_traits>
 #include <utility>
@@ -17,25 +17,6 @@ template <class T, class L> struct layout {};
 template <class T, std::size_t N> struct vertex_indices {};
 
 namespace detail {
-template <class T> struct deduce_gl_enum;
-template <> struct deduce_gl_enum<float> {
-  constexpr static inline int value = GL_FLOAT;
-};
-template <> struct deduce_gl_enum<int> {
-  constexpr static inline int value = GL_INT;
-};
-template <> struct deduce_gl_enum<unsigned int> {
-  constexpr static inline int value = GL_UNSIGNED_INT;
-};
-template <> struct deduce_gl_enum<char> {
-  constexpr static inline int value = GL_BYTE;
-};
-template <> struct deduce_gl_enum<unsigned char> {
-  constexpr static inline int value = GL_UNSIGNED_BYTE;
-};
-
-template <class T>
-constexpr static inline int deduce_gl_enum_v = deduce_gl_enum<T>::value;
 
 template <std::size_t I, auto S, auto... Ss> struct at : at<I - 1, Ss...> {};
 template <auto S, auto... Ss> struct at<0, S, Ss...> {
@@ -76,8 +57,9 @@ private:
   set_attrib_pointer_impl([[maybe_unused]] std::index_sequence<Is...> indices) {
     // NOLINTNEXTLINE
     (glVertexAttribPointer(
-         Is, detail::at_v<Is, Args...>, detail::deduce_gl_enum_v<value_type>,
-         GL_FALSE, count * sizeof(value_type),
+         Is, detail::at_v<Is, Args...>,
+         gl::detail::deduce_gl_enum_v<value_type>, GL_FALSE,
+         count * sizeof(value_type),
          reinterpret_cast<void *>(sizeof(value_type) *
                                   detail::sum_to_v<Is, Args...>)),
      ...);

@@ -5,8 +5,6 @@
 
 #include "c_str_wrapper.hpp"
 #include "meta/is_one_of.hpp"
-#include "texture.hpp"
-
 
 #include <optional>
 #include <stdexcept>
@@ -14,6 +12,8 @@
 #include <variant>
 
 namespace dpsg {
+class texture;
+
 class shader_error : public std::exception {
 public:
   constexpr static inline std::size_t buffer_size = 512;

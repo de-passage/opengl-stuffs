@@ -6,6 +6,7 @@
 #include "buffers.hpp"
 #include "common.hpp"
 #include "layout.hpp"
+#include "opengl.hpp"
 #include "utility.hpp"
 
 #include <cassert>
@@ -72,13 +73,14 @@ template <class Layout, std::size_t N>
 struct fixed_size_structured_buffer : structured_buffer<Layout> {
 private:
   using base = structured_buffer<Layout>;
-  constexpr static inline std::size_t element_count = N;
-  constexpr static inline std::size_t layout_count = Layout::count;
-  constexpr static inline std::size_t buffer_count =
-      layout_count * element_count;
+  constexpr static inline gl::element_count element_count{N};
+  constexpr static inline gl::element_count layout_count{Layout::count};
+  constexpr static inline gl::element_count buffer_count{layout_count.value *
+                                                         element_count.value};
 
   template <std::size_t S>
-  struct eq_buffer_count : std::integral_constant<bool, S == buffer_count> {};
+  struct eq_buffer_count
+      : std::integral_constant<bool, S == buffer_count.value> {};
   template <std::size_t S, class T>
   using match_type_and_count =
       std::conjunction<eq_buffer_count<S>,
@@ -101,9 +103,10 @@ public:
       : base{layout, data} {}
 
   void draw_array(gl::drawing_mode mode = gl::drawing_mode::triangles,
-                  std::size_t first = 0,
-                  std::size_t count = element_count) const {
-    assert(first + count <= element_count);
+                  gl::position first = gl::position{0},
+                  gl::element_count count =
+                      fixed_size_structured_buffer::element_count) const {
+    assert(first.value + count.value <= element_count.value);
     base::get_vertex_array().bind();
     gl::draw_arrays(mode, first, element_count);
   }

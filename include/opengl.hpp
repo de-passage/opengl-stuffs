@@ -104,9 +104,12 @@ inline void disable(capability cp, unsigned int i) noexcept {
 inline bool is_enabled(capability cp) noexcept {
   return glIsEnabled(static_cast<int>(cp)) == GL_TRUE;
 }
+struct position {
+  unsigned int value;
+};
 
-inline bool is_enabled(capability cp, unsigned int index) noexcept {
-  return glIsEnabledi(static_cast<int>(cp), index) == GL_TRUE;
+inline bool is_enabled(capability cp, position index) noexcept {
+  return glIsEnabledi(static_cast<int>(cp), index.value) == GL_TRUE;
 }
 
 enum class cull_mode {
@@ -143,9 +146,13 @@ enum class data_hint {
   dynamic_read = GL_DYNAMIC_READ,
 };
 
-inline void draw_arrays(drawing_mode mode, unsigned int first,
-                        unsigned int element_count) noexcept {
-  glDrawArrays(static_cast<int>(mode), first, element_count);
+struct element_count {
+  const std::size_t value;
+};
+
+inline void draw_arrays(drawing_mode mode, position first,
+                        element_count count) noexcept {
+  glDrawArrays(static_cast<int>(mode), first.value, count.value);
 }
 
 struct color {
@@ -186,13 +193,13 @@ struct no_duplication<T, Args...>
 
 template <class T, class U, std::enable_if_t<!std::is_same_v<T, U>, int> = 0,
           class... Args>
-float get_color([[maybe_unused]] U ignored, Args... args) noexcept {
+inline float get_color([[maybe_unused]] U ignored, Args... args) noexcept {
   return get_color<T>(args...);
 }
 
 template <class U, class T, std::enable_if_t<std::is_same_v<T, U>, int> = 0,
           class... Args>
-float get_color(T val, [[maybe_unused]] Args... ignored) noexcept {
+inline float get_color(T val, [[maybe_unused]] Args... ignored) noexcept {
   return val.value;
 }
 
@@ -210,6 +217,184 @@ template <class... Args> inline void clear_color(Args &&... colors) noexcept {
                detail::get_color<g>(colors..., 0.F),
                detail::get_color<b>(colors..., 0.F),
                detail::get_color<a>(colors..., 1.F));
+}
+
+struct buffer_id {
+  const unsigned int value;
+};
+
+struct vertex_array_id {
+  const unsigned int value;
+};
+
+struct memory_size {
+  const std::size_t value;
+};
+
+namespace detail {
+template <class T> struct deduce_gl_enum;
+template <> struct deduce_gl_enum<float> {
+  constexpr static inline int value = GL_FLOAT;
+};
+template <> struct deduce_gl_enum<int> {
+  constexpr static inline int value = GL_INT;
+};
+template <> struct deduce_gl_enum<unsigned int> {
+  constexpr static inline int value = GL_UNSIGNED_INT;
+};
+template <> struct deduce_gl_enum<char> {
+  constexpr static inline int value = GL_BYTE;
+};
+template <> struct deduce_gl_enum<unsigned char> {
+  constexpr static inline int value = GL_UNSIGNED_BYTE;
+};
+// NOLINTNEXTLINE
+template <> struct deduce_gl_enum<unsigned short> {
+  constexpr static inline int value = GL_UNSIGNED_SHORT;
+};
+// NOLINTNEXTLINE
+template <> struct deduce_gl_enum<short> {
+  constexpr static inline int value = GL_SHORT;
+};
+template <> struct deduce_gl_enum<double> {
+  constexpr static inline int value = GL_DOUBLE;
+};
+
+template <class T>
+constexpr static inline int deduce_gl_enum_v = deduce_gl_enum<T>::value;
+
+template <class T, class = void> struct is_valid_gl_type : std::false_type {};
+
+template <class T>
+struct is_valid_gl_type<
+    T, std::void_t<decltype(deduce_gl_enum<std::decay_t<T>>::value)>>
+    : std::true_type {};
+
+template <class T>
+constexpr static inline bool is_valid_gl_type_v = is_valid_gl_type<T>::value;
+} // namespace detail
+
+template <class T>
+inline void buffer_data(buffer_type type, memory_size size, T *ptr,
+                        data_hint dmode) noexcept {
+  static_assert(detail::is_valid_gl_type_v<T>,
+                "Input pointer type is incompatible with the OpenGL API");
+  glBufferData(static_cast<int>(type), size, ptr, static_cast<int>(dmode));
+}
+
+template <class T>
+inline void buffer_data(buffer_type type, element_count count, T *ptr,
+                        data_hint dmode) noexcept {
+  static_assert(detail::is_valid_gl_type_v<T>,
+                "Input pointer type is incompatible with the OpenGL API");
+  glBufferData(static_cast<int>(type), count.value * sizeof(T), ptr,
+               static_cast<int>(dmode));
+}
+
+template <class T, std::size_t N>
+// NOLINTNEXTLINE
+inline void buffer_data(buffer_type type, T (&ptr)[N],
+                        data_hint dmode) noexcept {
+  static_assert(detail::is_valid_gl_type_v<T>,
+                "Input pointer type is incompatible with the OpenGL API");
+  glBufferData(static_cast<int>(type), N * sizeof(T), ptr,
+               static_cast<int>(dmode));
+}
+
+struct index {
+  const unsigned int value;
+};
+
+template <std::size_t N> struct vec_t {
+  constexpr static inline std::size_t value = N;
+};
+
+namespace detail {
+template <class T> struct is_vec_dimension_type : std::false_type {};
+template <std::size_t N>
+struct is_vec_dimension_type<vec_t<N>> : std::true_type {};
+template <> struct is_vec_dimension_type<element_count> : std::true_type {};
+template <class T>
+constexpr static inline bool is_vec_dimension_type_v =
+    is_vec_dimension_type<T>::value;
+} // namespace detail
+
+template <std::size_t N> constexpr static inline vec_t<N> vec;
+
+struct stride {
+  unsigned int value;
+};
+struct offset {
+  unsigned int value;
+};
+
+template <typename T, class U,
+          std::enable_if_t<detail::is_vec_dimension_type_v<U>, int> = 0,
+          std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
+inline void vertex_attrib_pointer(index idx, U element_count,
+                                  stride s = stride{0},
+                                  offset o = offset{0}) noexcept {
+  static_assert(detail::is_valid_gl_type_v<T>,
+                "The selected type is not supported by OpenGL");
+  glVertexAttribPointer(
+      idx.value, element_count.value, detail::deduce_gl_enum_v<T>, GL_FALSE,
+      s.value * sizeof(T), reinterpret_cast<void *>(o.value * sizeof(T)));
+}
+
+template <typename T, class U,
+          std::enable_if_t<detail::is_vec_dimension_type_v<U>, int> = 0,
+          std::enable_if_t<std::is_integral_v<T>, int> = 0>
+inline void vertex_attrib_pointer(index idx, U element_count,
+                                  stride s = stride{0},
+                                  offset o = offset{0}) noexcept {
+  static_assert(detail::is_valid_gl_type_v<T>,
+                "The selected type is not supported by OpenGL");
+  glVertexAttribIPointer(idx.value, element_count.value,
+                         detail::deduce_gl_enum_v<T>, s.value * sizeof(T),
+                         reinterpret_cast<void *>(o.value * sizeof(T)));
+}
+
+enum class normalized {
+  yes = GL_TRUE,
+  no = GL_FALSE,
+};
+
+template <typename T, class U,
+          std::enable_if_t<detail::is_vec_dimension_type_v<U>, int> = 0,
+          std::enable_if_t<std::is_integral_v<T>, int> = 0>
+inline void vertex_attrib_pointer(index idx, U element_count, normalized n,
+                                  stride s = stride{0},
+                                  offset o = offset{0}) noexcept {
+  static_assert(detail::is_valid_gl_type_v<T>,
+                "The selected type is not supported by OpenGL");
+  glVertexAttribPointer(idx.value, element_count.value,
+                        detail::deduce_gl_enum_v<T>, static_cast<int>(n),
+                        s.value * sizeof(T),
+                        reinterpret_cast<void *>(o.value * sizeof(T)));
+}
+
+namespace detail {
+    template<class T, class = void> struct has_value_member : std::false_type {};
+    template<class T> struct has_value_member<T, std::void_t<decltype(std::declval<T>().value)>> : std::true_type {};
+
+    template<class T> constexpr static inline bool has_value_member_v = has_value_member<T>::value;
+
+    template<class T, std::enable_if_t<!has_value_member_v<T>, int> = 0>
+    auto value(T t) noexcept {
+        return t;
+    }
+    template<class T, std::enable_if_t<has_value_member_v<T>, int> = 0>
+    auto value(const T& t) noexcept {
+        return t.value;
+    }
+
+    template<typename ...Args> using acceptable_position_types = std::conjunction<std::disjunction<std::is_same<std::decay_t<Args>, position>, std::is_convertible<Args, unsigned int>>...>;
+} // namespace detail
+
+template <class... Args>
+inline auto enable_vertex_attrib_array(Args &&... is) noexcept -> 
+    std::void_t<decltype(std::enable_if_t<detail::acceptable_position_types<Args...>::value, int>{})> {
+  (glEnableVertexAttribArray(detail::value(is)), ...);
 }
 
 } // namespace dpsg::gl
