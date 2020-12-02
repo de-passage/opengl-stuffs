@@ -1,6 +1,8 @@
 #ifndef GUARD_DPSG_TEXTURE_HEADER
 #define GUARD_DPSG_TEXTURE_HEADER
 
+#include "opengl.hpp"
+
 #include "common.hpp"
 #include "load_shaders.hpp"
 #include "stb_image.h"
@@ -40,9 +42,11 @@ public:
     return _texture;
   }
   [[nodiscard]] inline stbi_uc *texture() noexcept { return _texture; }
-  [[nodiscard]] inline int width() const noexcept { return _width; }
-  [[nodiscard]] inline int height() const noexcept { return _height; }
-  [[nodiscard]] inline int channels() const noexcept { return _channels; }
+  [[nodiscard]] inline unsigned int width() const noexcept { return _width; }
+  [[nodiscard]] inline unsigned int height() const noexcept { return _height; }
+  [[nodiscard]] inline unsigned int channels() const noexcept {
+    return _channels;
+  }
   [[nodiscard]] static inline int pointer_type() noexcept {
     return GL_UNSIGNED_BYTE;
   }
@@ -62,36 +66,42 @@ class texture {
 
 public:
   template <class J> explicit texture(J &&i) noexcept {
-    glGenTextures(1, &_id);
-    assert(_id > 0);
+    gl::gen_texture(_id);
+    assert(_id.value > 0);
 
-    glBindTexture(GL_TEXTURE_2D, _id);
+    gl::bind_texture(gl::texture_target::t2d, _id);
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    gl::tex_parameter(gl::texture_target::t2d, gl::wrap_target::s,
+                      gl::wrap_mode::repeat);
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, i.width(), i.height(), 0, GL_RGB,
-                 i.pointer_type(), i.texture());
+    gl::tex_parameter(gl::texture_target::t2d, gl::wrap_target::t,
+                      gl::wrap_mode::repeat);
 
-    glGenerateMipmap(GL_TEXTURE_2D);
+    gl::tex_parameter(gl::texture_target::t2d, gl::min_filter::linear);
+    gl::tex_parameter(gl::texture_target::t2d, gl::mag_filter::linear);
+
+    gl::tex_image_2D(gl::texture_image_target::t2d, gl::internal_format{GL_RGB},
+                     gl::width{i.width()}, gl::height{i.height()},
+                     gl::image_format::rgb, i.texture());
+
+    gl::generate_mipmap(gl::texture_target::t2d);
   }
   texture() = default;
   texture(const texture &) = delete;
-  texture(texture &&txt) noexcept : _id(std::exchange(txt._id, 0)) {}
+  texture(texture &&txt) noexcept
+      : _id(std::exchange(txt._id, gl::texture_id{0})) {}
   texture &operator=(const texture &) = delete;
   texture &operator=(texture &&texture) noexcept {
-    _id = std::exchange(texture._id, 0);
+    _id = std::exchange(texture._id, gl::texture_id{0});
     return *this;
   }
-  ~texture() noexcept { glDeleteTextures(1, &_id); }
+  ~texture() noexcept { gl::delete_texture(_id); }
 
-  void bind() const noexcept { glBindTexture(GL_TEXTURE_2D, _id); }
-  unsigned int id() const noexcept { return _id; }
+  void bind() const noexcept { gl::bind_texture(gl::texture_target::t2d, _id); }
+  [[nodiscard]] gl::texture_id id() const noexcept { return _id; }
 
 private:
-  unsigned int _id{};
+  gl::texture_id _id{};
 };
 
 DPSG_LAZY_STR_WRAPPER_IMPL(texture_filename) // NOLINT

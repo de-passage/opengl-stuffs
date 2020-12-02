@@ -8,6 +8,26 @@
 
 namespace dpsg::gl {
 
+namespace detail {
+template <class T, class = void> struct has_value_member : std::false_type {};
+template <class T>
+struct has_value_member<T, std::void_t<decltype(std::declval<T>().value)>>
+    : std::true_type {};
+
+template <class T>
+constexpr static inline bool has_value_member_v = has_value_member<T>::value;
+
+template <class T, std::enable_if_t<!has_value_member_v<T>, int> = 0>
+auto value(T t) noexcept {
+  return t;
+}
+template <class T, std::enable_if_t<has_value_member_v<T>, int> = 0>
+auto value(const T &t) noexcept {
+  return t.value;
+}
+
+} // namespace detail
+
 enum class buffer_bit {
   color = GL_COLOR_BUFFER_BIT,
   depth = GL_DEPTH_BUFFER_BIT,
@@ -191,19 +211,19 @@ struct no_duplication<T, Args...>
     : std::bool_constant<!is_one_of_v<T, Args...> &&
                          no_duplication<Args...>::value> {};
 
-template <class T, class U, std::enable_if_t<!std::is_same_v<T, U>, int> = 0,
-          class... Args>
-inline float get_color([[maybe_unused]] U ignored, Args... args) noexcept {
-  return get_color<T>(args...);
-}
+template <class T, class U> inline auto get(U val) noexcept { return val; }
 
 template <class U, class T, std::enable_if_t<std::is_same_v<T, U>, int> = 0,
           class... Args>
-inline float get_color(T val, [[maybe_unused]] Args... ignored) noexcept {
-  return val.value;
+inline auto get(T val, [[maybe_unused]] Args... ignored) noexcept {
+  return value(val);
 }
 
-template <class T> float get_color(float val) noexcept { return val; }
+template <class T, class U, class V,
+          std::enable_if_t<!std::is_same_v<T, U>, int> = 0, class... Args>
+inline auto get([[maybe_unused]] U ignored, V next, Args... args) noexcept {
+  return get<T>(next, args...);
+}
 
 } // namespace detail
 
@@ -213,10 +233,8 @@ template <class... Args> inline void clear_color(Args &&... colors) noexcept {
                 "clear_color(...) only accept r, g, b and a inputs");
   static_assert(detail::no_duplication<Args...>::value,
                 "A color is duplicated");
-  glClearColor(detail::get_color<r>(colors..., 0.F),
-               detail::get_color<g>(colors..., 0.F),
-               detail::get_color<b>(colors..., 0.F),
-               detail::get_color<a>(colors..., 1.F));
+  glClearColor(detail::get<r>(colors..., 0.F), detail::get<g>(colors..., 0.F),
+               detail::get<b>(colors..., 0.F), detail::get<a>(colors..., 1.F));
 }
 
 struct memory_size {
@@ -362,23 +380,6 @@ inline void vertex_attrib_pointer(index idx, U element_count, normalized n,
 }
 
 namespace detail {
-template <class T, class = void> struct has_value_member : std::false_type {};
-template <class T>
-struct has_value_member<T, std::void_t<decltype(std::declval<T>().value)>>
-    : std::true_type {};
-
-template <class T>
-constexpr static inline bool has_value_member_v = has_value_member<T>::value;
-
-template <class T, std::enable_if_t<!has_value_member_v<T>, int> = 0>
-auto value(T t) noexcept {
-  return t;
-}
-template <class T, std::enable_if_t<has_value_member_v<T>, int> = 0>
-auto value(const T &t) noexcept {
-  return t.value;
-}
-
 template <typename... Args>
 using acceptable_index_types = std::conjunction<
     std::disjunction<std::is_same<std::decay_t<Args>, index>,
@@ -589,27 +590,377 @@ inline void compile_shader(const generic_shader_id &id) noexcept {
 
 static_assert(std::is_base_of<generic_shader_id, generic_shader_id>::value);
 
-template<class ...Args>
-inline void attach_shader(program_id program, Args&&... args) noexcept {
-  static_assert(std::conjunction_v<std::is_convertible<std::decay_t<Args>, generic_shader_id>...>, 
-      "All parameters to attach_shader after the program id must be shader ids");
+template <class... Args>
+inline void attach_shader(program_id program, Args &&... args) noexcept {
+  static_assert(
+      std::conjunction_v<
+          std::is_convertible<std::decay_t<Args>, generic_shader_id>...>,
+      "All parameters to attach_shader after the program id must be shader "
+      "ids");
   (glAttachShader(program.value, std::forward<Args>(args).value), ...);
 }
 
-inline void link_program(program_id id) noexcept {
-  glLinkProgram(id.value);
-}
+inline void link_program(program_id id) noexcept { glLinkProgram(id.value); }
 
-inline void use_program(program_id id) noexcept {
-  glUseProgram(id.value);
-}
+inline void use_program(program_id id) noexcept { glUseProgram(id.value); }
 
 inline void delete_program(program_id id) noexcept {
   glDeleteProgram(id.value);
 }
 
-inline void delete_shader(const generic_shader_id& id) noexcept {
+inline void delete_shader(const generic_shader_id &id) noexcept {
   glDeleteShader(id.value);
+}
+
+struct texture_id {
+  unsigned int value;
+};
+
+template <std::size_t N>
+// NOLINTNEXTLINE
+inline void gen_textures(texture_id (&buffer)[N]) noexcept {
+  glGenTextures(N, reinterpret_cast<unsigned int *>(buffer)); // NOLINT
+}
+
+inline void gen_textures(std::size_t count, texture_id *buffer) noexcept {
+  glGenTextures(count, reinterpret_cast<unsigned int *>(buffer)); // NOLINT
+}
+
+inline void gen_texture(texture_id &buffer) noexcept {
+  glGenTextures(1, reinterpret_cast<unsigned int *>(&buffer)); // NOLINT
+}
+
+[[nodiscard]] inline texture_id gen_texture() noexcept {
+  unsigned int id; // NOLINT
+  glGenTextures(1, &id);
+  return texture_id{id};
+}
+
+template <std::size_t N>
+// NOLINTNEXTLINE
+inline void delete_textures(const texture_id (&buffer)[N]) noexcept {
+  glDeleteTextures(N, reinterpret_cast<const unsigned int *>(buffer)); // NOLINT
+}
+
+inline void delete_textures(std::size_t count,
+                            const texture_id *buffer) noexcept {
+  glDeleteTextures(count,
+                   reinterpret_cast<const unsigned int *>(buffer)); // NOLINT
+}
+
+inline void delete_texture(const texture_id &id) noexcept {
+  glDeleteTextures(1,
+                   reinterpret_cast<const unsigned int *>(&id)); // NOLINT
+}
+
+enum class texture_target {
+  t1d = GL_TEXTURE_1D,
+  t2d = GL_TEXTURE_2D,
+  t3d = GL_TEXTURE_3D,
+  t1d_array = GL_TEXTURE_1D_ARRAY,
+  t2d_array = GL_TEXTURE_2D_ARRAY,
+  rectangle = GL_TEXTURE_RECTANGLE,
+  cube_map = GL_TEXTURE_CUBE_MAP,
+  // cube_map_array = GL_TEXTURE_CUBE_MAP_ARRAY,
+  buffer = GL_TEXTURE_BUFFER,
+  t2d_multisample = GL_TEXTURE_2D_MULTISAMPLE,
+  t2d_multisample_array = GL_TEXTURE_2D_MULTISAMPLE_ARRAY,
+};
+
+inline void bind_texture(texture_target t, texture_id id) noexcept {
+  glBindTexture(static_cast<int>(t), id.value);
+}
+
+inline void unbind_texture(texture_target t) noexcept {
+  glBindTexture(static_cast<int>(t), 0);
+}
+
+enum class texture_parameter_name {
+  // depth_stencil = GL_DEPTH_STENCIL_TEXTURE_MODE,
+  base_level = GL_TEXTURE_BASE_LEVEL,
+  compare_func = GL_TEXTURE_COMPARE_FUNC,
+  compare_mode = GL_TEXTURE_COMPARE_MODE,
+  lod_bias = GL_TEXTURE_LOD_BIAS,
+  min_filter = GL_TEXTURE_MIN_FILTER,
+  mag_filter = GL_TEXTURE_MAG_FILTER,
+  min_lod = GL_TEXTURE_MIN_LOD,
+  max_lod = GL_TEXTURE_MAX_LOD,
+  max_level = GL_TEXTURE_MAX_LEVEL,
+  swizzle_r = GL_TEXTURE_SWIZZLE_R,
+  swizzle_g = GL_TEXTURE_SWIZZLE_G,
+  swizzle_b = GL_TEXTURE_SWIZZLE_B,
+  swizzle_a = GL_TEXTURE_SWIZZLE_A,
+  wrap_s = GL_TEXTURE_WRAP_S,
+  wrap_t = GL_TEXTURE_WRAP_T,
+  wrap_r = GL_TEXTURE_WRAP_R,
+  border_color = GL_TEXTURE_BORDER_COLOR,
+  swizzle_rgba = GL_TEXTURE_SWIZZLE_RGBA,
+};
+
+enum class compare_function {
+  lequal = GL_LEQUAL,
+  gequal = GL_GEQUAL,
+  equal = GL_EQUAL,
+  less = GL_LESS,
+  greater = GL_GREATER,
+  notequal = GL_NOTEQUAL,
+  always = GL_ALWAYS,
+  never = GL_NEVER,
+};
+
+enum class compare_mode {
+  compare_ref_to_texture = GL_COMPARE_REF_TO_TEXTURE,
+  none = GL_NONE
+};
+
+enum class wrap_target {
+  s = GL_TEXTURE_WRAP_S,
+  t = GL_TEXTURE_WRAP_T,
+  r = GL_TEXTURE_WRAP_R,
+};
+
+enum class wrap_mode {
+  clamp_to_edge = GL_CLAMP_TO_EDGE,
+  clamp_to_border = GL_CLAMP_TO_BORDER,
+  mirrored_repeat = GL_MIRRORED_REPEAT,
+  repeat = GL_REPEAT,
+  // GL_MIRROR_CLAMP_TO_EDGE,
+};
+
+enum class swizzle_target {
+  r = GL_TEXTURE_SWIZZLE_R,
+  g = GL_TEXTURE_SWIZZLE_G,
+  b = GL_TEXTURE_SWIZZLE_B,
+  a = GL_TEXTURE_SWIZZLE_A,
+};
+
+enum class swizzle_mode {
+  red = GL_RED,
+  green = GL_GREEN,
+  blue = GL_BLUE,
+  alpha = GL_ALPHA,
+  zero = GL_ZERO,
+  one = GL_ONE
+};
+
+enum class min_filter {
+  nearest = GL_NEAREST,
+  linear = GL_LINEAR,
+  nearest_mipmap_nearest = GL_NEAREST_MIPMAP_NEAREST,
+  linear_mipmap_nearest = GL_LINEAR_MIPMAP_NEAREST,
+  nearest_mipmap_linear = GL_NEAREST_MIPMAP_LINEAR,
+  linear_mipmap_linear = GL_LINEAR_MIPMAP_LINEAR,
+};
+
+enum class mag_filter {
+  nearest = GL_NEAREST,
+  linear = GL_LINEAR,
+};
+
+enum class lod_parameter {
+  min = GL_TEXTURE_MAX_LOD,
+  max = GL_TEXTURE_MIN_LOD,
+  bias = GL_TEXTURE_LOD_BIAS,
+};
+
+enum class texture_level {
+  base = GL_TEXTURE_BASE_LEVEL,
+  max = GL_TEXTURE_MAX_LEVEL,
+};
+
+inline void tex_parameter(texture_target target, texture_parameter_name pname,
+                          float f) noexcept {
+  glTexParameterf(static_cast<int>(target), static_cast<int>(pname), f);
+}
+
+inline void tex_parameter(texture_target target, texture_parameter_name pname,
+                          int i) noexcept {
+  glTexParameteri(static_cast<int>(target), static_cast<int>(pname), i);
+}
+
+inline void tex_parameter(texture_target target, texture_parameter_name pname,
+                          const int *i) noexcept {
+  glTexParameteriv(static_cast<int>(target), static_cast<int>(pname), i);
+}
+
+inline void tex_parameter(texture_target target, texture_parameter_name pname,
+                          const float *i) noexcept {
+  glTexParameterfv(static_cast<int>(target), static_cast<int>(pname), i);
+}
+
+inline void tex_parameter(texture_target target, wrap_target wt,
+                          wrap_mode mode) noexcept {
+  glTexParameteri(static_cast<int>(target), static_cast<int>(wt),
+                  static_cast<int>(mode));
+}
+
+inline void tex_parameter(texture_target target, swizzle_target wt,
+                          swizzle_mode mode) noexcept {
+  glTexParameteri(static_cast<int>(target), static_cast<int>(wt),
+                  static_cast<int>(mode));
+}
+
+inline void tex_parameter(texture_target target, min_filter filter) noexcept {
+  glTexParameteri(static_cast<int>(target), GL_TEXTURE_MIN_FILTER,
+                  static_cast<int>(filter));
+}
+
+inline void tex_parameter(texture_target target, mag_filter filter) noexcept {
+  glTexParameteri(static_cast<int>(target), GL_TEXTURE_MAG_FILTER,
+                  static_cast<int>(filter));
+}
+
+inline void tex_parameter(texture_target target, compare_mode mode) noexcept {
+  glTexParameteri(static_cast<int>(target), GL_TEXTURE_COMPARE_MODE,
+                  static_cast<int>(mode));
+}
+
+inline void tex_parameter(texture_target target,
+                          compare_function mode) noexcept {
+  glTexParameteri(static_cast<int>(target), GL_TEXTURE_COMPARE_FUNC,
+                  static_cast<int>(mode));
+}
+
+inline void tex_parameter(texture_target target, lod_parameter param,
+                          float value) noexcept {
+  glTexParameterf(static_cast<int>(target), static_cast<int>(param), value);
+}
+
+inline void tex_parameter(texture_target target, texture_level level,
+                          int value) noexcept {
+  glTexParameteri(static_cast<int>(target), static_cast<int>(level), value);
+}
+
+inline void tex_parameter(texture_target target,
+                          const int (&colors)[4] // NOLINT
+                          ) noexcept {
+  glTexParameteriv(static_cast<int>(target), GL_TEXTURE_BORDER_COLOR,
+                   static_cast<const int *>(colors));
+}
+
+inline void tex_parameter(texture_target target,
+                          const float (&colors)[4] // NOLINT
+                          ) noexcept {
+  glTexParameterfv(static_cast<int>(target), GL_TEXTURE_BORDER_COLOR,
+                   static_cast<const float *>(colors));
+}
+
+inline void tex_parameter_I(texture_target target,
+                            const int (&colors)[4] // NOLINT
+                            ) noexcept {
+  glTexParameterIiv(static_cast<int>(target), GL_TEXTURE_BORDER_COLOR,
+                    static_cast<const int *>(colors));
+}
+
+inline void tex_parameter_I(texture_target target,
+                            const unsigned int (&colors)[4] // NOLINT
+                            ) noexcept {
+  glTexParameterIuiv(static_cast<int>(target), GL_TEXTURE_BORDER_COLOR,
+                     static_cast<const unsigned int *>(colors));
+}
+
+inline void generate_mipmap(texture_target target) noexcept {
+  glGenerateMipmap(static_cast<int>(target));
+}
+
+enum class texture_image_target {
+  t2d = GL_TEXTURE_2D,
+  proxy_2d = GL_PROXY_TEXTURE_2D,
+  array_1d = GL_TEXTURE_1D_ARRAY,
+  proxy_array_1d = GL_PROXY_TEXTURE_1D_ARRAY,
+  rectangle = GL_TEXTURE_RECTANGLE,
+  proxy_rectangle = GL_PROXY_TEXTURE_RECTANGLE,
+  cube_map_positive_x = GL_TEXTURE_CUBE_MAP_POSITIVE_X,
+  cube_map_negative_x = GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
+  cube_map_positive_y = GL_TEXTURE_CUBE_MAP_POSITIVE_Y,
+  cube_map_negative_y = GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
+  cube_map_positive_z = GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
+  cube_map_negative_z = GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
+  // proxy_cube_ma = GL_PROXY_TEXTURE_CUBE_MA,
+};
+
+struct mipmap_level {
+  unsigned int value;
+};
+
+struct width {
+  unsigned int value;
+};
+
+struct height {
+  unsigned int value;
+};
+
+struct internal_format {
+  int value;
+};
+
+enum class image_format {
+  red = GL_RED,
+  rg = GL_RG,
+  rgb = GL_RGB,
+  bgr = GL_BGR,
+  rgba = GL_RGBA,
+  bgra = GL_BGRA,
+  red_integer = GL_RED_INTEGER,
+  rg_integer = GL_RG_INTEGER,
+  rgb_integer = GL_RGB_INTEGER,
+  bgr_integer = GL_BGR_INTEGER,
+  rgba_integer = GL_RGBA_INTEGER,
+  bgra_integer = GL_BGRA_INTEGER,
+  stencil_index = GL_STENCIL_INDEX,
+  depth_component = GL_DEPTH_COMPONENT,
+  depth_stencil = GL_DEPTH_STENCIL,
+};
+
+namespace detail {
+struct pointer_placeholder {};
+template <class... Args> struct contains;
+template <class T, class U, class... Args>
+struct contains<T, U, Args...> : contains<T, Args...> {};
+template <class T, class... Args>
+struct contains<T, T, Args...> : std::true_type {};
+template <class T> struct contains<T> : std::false_type {};
+template <class T, class... Args>
+struct contains<pointer_placeholder, T *, Args...> : std::true_type {};
+
+template <class T, class... Args>
+constexpr static inline bool contains_v = contains<T, Args...>::value;
+
+template <class T, class... Args>
+inline T *get_data(T *data, Args... args) noexcept {
+  return data;
+}
+
+template <class T, std::enable_if_t<!std::is_pointer_v<T>, int> = 0,
+          class... Args>
+inline auto *get_data([[maybe_unused]] T unused, Args... args) noexcept {
+  return get_data(args...);
+}
+
+} // namespace detail
+
+template <class... Args>
+inline void tex_image_2D(texture_image_target target, Args... args) noexcept {
+  static_assert(detail::contains_v<width, Args...>,
+                "Parameter list must contain a width");
+  static_assert(detail::contains_v<height, Args...>,
+                "Parameter list must contain a height");
+  static_assert(detail::contains_v<detail::pointer_placeholder, Args...>,
+                "Parameter list must contain a data pointer");
+  static_assert(detail::contains_v<internal_format, Args...>,
+                "Parameter list must contain an internal format description");
+  static_assert(detail::contains_v<image_format, Args...>,
+                "Parameter list must contain a format description");
+
+  auto *data = detail::get_data(args...);
+  glTexImage2D(static_cast<int>(target), detail::get<mipmap_level>(args..., 0),
+               detail::get<internal_format>(args...),
+               detail::get<width>(args...), detail::get<height>(args...), 0,
+               static_cast<int>(detail::get<image_format>(args...)),
+               detail::deduce_gl_enum_v<
+                   std::remove_pointer_t<std::decay_t<decltype(data)>>>,
+               data);
 }
 
 } // namespace dpsg::gl
