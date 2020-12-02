@@ -7,7 +7,7 @@
 #include <utility>
 
 namespace dpsg {
-template<std::size_t N> using group = gl::vec_t<N>;
+template <std::size_t N> using group = gl::vec_t<N>;
 template <class... Ts> struct packed {};
 template <class... Ts> struct sequenced {};
 template <class T, class L> struct layout {};
@@ -53,14 +53,11 @@ private:
   static void
   set_attrib_pointer_impl([[maybe_unused]] std::index_sequence<Is...> indices) {
     // NOLINTNEXTLINE
-    (glVertexAttribPointer(
-         Is, detail::at_v<Is, Args...>,
-         gl::detail::deduce_gl_enum_v<value_type>, GL_FALSE,
-         count.value * sizeof(value_type),
-         reinterpret_cast<void *>(sizeof(value_type) *
-                                  detail::sum_to_v<Is, Args...>)),
+    (gl::vertex_attrib_pointer<value_type>(
+         gl::index{Is}, gl::element_count{detail::at_v<Is, Args...>},
+         gl::stride{count.value}, gl::offset{detail::sum_to_v<Is, Args...>}),
      ...);
-    (glEnableVertexAttribArray(Is), ...);
+    (gl::enable_vertex_attrib_array(Is), ...);
   }
 };
 } // namespace dpsg

@@ -104,11 +104,11 @@ inline void disable(capability cp, unsigned int i) noexcept {
 inline bool is_enabled(capability cp) noexcept {
   return glIsEnabled(static_cast<int>(cp)) == GL_TRUE;
 }
-struct position {
+struct index {
   unsigned int value;
 };
 
-inline bool is_enabled(capability cp, position index) noexcept {
+inline bool is_enabled(capability cp, index index) noexcept {
   return glIsEnabledi(static_cast<int>(cp), index.value) == GL_TRUE;
 }
 
@@ -150,7 +150,7 @@ struct element_count {
   const std::size_t value;
 };
 
-inline void draw_arrays(drawing_mode mode, position first,
+inline void draw_arrays(drawing_mode mode, index first,
                         element_count count) noexcept {
   glDrawArrays(static_cast<int>(mode), first.value, count.value);
 }
@@ -218,14 +218,6 @@ template <class... Args> inline void clear_color(Args &&... colors) noexcept {
                detail::get_color<b>(colors..., 0.F),
                detail::get_color<a>(colors..., 1.F));
 }
-
-struct buffer_id {
-  const unsigned int value;
-};
-
-struct vertex_array_id {
-  const unsigned int value;
-};
 
 struct memory_size {
   const std::size_t value;
@@ -301,10 +293,6 @@ inline void buffer_data(buffer_type type, T (&ptr)[N],
                static_cast<int>(dmode));
 }
 
-struct index {
-  const unsigned int value;
-};
-
 template <std::size_t N> struct vec_t {
   constexpr static inline std::size_t value = N;
 };
@@ -374,36 +362,153 @@ inline void vertex_attrib_pointer(index idx, U element_count, normalized n,
 }
 
 namespace detail {
-    template<class T, class = void> struct has_value_member : std::false_type {};
-    template<class T> struct has_value_member<T, std::void_t<decltype(std::declval<T>().value)>> : std::true_type {};
+template <class T, class = void> struct has_value_member : std::false_type {};
+template <class T>
+struct has_value_member<T, std::void_t<decltype(std::declval<T>().value)>>
+    : std::true_type {};
 
-    template<class T> constexpr static inline bool has_value_member_v = has_value_member<T>::value;
+template <class T>
+constexpr static inline bool has_value_member_v = has_value_member<T>::value;
 
-    template<class T, std::enable_if_t<!has_value_member_v<T>, int> = 0>
-    auto value(T t) noexcept {
-        return t;
-    }
-    template<class T, std::enable_if_t<has_value_member_v<T>, int> = 0>
-    auto value(const T& t) noexcept {
-        return t.value;
-    }
+template <class T, std::enable_if_t<!has_value_member_v<T>, int> = 0>
+auto value(T t) noexcept {
+  return t;
+}
+template <class T, std::enable_if_t<has_value_member_v<T>, int> = 0>
+auto value(const T &t) noexcept {
+  return t.value;
+}
 
-    template<typename ...Args> using acceptable_position_types = std::conjunction<std::disjunction<std::is_same<std::decay_t<Args>, position>, std::is_convertible<Args, unsigned int>>...>;
+template <typename... Args>
+using acceptable_index_types = std::conjunction<
+    std::disjunction<std::is_same<std::decay_t<Args>, index>,
+                     std::is_convertible<Args, unsigned int>>...>;
 } // namespace detail
 
 template <class... Args>
-inline auto enable_vertex_attrib_array(Args &&... is) noexcept -> 
-    std::void_t<decltype(std::enable_if_t<detail::acceptable_position_types<Args...>::value, int>{})> {
+inline auto
+enable_vertex_attrib_array(Args &&... is) noexcept -> std::void_t<decltype(
+    std::enable_if_t<detail::acceptable_index_types<Args...>::value, int>{})> {
   (glEnableVertexAttribArray(detail::value(is)), ...);
 }
 
-template<class T>
-inline void draw_elements(drawing_mode mode, element_count count, offset o = offset{0}) noexcept {
-    constexpr int gl_type = detail::deduce_gl_enum_v<T>;
-    static_assert(gl_type == GL_UNSIGNED_BYTE || gl_type == GL_UNSIGNED_SHORT || gl_type == GL_UNSIGNED_INT,
-        "Input type to element rendering must be an unsigned integral type");
-    glDrawElements(static_cast<int>(mode), count.value, gl_type, reinterpret_cast<void*>(o.value * sizeof(T)));
+template <class T>
+inline void draw_elements(drawing_mode mode, element_count count,
+                          offset o = offset{0}) noexcept {
+  constexpr int gl_type = detail::deduce_gl_enum_v<T>;
+  static_assert(
+      gl_type == GL_UNSIGNED_BYTE || gl_type == GL_UNSIGNED_SHORT ||
+          gl_type == GL_UNSIGNED_INT,
+      "Input type to element rendering must be an unsigned integral type");
+  glDrawElements(static_cast<int>(mode), count.value, gl_type,
+                 reinterpret_cast<void *>(o.value * sizeof(T)));
 }
+
+struct generic_buffer_id {
+  unsigned int value;
+};
+
+struct vertex_array_id {
+  unsigned int value;
+};
+
+template <buffer_type Type> struct buffer_id : generic_buffer_id {
+  constexpr static inline buffer_type buffer_type{Type};
+};
+
+inline void bind_buffer(buffer_type btype, generic_buffer_id id) noexcept {
+  glBindBuffer(static_cast<int>(btype), id.value);
+}
+
+template <buffer_type Type>
+inline void bind_buffer(buffer_id<Type> id) noexcept {
+  glBindBuffer(static_cast<int>(buffer_id<Type>::buffer_type), id.value);
+}
+
+inline void unbind_buffer(buffer_type type) noexcept {
+  glBindBuffer(static_cast<int>(type), 0);
+}
+
+template <std::size_t N>
+// NOLINTNEXTLINE
+inline void gen_buffers(generic_buffer_id (&buffer)[N]) noexcept {
+  glGenBuffers(N, reinterpret_cast<unsigned int *>(buffer)); // NOLINT
+}
+
+inline void gen_buffers(std::size_t count, generic_buffer_id *buffer) noexcept {
+  glGenBuffers(count, reinterpret_cast<unsigned int *>(buffer)); // NOLINT
+}
+
+inline void gen_buffer(generic_buffer_id &id) noexcept {
+  glGenBuffers(1, reinterpret_cast<unsigned int *>(&id)); // NOLINT
+}
+
+template <buffer_type Type> inline buffer_id<Type> gen_buffer() noexcept {
+  unsigned int i;
+  glGenBuffers(1, &i);
+  return buffer_id<Type>{i};
+}
+
+template <std::size_t N>
+// NOLINTNEXTLINE
+inline void delete_buffers(const generic_buffer_id (&buffer)[N]) noexcept {
+  glDeleteBuffers(N, reinterpret_cast<const unsigned int *>(buffer)); // NOLINT
+}
+
+inline void delete_buffers(std::size_t count,
+                           const generic_buffer_id *buffers) noexcept {
+  glDeleteBuffers(count,
+                  reinterpret_cast<const unsigned int *>(buffers)); // NOLINT
+}
+
+inline void delete_buffer(const generic_buffer_id &buffer) noexcept {
+  glDeleteBuffers(1, reinterpret_cast<const unsigned int *>(&buffer)); // NOLINT
+}
+
+template <std::size_t N>
+// NOLINTNEXTLINE
+inline void gen_vertex_arrays(vertex_array_id (&buffer)[N]) noexcept {
+  glGenVertexArrays(N, reinterpret_cast<unsigned int *>(buffer)); // NOLINT
+}
+
+inline void gen_vertex_arrays(std::size_t count,
+                              vertex_array_id *buffer) noexcept {
+  glGenVertexArrays(count, reinterpret_cast<unsigned int *>(buffer)); // NOLINT
+}
+
+inline void gen_vertex_array(vertex_array_id &buffer) noexcept {
+  glGenVertexArrays(1, reinterpret_cast<unsigned int *>(&buffer)); // NOLINT
+}
+
+inline vertex_array_id gen_vertex_array() noexcept {
+  unsigned int id; // NOLINT
+  glGenVertexArrays(1, &id);
+  return vertex_array_id{id};
+}
+
+template <std::size_t N>
+// NOLINTNEXTLINE
+inline void delete_vertex_arrays(const vertex_array_id (&buffer)[N]) noexcept {
+  glDeleteVertexArrays(
+      N, reinterpret_cast<const unsigned int *>(buffer)); // NOLINT
+}
+
+inline void delete_vertex_arrays(std::size_t count,
+                                 const vertex_array_id *buffer) noexcept {
+  glDeleteVertexArrays(
+      count, reinterpret_cast<const unsigned int *>(buffer)); // NOLINT
+}
+
+inline void delete_vertex_array(const vertex_array_id &id) noexcept {
+  glDeleteVertexArrays(1,
+                       reinterpret_cast<const unsigned int *>(&id)); // NOLINT
+}
+
+inline void bind_vertex_array(vertex_array_id id) noexcept {
+  glBindVertexArray(id.value);
+}
+
+inline void unbind_vertex_array() noexcept { glBindVertexArray(0); }
 
 } // namespace dpsg::gl
 

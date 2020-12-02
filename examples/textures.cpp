@@ -47,7 +47,7 @@ void texture_example(dpsg::window &wdw) {
                                    gl::stride{8}, gl::offset{3});
   gl::vertex_attrib_pointer<float>(gl::index{2}, gl::vec<2>, gl::stride{8},
                                    gl::offset{6});
-  gl::enable_vertex_attrib_array(0, gl::position{1}, 2);
+  gl::enable_vertex_attrib_array(0, gl::index{1}, 2);
 
   ebo.bind();
   gl::buffer_data(gl::buffer_type::element_array, indices,
@@ -64,7 +64,8 @@ void texture_example(dpsg::window &wdw) {
 
     wallText.bind();
     vao.bind();
-    gl::draw_elements<unsigned int>(gl::drawing_mode::triangles, gl::element_count{6});
+    gl::draw_elements<unsigned int>(gl::drawing_mode::triangles,
+                                    gl::element_count{6});
   });
 }
 

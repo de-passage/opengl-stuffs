@@ -10,9 +10,7 @@
 namespace dpsg {
 template <std::size_t N> class buffer_array_impl {
 public:
-  buffer_array_impl() noexcept {
-    glGenBuffers(N, static_cast<unsigned int *>(values));
-  }
+  buffer_array_impl() noexcept { gl::gen_buffers(values); }
   buffer_array_impl(const buffer_array_impl &) = delete;
   buffer_array_impl(buffer_array_impl &&a) noexcept {
     for (std::size_t i; i < N; ++i) {
@@ -28,33 +26,33 @@ public:
     return *this;
   }
   buffer_array_impl &operator=(const buffer_array_impl &) = delete;
-  ~buffer_array_impl() noexcept {
-    glDeleteBuffers(N, static_cast<unsigned int *>(values));
+  ~buffer_array_impl() noexcept { gl::delete_buffers(values); }
+
+  gl::generic_buffer_id operator[](std::size_t s) const noexcept {
+    return values[s];
   }
 
-  unsigned int operator[](std::size_t s) const noexcept { return values[s]; }
-
 protected:
-  unsigned int values[N]; // NOLINT
+  gl::generic_buffer_id values[N]; // NOLINT
 };
 
 template <std::size_t N> class buffer_array : public buffer_array_impl<N> {};
 
 class buffer : buffer_array_impl<1> {
 public:
-  explicit operator unsigned int() const noexcept { return values[0]; }
-  [[nodiscard]] unsigned int id() const noexcept { return values[0]; }
+  explicit operator unsigned int() const noexcept { return values[0].value; }
+  [[nodiscard]] gl::generic_buffer_id id() const noexcept { return values[0]; }
   void bind(gl::buffer_type bt) const {
-    glBindBuffer(static_cast<int>(bt), id());
+    gl::bind_buffer(bt, gl::generic_buffer_id{id()});
   }
   static void unbind(gl::buffer_type bt) {
-    glBindBuffer(static_cast<int>(bt), 0);
+    gl::bind_buffer(bt, gl::generic_buffer_id{0});
   }
   template <typename Type, std::size_t S>
+  // NOLINTNEXTLINE
   static void set_data(gl::buffer_type type, Type (&data)[S],
                        gl::data_hint hint) {
-    glBufferData(static_cast<int>(type), sizeof(Type) * S, data,
-                 static_cast<int>(hint));
+    gl::buffer_data(type, data, hint);
   }
 };
 
@@ -62,6 +60,7 @@ class vertex_buffer : buffer {
 public:
   void bind() const { buffer::bind(gl::buffer_type::array); }
   template <typename T, std::size_t S>
+  // NOLINTNEXTLINE
   void set_data(T (&data)[S],
                 gl::data_hint h = gl::data_hint::static_draw) const {
     buffer::set_data(gl::buffer_type::array, data, h);
@@ -76,6 +75,7 @@ class element_buffer : buffer {
 public:
   void bind() const { buffer::bind(gl::buffer_type::element_array); }
   template <typename T, std::size_t S>
+  // NOLINTNEXTLINE
   void set_data(T (&data)[S],
                 gl::data_hint h = gl::data_hint::static_draw) const {
     buffer::set_data(gl::buffer_type::element_array, data, h);
@@ -88,9 +88,7 @@ public:
 
 template <std::size_t N> class vertex_array_impl {
 public:
-  vertex_array_impl() noexcept {
-    glGenVertexArrays(N, static_cast<unsigned int *>(values));
-  }
+  vertex_array_impl() noexcept { gl::gen_vertex_arrays(values); }
   vertex_array_impl(const vertex_array_impl &) = delete;
   vertex_array_impl(vertex_array_impl &&a) noexcept {
     for (std::size_t i; i < N; ++i) {
@@ -108,24 +106,24 @@ public:
   }
 
   vertex_array_impl &operator=(const vertex_array_impl &) = delete;
-  ~vertex_array_impl() noexcept {
-    glDeleteVertexArrays(N, static_cast<unsigned int *>(values));
+  ~vertex_array_impl() noexcept { gl::delete_vertex_arrays(values); }
+
+  gl::vertex_array_id operator[](std::size_t s) const noexcept {
+    return values[s];
   }
 
-  unsigned int operator[](std::size_t s) const noexcept { return values[s]; }
-
 protected:
-  unsigned int values[N]; // NOLINT
+  gl::vertex_array_id values[N]; // NOLINT
 };
 
 template <std::size_t N> class vertex_array_n : public vertex_array_impl<N> {};
 
 class vertex_array : vertex_array_impl<1> {
 public:
-  explicit operator unsigned int() const noexcept { return values[0]; }
-  [[nodiscard]] unsigned int id() const noexcept { return values[0]; }
-  void bind() const { glBindVertexArray(id()); }
-  static void unbind() { glBindVertexArray(0); }
+  explicit operator unsigned int() const noexcept { return values[0].value; }
+  [[nodiscard]] gl::vertex_array_id id() const noexcept { return values[0]; }
+  void bind() const { gl::bind_vertex_array(id()); }
+  static void unbind() { gl::bind_vertex_array(gl::vertex_array_id{0}); }
 };
 
 } // namespace dpsg

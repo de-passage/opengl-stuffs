@@ -101,7 +101,7 @@ public:
       : base{layout, data} {}
 
   void draw_array(gl::drawing_mode mode = gl::drawing_mode::triangles,
-                  gl::position first = gl::position{0},
+                  gl::index first = gl::index{0},
                   gl::element_count count =
                       fixed_size_structured_buffer::element_count) const {
     assert(first.value + count.value <= element_count.value);
