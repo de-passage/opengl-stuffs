@@ -2,6 +2,7 @@
 #include "key_mapper.hpp"
 #include "load_shaders.hpp"
 #include "make_window.hpp"
+#include "opengl.hpp"
 #include "structured_buffers.hpp"
 #include "utils.hpp"
 
@@ -12,8 +13,8 @@ void moving_polygon(dpsg::window &wdw) {
   using namespace dpsg::input;
 
   key_mapper kmap;
+  wdw.set_key_callback(std::ref(kmap));
   kmap.on(key::escape, close);
-  wdw.set_key_callback(kmap);
 
   auto shader = load(vs_filename{"shaders/basic_with_color.vs"},
                      fs_filename{"shaders/basic.fs"});
@@ -33,9 +34,9 @@ void moving_polygon(dpsg::window &wdw) {
   glClearColor(0.2F, 0.3F, 0.3F, 1.0F);
 
   wdw.render_loop([&] {
-    glClear(GL_COLOR_BUFFER_BIT);
+    gl::clear(gl::buffer_bit::color);
 
-    b.draw_array(drawing_mode::triangle_strip);
+    b.draw_array(gl::drawing_mode::triangle_strip);
   });
 }
 

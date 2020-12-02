@@ -3,6 +3,8 @@
 
 #include "glad/glad.h"
 
+#include "opengl.hpp"
+
 #include <utility>
 
 namespace dpsg {
@@ -38,38 +40,19 @@ protected:
 
 template <std::size_t N> class buffer_array : public buffer_array_impl<N> {};
 
-enum class buffer_type {
-  array = GL_ARRAY_BUFFER,
-  copy_read = GL_COPY_READ_BUFFER,
-  copy_write = GL_COPY_WRITE_BUFFER,
-  element_array = GL_ELEMENT_ARRAY_BUFFER,
-  pixel_pack = GL_PIXEL_PACK_BUFFER,
-  pixel_unpack = GL_PIXEL_UNPACK_BUFFER,
-  texture = GL_TEXTURE_BUFFER,
-  transform_feedback = GL_TRANSFORM_FEEDBACK_BUFFER,
-  uniform = GL_UNIFORM_BUFFER
-};
-
-enum class data_hint {
-  static_draw = GL_STATIC_DRAW,
-  stream_draw = GL_STREAM_DRAW,
-  dynamic_draw = GL_DYNAMIC_DRAW,
-  static_copy = GL_STATIC_COPY,
-  stream_copy = GL_STREAM_COPY,
-  dynamic_copy = GL_DYNAMIC_COPY,
-  static_read = GL_STATIC_READ,
-  stream_read = GL_STREAM_READ,
-  dynamic_read = GL_DYNAMIC_READ,
-};
-
 class buffer : buffer_array_impl<1> {
 public:
   explicit operator unsigned int() const noexcept { return values[0]; }
   [[nodiscard]] unsigned int id() const noexcept { return values[0]; }
-  void bind(buffer_type bt) const { glBindBuffer(static_cast<int>(bt), id()); }
-  static void unbind(buffer_type bt) { glBindBuffer(static_cast<int>(bt), 0); }
+  void bind(gl::buffer_type bt) const {
+    glBindBuffer(static_cast<int>(bt), id());
+  }
+  static void unbind(gl::buffer_type bt) {
+    glBindBuffer(static_cast<int>(bt), 0);
+  }
   template <typename Type, std::size_t S>
-  static void set_data(buffer_type type, Type (&data)[S], data_hint hint) {
+  static void set_data(gl::buffer_type type, Type (&data)[S],
+                       gl::data_hint hint) {
     glBufferData(static_cast<int>(type), sizeof(Type) * S, data,
                  static_cast<int>(hint));
   }
@@ -77,10 +60,11 @@ public:
 
 class vertex_buffer : buffer {
 public:
-  void bind() const { buffer::bind(buffer_type::array); }
+  void bind() const { buffer::bind(gl::buffer_type::array); }
   template <typename T, std::size_t S>
-  void set_data(T (&data)[S], data_hint h = data_hint::static_draw) const {
-    buffer::set_data(buffer_type::array, data, h);
+  void set_data(T (&data)[S],
+                gl::data_hint h = gl::data_hint::static_draw) const {
+    buffer::set_data(gl::buffer_type::array, data, h);
   }
 
   using buffer::id;
@@ -90,10 +74,11 @@ public:
 
 class element_buffer : buffer {
 public:
-  void bind() const { buffer::bind(buffer_type::element_array); }
+  void bind() const { buffer::bind(gl::buffer_type::element_array); }
   template <typename T, std::size_t S>
-  void set_data(T (&data)[S], data_hint h = data_hint::static_draw) const {
-    buffer::set_data(buffer_type::element_array, data, h);
+  void set_data(T (&data)[S],
+                gl::data_hint h = gl::data_hint::static_draw) const {
+    buffer::set_data(gl::buffer_type::element_array, data, h);
   }
 
   using buffer::id;

@@ -100,12 +100,12 @@ public:
   fixed_size_structured_buffer([[maybe_unused]] L layout, Input (&data)[M])
       : base{layout, data} {}
 
-  void draw_array(drawing_mode mode = drawing_mode::triangles,
+  void draw_array(gl::drawing_mode mode = gl::drawing_mode::triangles,
                   std::size_t first = 0,
                   std::size_t count = element_count) const {
     assert(first + count <= element_count);
     base::get_vertex_array().bind();
-    glDrawArrays(static_cast<int>(mode), first, element_count);
+    gl::draw_arrays(mode, first, element_count);
   }
 };
 

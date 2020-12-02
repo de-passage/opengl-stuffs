@@ -49,7 +49,7 @@ template <class F> dpsg::ExecutionStatus make_window(F f) {
   });
 }
 
-template <class F> int windowed(F &&func) {
+template <class F> int windowed(F &&func) noexcept {
   using namespace dpsg;
 
   ExecutionStatus r = ExecutionStatus::Failure;
