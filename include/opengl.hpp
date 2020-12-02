@@ -510,6 +510,108 @@ inline void bind_vertex_array(vertex_array_id id) noexcept {
 
 inline void unbind_vertex_array() noexcept { glBindVertexArray(0); }
 
+struct program_id {
+  unsigned int value;
+};
+
+[[nodiscard]] inline program_id create_program() noexcept {
+  return program_id{glCreateProgram()};
+}
+
+struct uniform_location {
+  int value;
+  [[nodiscard]] bool has_value() const noexcept { return value != -1; }
+};
+
+inline uniform_location get_uniform_location(program_id id,
+                                             const char *name) noexcept {
+  return uniform_location{glGetUniformLocation(id.value, name)};
+}
+
+enum class shader_type {
+  // compute = GL_COMPUTE_SHADER,
+  vertex = GL_VERTEX_SHADER,
+  // tess_control = GL_TESS_CONTROL_SHADER,
+  // tess_evaluation = GL_TESS_EVALUATION_SHADER,
+  geometry = GL_GEOMETRY_SHADER,
+  fragment = GL_FRAGMENT_SHADER
+};
+
+struct generic_shader_id {
+  unsigned int value;
+};
+
+template <shader_type Type> struct shader_id : generic_shader_id {};
+
+template <shader_type Type>
+[[nodiscard]] inline shader_id<Type> create_shader() noexcept {
+  return shader_id<Type>{{glCreateShader(static_cast<unsigned int>(Type))}};
+}
+
+[[nodiscard]] inline generic_shader_id
+create_shader(shader_type type) noexcept {
+  return generic_shader_id{glCreateShader(static_cast<unsigned int>(type))};
+}
+
+inline void shader_source(const generic_shader_id &id, std::size_t count,
+                          const char **string, int *lengths) noexcept {
+  glShaderSource(id.value, count, string, lengths);
+}
+
+template <std::size_t N>
+// NOLINTNEXTLINE
+inline void shader_source(const generic_shader_id &id, const char *(&string)[N],
+                          int (&lengths)[N]) noexcept { // NOLINT
+  shader_source(id, N, static_cast<const char **>(string),
+                static_cast<int *>(lengths));
+}
+
+inline void shader_source(const generic_shader_id &id,
+                          const char *string) noexcept {
+  shader_source(id, 1, &string, nullptr);
+}
+
+inline void shader_source(const generic_shader_id &id, const char *string,
+                          int length) noexcept {
+  shader_source(id, 1, &string, &length);
+}
+
+template <std::size_t N>
+inline void shader_source(const generic_shader_id &id,
+                          const char (&string)[N] // NOLINT
+                          ) noexcept {
+  shader_source(id, static_cast<const char *>(string), N);
+}
+
+inline void compile_shader(const generic_shader_id &id) noexcept {
+  glCompileShader(id.value);
+}
+
+static_assert(std::is_base_of<generic_shader_id, generic_shader_id>::value);
+
+template<class ...Args>
+inline void attach_shader(program_id program, Args&&... args) noexcept {
+  static_assert(std::conjunction_v<std::is_convertible<std::decay_t<Args>, generic_shader_id>...>, 
+      "All parameters to attach_shader after the program id must be shader ids");
+  (glAttachShader(program.value, std::forward<Args>(args).value), ...);
+}
+
+inline void link_program(program_id id) noexcept {
+  glLinkProgram(id.value);
+}
+
+inline void use_program(program_id id) noexcept {
+  glUseProgram(id.value);
+}
+
+inline void delete_program(program_id id) noexcept {
+  glDeleteProgram(id.value);
+}
+
+inline void delete_shader(const generic_shader_id& id) noexcept {
+  glDeleteShader(id.value);
+}
+
 } // namespace dpsg::gl
 
 #endif
