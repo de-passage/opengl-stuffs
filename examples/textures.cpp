@@ -1,4 +1,5 @@
 #include "make_window.hpp"
+#include "opengl.hpp"
 #include "utils.hpp"
 
 #include "buffers.hpp"
@@ -22,10 +23,10 @@ void texture_example(dpsg::window &wdw) {
 
   float vertices[] = {
       // positions        // colors         // texture coords
-      0.5f,  0.5f,  0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, // top right
-      0.5f,  -0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, // bottom right
-      -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, // bottom left
-      -0.5f, 0.5f,  0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f  // top left
+      0.5F,  0.5F,  0.0F, 1.0F, 0.0F, 0.0F, 1.0F, 1.0F, // top right NOLINT
+      0.5F,  -0.5F, 0.0F, 0.0F, 1.0F, 0.0F, 1.0F, 0.0F, // bottom right NOLINT
+      -0.5F, -0.5F, 0.0F, 0.0F, 0.0F, 1.0F, 0.0F, 0.0F, // bottom left NOLINT
+      -0.5F, 0.5F,  0.0F, 1.0F, 1.0F, 0.0F, 0.0F, 1.0F  // top left NOLINT
   };
 
   unsigned int indices[] = {
@@ -54,13 +55,13 @@ void texture_example(dpsg::window &wdw) {
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices,
                GL_STATIC_DRAW);
 
-  glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+  gl::clear_color(gl::r{0.2F}, gl::g{0.3F}, gl::b{0.3F});
   prog.use();
   prog.uniform_location<int>("ourTexture").value().bind(0);
   wdw.render_loop([&] {
     // render
     // ------
-    glClear(GL_COLOR_BUFFER_BIT);
+    gl::clear(gl::buffer_bit::color);
     glActiveTexture(GL_TEXTURE0);
 
     wallText.bind();

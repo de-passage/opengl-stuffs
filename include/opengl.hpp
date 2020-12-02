@@ -3,6 +3,9 @@
 
 #include "glad/glad.h"
 
+#include "meta/is_one_of.hpp"
+#include <type_traits>
+
 namespace dpsg::gl {
 
 enum class buffer_bit {
@@ -143,6 +146,70 @@ enum class data_hint {
 inline void draw_arrays(drawing_mode mode, unsigned int first,
                         unsigned int element_count) noexcept {
   glDrawArrays(static_cast<int>(mode), first, element_count);
+}
+
+struct color {
+  float r = 0.F;
+  float g = 0.F;
+  float b = 0.F;
+  float a = 1.F;
+};
+
+struct r {
+  float value;
+};
+
+struct g {
+  float value;
+};
+
+struct b {
+  float value;
+};
+
+struct a {
+  float value;
+};
+
+inline void clear_color(color c) noexcept { glClearColor(c.r, c.g, c.b, c.a); }
+
+namespace detail {
+template <class T>
+struct valid_colors : std::bool_constant<is_one_of_v<T, r, g, b, a>> {};
+
+template <class... Args> struct no_duplication;
+template <> struct no_duplication<> : std::true_type {};
+template <class T, class... Args>
+struct no_duplication<T, Args...>
+    : std::bool_constant<!is_one_of_v<T, Args...> &&
+                         no_duplication<Args...>::value> {};
+
+template <class T, class U, std::enable_if_t<!std::is_same_v<T, U>, int> = 0,
+          class... Args>
+float get_color([[maybe_unused]] U ignored, Args... args) noexcept {
+  return get_color<T>(args...);
+}
+
+template <class U, class T, std::enable_if_t<std::is_same_v<T, U>, int> = 0,
+          class... Args>
+float get_color(T val, [[maybe_unused]] Args... ignored) noexcept {
+  return val.value;
+}
+
+template <class T> float get_color(float val) noexcept { return val; }
+
+} // namespace detail
+
+template <class... Args> inline void clear_color(Args &&... colors) noexcept {
+  static_assert(sizeof...(Args) <= 4, "Too many components");
+  static_assert((detail::valid_colors<Args>::value && ...),
+                "clear_color(...) only accept r, g, b and a inputs");
+  static_assert(detail::no_duplication<Args...>::value,
+                "A color is duplicated");
+  glClearColor(detail::get_color<r>(colors..., 0.F),
+               detail::get_color<g>(colors..., 0.F),
+               detail::get_color<b>(colors..., 0.F),
+               detail::get_color<a>(colors..., 1.F));
 }
 
 } // namespace dpsg::gl

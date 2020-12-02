@@ -31,7 +31,7 @@ void moving_polygon(dpsg::window &wdw) {
   fixed_size_structured_buffer b(packed_layout{}, vertices);
 
   shader.use();
-  glClearColor(0.2F, 0.3F, 0.3F, 1.0F);
+  gl::clear_color(gl::g{0.3F}, gl::r{0.2F}, gl::b{0.3F});
 
   wdw.render_loop([&] {
     gl::clear(gl::buffer_bit::color);

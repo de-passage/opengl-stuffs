@@ -4,7 +4,9 @@
 #include "glad/glad.h"
 
 #include "c_str_wrapper.hpp"
+#include "meta/is_one_of.hpp"
 #include "texture.hpp"
+
 
 #include <optional>
 #include <stdexcept>
@@ -98,16 +100,8 @@ private:
   c_str_wrapper _what;
 };
 
-namespace detail {
-template <class T, class... Args>
-using is_one_of = std::disjunction<std::is_same<T, Args>...>;
-template <class T, class... Args>
-constexpr static inline bool is_one_of_v = is_one_of<T, Args...>::value;
-
-} // namespace detail
-
 template <std::size_t N, class T> struct vec {
-  static_assert(detail::is_one_of_v<T, float, int, unsigned int>,
+  static_assert(is_one_of_v<T, float, int, unsigned int>,
                 "invalid type in opengl vec specification");
   static_assert(N > 1 && N <= 4, "invalid vec size");
 };
