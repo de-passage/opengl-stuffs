@@ -7,7 +7,7 @@
 #include <utility>
 
 namespace dpsg {
-template <std::size_t N> using group = gl::vec_t<N>;
+template <std::size_t N> using group = gl::vec_t<N, void>;
 template <class... Ts> struct packed {};
 template <class... Ts> struct sequenced {};
 template <class T, class L> struct layout {};

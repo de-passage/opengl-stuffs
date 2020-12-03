@@ -4,6 +4,7 @@
 #include "opengl.hpp"
 
 #include "c_str_wrapper.hpp"
+#include "meta/first_of.hpp"
 #include "meta/is_one_of.hpp"
 
 #include <optional>
@@ -100,12 +101,6 @@ private:
   c_str_wrapper _what;
 };
 
-template <std::size_t N, class T> struct vec {
-  static_assert(is_one_of_v<T, float, int, unsigned int>,
-                "invalid type in opengl vec specification");
-  static_assert(N > 1 && N <= 4, "invalid vec size");
-};
-
 class program {
 public:
   explicit program(gl::program_id i) noexcept : id{i} {}
@@ -140,51 +135,44 @@ public:
   void use() const noexcept { gl::use_program(id); }
 
 private:
-  template <class B, class T> struct bind_impl;
-  template <class B> struct bind_impl<B, int> {
-    void bind(int i1) const {
-      glUniform1i(static_cast<const B *>(this)->id().value, i1);
+  template <class B, class... Ts> struct bind_impl {
+    template <
+        class... Us,
+        std::enable_if_t<
+            std::conjunction_v<std::is_same<Ts, std::decay_t<Us>>...>, int> = 0>
+    void bind(Us &&... args) const {
+      gl::uniform(static_cast<const B *>(this)->id(),
+                  std::forward<Ts>(args)...);
     }
   };
 
-  template <class B> struct bind_impl<B, float> {
-    void bind(float f1) const {
-      glUniform1f(static_cast<const B *>(this)->id().value, f1);
-    }
+  template <template <class> class U, typename T> struct make_bind_impl {
+    using type = bind_impl<U<T>, T>;
   };
 
-  template <class B> struct bind_impl<B, vec<2, float>> {
-    void bind(float f1, float f2) const {
-      glUniform2f(static_cast<const B *>(this)->id().value, f1, f2);
-    }
+  template <class B, std::size_t N, typename... Ts> struct repeat_param {
+    using type =
+        typename repeat_param<B, N - 1, first_of_t<Ts...>, Ts...>::type;
   };
 
-  template <class B> struct bind_impl<B, vec<3, float>> {
-    void bind(float f1, float f2, float f3) const {
-      glUniform2f(static_cast<const B *>(this)->id().value, f1, f2, f3);
-    }
+  template <class B, typename... Ts> struct repeat_param<B, 0, Ts...> {
+    using type = bind_impl<B, Ts...>;
   };
 
-  template <class B> struct bind_impl<B, vec<4, float>> {
-    void bind(float f1, float f2, float f3, float f4) const {
-      glUniform4f(static_cast<const B *>(this)->id().value, f1, f2, f3, f4);
-    }
-  };
-
-  template <class B> struct bind_impl<B, texture> {
-    void bind(const texture &txt) const {
-      glUniform1i(static_cast<const B *>(this)->id().value, txt.id());
-    }
+  template <template <class> class U, std::size_t N, typename T>
+  struct make_bind_impl<U, gl::vec_t<N, T>> {
+    using type = typename repeat_param<U<gl::vec_t<N, T>>, N - 1, T>::type;
   };
 
 public:
-  template <class T> class uniform : bind_impl<uniform<T>, T> {
+  template <class T> class uniform : make_bind_impl<uniform, T>::type {
+    using base = typename make_bind_impl<uniform, T>::type;
     gl::uniform_location _id;
     explicit uniform(gl::uniform_location i) : _id{i} {}
     friend class program;
 
   public:
-    using bind_impl<uniform<T>, T>::bind;
+    using base::bind;
     [[nodiscard]] gl::uniform_location id() const { return _id; }
   };
 

@@ -22,7 +22,7 @@ void moving_polygon(dpsg::window &wdw, key_mapper &kmap) {
   fixed_size_structured_buffer b(packed_layout{}, vertices);
 
   auto offset_uniform =
-      shader.uniform_location<vec<2, float>>("xyOffset").value();
+      shader.uniform_location<gl::vec_t<2, float>>("xyOffset").value();
   float y_offset{0};
   float x_offset{0};
   const auto move = [&](float &f) {

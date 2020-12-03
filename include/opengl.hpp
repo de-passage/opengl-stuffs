@@ -8,6 +8,18 @@
 
 namespace dpsg::gl {
 
+using float_t = GLfloat;
+using int_t = GLint;
+using byte_t = GLbyte;
+using short_t = GLshort;
+using double_t = GLdouble;
+using ubyte_t = GLubyte;
+using enum_t = GLenum;
+using ushort_t = GLushort;
+using uint_t = GLuint;
+using size_t = GLsizei;
+using bool_t = GLboolean;
+
 namespace detail {
 template <class T, class = void> struct has_value_member : std::false_type {};
 template <class T>
@@ -106,30 +118,35 @@ enum class capability {
   program_point_size = GL_PROGRAM_POINT_SIZE,
 };
 
-inline void enable(capability cp) noexcept { glEnable(static_cast<int>(cp)); }
+struct index {
+  uint_t value;
+};
+
+inline void enable(capability cp) noexcept {
+  glEnable(static_cast<enum_t>(cp));
+}
 template <class... Args> inline void enable(Args &&... args) noexcept {
   (enable(std::forward<Args>(args)), ...);
 }
 
-inline void enable(capability cp, unsigned int index) noexcept {
-  glEnablei(static_cast<int>(cp), index);
+inline void enable(capability cp, index index) noexcept {
+  glEnablei(static_cast<enum_t>(cp), index.value);
 }
 
-inline void disable(capability cp) noexcept { glDisable(static_cast<int>(cp)); }
+inline void disable(capability cp) noexcept {
+  glDisable(static_cast<enum_t>(cp));
+}
 
-inline void disable(capability cp, unsigned int i) noexcept {
-  glDisablei(static_cast<int>(cp), i);
+inline void disable(capability cp, index i) noexcept {
+  glDisablei(static_cast<enum_t>(cp), i.value);
 }
 
 inline bool is_enabled(capability cp) noexcept {
-  return glIsEnabled(static_cast<int>(cp)) == GL_TRUE;
+  return glIsEnabled(static_cast<enum_t>(cp)) == GL_TRUE;
 }
-struct index {
-  unsigned int value;
-};
 
 inline bool is_enabled(capability cp, index index) noexcept {
-  return glIsEnabledi(static_cast<int>(cp), index.value) == GL_TRUE;
+  return glIsEnabledi(static_cast<enum_t>(cp), index.value) == GL_TRUE;
 }
 
 enum class cull_mode {
@@ -139,7 +156,7 @@ enum class cull_mode {
 };
 
 inline void cull_face(cull_mode cm) noexcept {
-  glCullFace(static_cast<int>(cm));
+  glCullFace(static_cast<enum_t>(cm));
 }
 
 enum class buffer_type {
@@ -167,35 +184,35 @@ enum class data_hint {
 };
 
 struct element_count {
-  const std::size_t value;
+  size_t value;
 };
 
 inline void draw_arrays(drawing_mode mode, index first,
                         element_count count) noexcept {
-  glDrawArrays(static_cast<int>(mode), first.value, count.value);
+  glDrawArrays(static_cast<enum_t>(mode), first.value, count.value);
 }
 
 struct color {
-  float r = 0.F;
-  float g = 0.F;
-  float b = 0.F;
-  float a = 1.F;
+  float_t r = 0.F;
+  float_t g = 0.F;
+  float_t b = 0.F;
+  float_t a = 1.F;
 };
 
 struct r {
-  float value;
+  float_t value;
 };
 
 struct g {
-  float value;
+  float_t value;
 };
 
 struct b {
-  float value;
+  float_t value;
 };
 
 struct a {
-  float value;
+  float_t value;
 };
 
 inline void clear_color(color c) noexcept { glClearColor(c.r, c.g, c.b, c.a); }
@@ -238,35 +255,37 @@ template <class... Args> inline void clear_color(Args &&... colors) noexcept {
 }
 
 struct memory_size {
-  const std::size_t value;
+  size_t value;
 };
 
 namespace detail {
-template <class T> struct deduce_gl_enum;
-template <> struct deduce_gl_enum<float> {
-  constexpr static inline int value = GL_FLOAT;
+
+template <class T, class = void> struct deduce_gl_enum;
+template <> struct deduce_gl_enum<float_t> {
+  constexpr static inline enum_t value = GL_FLOAT;
 };
-template <> struct deduce_gl_enum<int> {
-  constexpr static inline int value = GL_INT;
+template <> struct deduce_gl_enum<int_t> {
+  constexpr static inline enum_t value = GL_INT;
 };
-template <> struct deduce_gl_enum<unsigned int> {
-  constexpr static inline int value = GL_UNSIGNED_INT;
+template <> struct deduce_gl_enum<uint_t> {
+  constexpr static inline enum_t value = GL_UNSIGNED_INT;
 };
-template <> struct deduce_gl_enum<char> {
-  constexpr static inline int value = GL_BYTE;
+template <> struct deduce_gl_enum<byte_t> {
+  constexpr static inline enum_t value = GL_BYTE;
 };
-template <> struct deduce_gl_enum<unsigned char> {
-  constexpr static inline int value = GL_UNSIGNED_BYTE;
+template <> struct deduce_gl_enum<ubyte_t> {
+  constexpr static inline enum_t value = GL_UNSIGNED_BYTE;
 };
+
 // NOLINTNEXTLINE
-template <> struct deduce_gl_enum<unsigned short> {
+template <> struct deduce_gl_enum<ushort_t> {
   constexpr static inline int value = GL_UNSIGNED_SHORT;
 };
 // NOLINTNEXTLINE
-template <> struct deduce_gl_enum<short> {
+template <> struct deduce_gl_enum<short_t> {
   constexpr static inline int value = GL_SHORT;
 };
-template <> struct deduce_gl_enum<double> {
+template <> struct deduce_gl_enum<double_t> {
   constexpr static inline int value = GL_DOUBLE;
 };
 
@@ -311,21 +330,23 @@ inline void buffer_data(buffer_type type, T (&ptr)[N],
                static_cast<int>(dmode));
 }
 
-template <std::size_t N> struct vec_t {
+template <std::size_t N, typename T> struct vec_t {
   constexpr static inline std::size_t value = N;
+  static_assert(N > 1 && N <= 4, "invalid vec size");
 };
 
 namespace detail {
 template <class T> struct is_vec_dimension_type : std::false_type {};
-template <std::size_t N>
-struct is_vec_dimension_type<vec_t<N>> : std::true_type {};
+template <std::size_t N, typename T>
+struct is_vec_dimension_type<vec_t<N, T>> : std::true_type {};
 template <> struct is_vec_dimension_type<element_count> : std::true_type {};
 template <class T>
 constexpr static inline bool is_vec_dimension_type_v =
     is_vec_dimension_type<T>::value;
 } // namespace detail
 
-template <std::size_t N> constexpr static inline vec_t<N> vec;
+template <std::size_t N, typename T = void>
+constexpr static inline vec_t<N, T> vec;
 
 struct stride {
   unsigned int value;
@@ -1125,7 +1146,7 @@ enum class texture_name {
 };
 
 inline void active_texture(texture_name name) noexcept {
-  glActiveTexture(static_cast<int>(name));
+  glActiveTexture(static_cast<enum_t>(name));
 }
 
 enum class face_mode {
@@ -1134,7 +1155,61 @@ enum class face_mode {
 };
 
 inline void front_face(face_mode mode) noexcept {
-  glFrontFace(static_cast<int>(mode));
+  glFrontFace(static_cast<enum_t>(mode));
+}
+
+inline void uniform(uniform_location loc, float_t f) noexcept {
+  glUniform1f(loc.value, f);
+}
+
+inline void uniform(uniform_location loc, int_t i) noexcept {
+  glUniform1i(loc.value, i);
+}
+
+inline void uniform(uniform_location loc, uint_t u) noexcept {
+  glUniform1ui(loc.value, u);
+}
+
+inline void uniform(uniform_location loc, float_t f1, float_t f2) noexcept {
+  glUniform2f(loc.value, f1, f2);
+}
+
+inline void uniform(uniform_location loc, int_t i1, int_t i2) noexcept {
+  glUniform2i(loc.value, i1, i2);
+}
+
+inline void uniform(uniform_location loc, uint_t u1, uint_t u2) noexcept {
+  glUniform2ui(loc.value, u1, u2);
+}
+
+inline void uniform(uniform_location loc, float_t f1, float_t f2,
+                    float_t f3) noexcept {
+  glUniform3f(loc.value, f1, f2, f3);
+}
+
+inline void uniform(uniform_location loc, int_t i1, int_t i2,
+                    int_t i3) noexcept {
+  glUniform3i(loc.value, i1, i2, i3);
+}
+
+inline void uniform(uniform_location loc, uint_t u1, uint_t u2,
+                    uint_t u3) noexcept {
+  glUniform3ui(loc.value, u1, u2, u3);
+}
+
+inline void uniform(uniform_location loc, float_t f1, float_t f2, float_t f3,
+                    float_t f4) noexcept {
+  glUniform4f(loc.value, f1, f2, f3, f4);
+}
+
+inline void uniform(uniform_location loc, int_t i1, int_t i2, int_t i3,
+                    int_t i4) noexcept {
+  glUniform4i(loc.value, i1, i2, i3, i4);
+}
+
+inline void uniform(uniform_location loc, uint_t u1, uint_t u2, uint_t u3,
+                    uint_t u4) noexcept {
+  glUniform4ui(loc.value, u1, u2, u3, u4);
 }
 
 } // namespace dpsg::gl
