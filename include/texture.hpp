@@ -14,22 +14,22 @@ public:
     gl::gen_texture(_id);
     assert(_id.value > 0);
 
-    gl::bind_texture(gl::texture_target::t2d, _id);
+    gl::bind_texture(gl::texture_target::_2d, _id);
 
-    gl::tex_parameter(gl::texture_target::t2d, gl::wrap_target::s,
+    gl::tex_parameter(gl::texture_target::_2d, gl::wrap_target::s,
                       gl::wrap_mode::repeat);
 
-    gl::tex_parameter(gl::texture_target::t2d, gl::wrap_target::t,
+    gl::tex_parameter(gl::texture_target::_2d, gl::wrap_target::t,
                       gl::wrap_mode::repeat);
 
-    gl::tex_parameter(gl::texture_target::t2d, gl::min_filter::linear);
-    gl::tex_parameter(gl::texture_target::t2d, gl::mag_filter::linear);
+    gl::tex_parameter(gl::texture_target::_2d, gl::min_filter::linear);
+    gl::tex_parameter(gl::texture_target::_2d, gl::mag_filter::linear);
 
-    gl::tex_image_2D(gl::texture_image_target::t2d, gl::internal_format{GL_RGB},
-                     gl::width{i.width()}, gl::height{i.height()},
-                     gl::image_format::rgb, i.texture());
+    gl::tex_image_2D(gl::texture_image_target::_2d, gl::width{i.width()},
+                     gl::height{i.height()}, gl::image_format::rgb,
+                     i.texture());
 
-    gl::generate_mipmap(gl::texture_target::t2d);
+    gl::generate_mipmap(gl::texture_target::_2d);
   }
   texture() = default;
   texture(const texture &) = delete;
@@ -42,7 +42,7 @@ public:
   }
   ~texture() noexcept { gl::delete_texture(_id); }
 
-  void bind() const noexcept { gl::bind_texture(gl::texture_target::t2d, _id); }
+  void bind() const noexcept { gl::bind_texture(gl::texture_target::_2d, _id); }
   [[nodiscard]] gl::texture_id id() const noexcept { return _id; }
 
 private:

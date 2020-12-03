@@ -654,17 +654,17 @@ inline void delete_texture(const texture_id &id) noexcept {
 }
 
 enum class texture_target {
-  t1d = GL_TEXTURE_1D,
-  t2d = GL_TEXTURE_2D,
-  t3d = GL_TEXTURE_3D,
-  t1d_array = GL_TEXTURE_1D_ARRAY,
-  t2d_array = GL_TEXTURE_2D_ARRAY,
+  _1d = GL_TEXTURE_1D,
+  _2d = GL_TEXTURE_2D,
+  _3d = GL_TEXTURE_3D,
+  _1d_array = GL_TEXTURE_1D_ARRAY,
+  _2d_array = GL_TEXTURE_2D_ARRAY,
   rectangle = GL_TEXTURE_RECTANGLE,
   cube_map = GL_TEXTURE_CUBE_MAP,
   // cube_map_array = GL_TEXTURE_CUBE_MAP_ARRAY,
   buffer = GL_TEXTURE_BUFFER,
-  t2d_multisample = GL_TEXTURE_2D_MULTISAMPLE,
-  t2d_multisample_array = GL_TEXTURE_2D_MULTISAMPLE_ARRAY,
+  _2d_multisample = GL_TEXTURE_2D_MULTISAMPLE,
+  _2d_multisample_array = GL_TEXTURE_2D_MULTISAMPLE_ARRAY,
 };
 
 inline void bind_texture(texture_target t, texture_id id) noexcept {
@@ -864,7 +864,7 @@ inline void generate_mipmap(texture_target target) noexcept {
 }
 
 enum class texture_image_target {
-  t2d = GL_TEXTURE_2D,
+  _2d = GL_TEXTURE_2D,
   proxy_2d = GL_PROXY_TEXTURE_2D,
   array_1d = GL_TEXTURE_1D_ARRAY,
   proxy_array_1d = GL_PROXY_TEXTURE_1D_ARRAY,
@@ -891,10 +891,6 @@ struct height {
   unsigned int value;
 };
 
-struct internal_format {
-  int value;
-};
-
 enum class image_format {
   red = GL_RED,
   rg = GL_RG,
@@ -913,19 +909,146 @@ enum class image_format {
   depth_stencil = GL_DEPTH_STENCIL,
 };
 
+enum class base_internal_format {
+  depth_component = GL_DEPTH_COMPONENT,
+  depth_stencil = GL_DEPTH_STENCIL,
+  red = GL_RED,
+  rg = GL_RG,
+  rgb = GL_RGB,
+  rgba = GL_RGBA,
+};
+
+enum class sized_internal_format {
+  r8 = GL_R8,
+  r8_snorm = GL_R8_SNORM,
+  r16 = GL_R16,
+  r16_snorm = GL_R16_SNORM,
+  rg8 = GL_RG8,
+  rg8_snorm = GL_RG8_SNORM,
+  rg16 = GL_RG16,
+  rg16_snorm = GL_RG16_SNORM,
+  r3_g3_b3 = GL_R3_G3_B2,
+  rgb4 = GL_RGB4,
+  rgb5 = GL_RGB5,
+  rgb8 = GL_RGB8,
+  rgb8_snorm = GL_RGB8_SNORM,
+  rgb10 = GL_RGB10,
+  rgb12 = GL_RGB12,
+  rgb16_snorm = GL_RGB16_SNORM,
+  rgba2 = GL_RGBA2,
+  rgba4 = GL_RGBA4,
+  rgb5_a1 = GL_RGB5_A1,
+  /*
+  GL_RGBA8,
+  GL_RGBA8_SNORM,
+  GL_RGB10_A2,
+  GL_RGB10_A2UI,
+  GL_RGBA12,
+  GL_RGBA16,
+  GL_SRGB8,
+  GL_SRGB8_ALPHA8,
+  GL_R16F,
+  GL_RG16F,
+  GL_RGB16F,
+  GL_RGBA16F,
+  GL_R32F,
+  GL_RG32F,
+  GL_RGB32F,
+  GL_RGBA32F,
+  GL_R11F_G11F_B10F,
+  GL_RGB9_E5,
+  GL_R8I,
+  GL_R8UI,
+  GL_R16I,
+  GL_R16UI,
+  GL_R32I,
+  GL_R32UI,
+  GL_RG8I,
+  GL_RG8UI,
+  GL_RG16I,
+  GL_RG16UI,
+  GL_RG32I,
+  GL_RG32UI,
+  GL_RGB8I,
+  GL_RGB8UI,
+  GL_RGB16I,
+  GL_RGB16UI,
+  GL_RGB32I,
+  GL_RGB32UI,
+  GL_RGBA8I,
+  GL_RGBA8UI,
+  GL_RGBA16I,
+  GL_RGBA16UI,
+  GL_RGBA32I,
+  GL_RGBA32UI,
+  */
+};
+
+enum class compressed_internal_format {
+  red = GL_COMPRESSED_RED,
+  rg = GL_COMPRESSED_RG,
+  rgb = GL_COMPRESSED_RGB,
+  rgba = GL_COMPRESSED_RGBA,
+  srgb = GL_COMPRESSED_SRGB,
+  srgb_alpha = GL_COMPRESSED_SRGB_ALPHA,
+  red_rgtc1 = GL_COMPRESSED_RED_RGTC1,
+  signed_red_rgtc1 = GL_COMPRESSED_SIGNED_RED_RGTC1,
+  rg_rgtc2 = GL_COMPRESSED_RG_RGTC2,
+  signed_rg_rgtc2 = GL_COMPRESSED_SIGNED_RG_RGTC2,
+  /*
+  GL_COMPRESSED_RGBA_BPTC_UNORM,
+  GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM,
+  GL_COMPRESSED_RGB_BPTC_SIGNED_FLOAT,
+  GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT
+  */
+};
+
 namespace detail {
 struct pointer_placeholder {};
-template <class... Args> struct contains;
+template <class T1, class... Ts> struct one_of {};
+
+template <template <class...> class C, class T>
+struct match : std::false_type {};
+template <template <class...> class C, class... Args>
+struct match<C, C<Args...>> : std::true_type {};
+template <template <class...> class C, class T>
+static constexpr inline bool match_v = match<C, T>::value;
+
+template <class T>
+using ignore_special =
+    std::void_t<decltype(std::enable_if_t<!match_v<one_of, T>, int>{})>;
+
+template <class MustBeVoid, class... Args> struct contains_impl;
+template <class T, class... Args>
+using contains = contains_impl<void, T, Args...>;
+
 template <class T, class U, class... Args>
-struct contains<T, U, Args...> : contains<T, Args...> {};
+struct contains_impl<ignore_special<T>, T, U, Args...> : contains<T, Args...> {
+};
+
 template <class T, class... Args>
-struct contains<T, T, Args...> : std::true_type {};
-template <class T> struct contains<T> : std::false_type {};
+struct contains_impl<void, T, T, Args...> : std::true_type {};
+
+template <class T> struct contains_impl<void, T> : std::false_type {};
+
 template <class T, class... Args>
-struct contains<pointer_placeholder, T *, Args...> : std::true_type {};
+struct contains_impl<void, pointer_placeholder, T *, Args...> : std::true_type {
+};
+
+template <class... Ts, class... Args>
+struct contains_impl<void, one_of<Ts...>, Args...>
+    : std::disjunction<contains<Ts, Args...>...> {};
 
 template <class T, class... Args>
 constexpr static inline bool contains_v = contains<T, Args...>::value;
+
+//*
+static_assert(contains_v<float, char, float, double>);
+static_assert(!contains_v<int, char, float, double>);
+static_assert(contains_v<one_of<float, int>, char, int, double>);
+static_assert(contains_v<one_of<float, int>, char, float, double>);
+static_assert(!contains_v<one_of<float, int>, char, unsigned, double>);
+//*/
 
 template <class T, class... Args>
 inline T *get_data(T *data, Args... args) noexcept {
@@ -938,6 +1061,9 @@ inline auto *get_data([[maybe_unused]] T unused, Args... args) noexcept {
   return get_data(args...);
 }
 
+using internal_format = one_of<base_internal_format, compressed_internal_format,
+                               sized_internal_format>;
+
 } // namespace detail
 
 template <class... Args>
@@ -948,16 +1074,16 @@ inline void tex_image_2D(texture_image_target target, Args... args) noexcept {
                 "Parameter list must contain a height");
   static_assert(detail::contains_v<detail::pointer_placeholder, Args...>,
                 "Parameter list must contain a data pointer");
-  static_assert(detail::contains_v<internal_format, Args...>,
-                "Parameter list must contain an internal format description");
   static_assert(detail::contains_v<image_format, Args...>,
                 "Parameter list must contain a format description");
 
-  auto *data = detail::get_data(args...);
+  auto *const data = detail::get_data(args...);
+  const auto img_frmt = static_cast<int>(detail::get<image_format>(args...));
+
   glTexImage2D(static_cast<int>(target), detail::get<mipmap_level>(args..., 0),
-               detail::get<internal_format>(args...),
+               detail::get<detail::internal_format>(args..., img_frmt),
                detail::get<width>(args...), detail::get<height>(args...), 0,
-               static_cast<int>(detail::get<image_format>(args...)),
+               img_frmt,
                detail::deduce_gl_enum_v<
                    std::remove_pointer_t<std::decay_t<decltype(data)>>>,
                data);
