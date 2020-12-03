@@ -51,6 +51,8 @@ public:
   [[nodiscard]] const vertex_array &get_vertex_array() const { return vao; }
   [[nodiscard]] const vertex_buffer &get_vertex_buffer() const { return vbo; }
 
+  void bind() const noexcept { vao.bind(); }
+
 private:
   vertex_buffer vbo;
   vertex_array vao;
@@ -89,6 +91,8 @@ private:
                        typename base::template same_layout<L>>;
 
 public:
+  using base::bind;
+
   template <class Input, std::size_t M,
             std::enable_if_t<match_type_and_count<M, Input>::value, int> = 0>
   // NOLINTNEXTLINE
@@ -99,8 +103,6 @@ public:
   // NOLINTNEXTLINE
   fixed_size_structured_buffer([[maybe_unused]] L layout, Input (&data)[M])
       : base{layout, data} {}
-
-  void bind() const noexcept { base::get_vertex_array().bind(); }
 
   void draw(gl::drawing_mode mode = gl::drawing_mode::triangles,
             gl::index first = gl::index{0},

@@ -67,8 +67,9 @@ private:
 
 DPSG_LAZY_STR_WRAPPER_IMPL(texture_filename) // NOLINT
 
-template <class TextureTraits, class T>
+template <class TextureTraits, class TextureOptions, class T>
 std::optional<texture_2d> load(const texture_filename<T> &filename,
+                               TextureOptions &&options,
                                int requested_channels = 0) {
   int h{};
   int w{};
@@ -78,8 +79,17 @@ std::optional<texture_2d> load(const texture_filename<T> &filename,
   if (ptr == nullptr) {
     return {};
   }
-  return texture_2d{stbi_wrapper<TextureTraits>{
-      ptr, static_cast<unsigned int>(w), static_cast<unsigned int>(h), c}};
+  return texture_2d{
+      stbi_wrapper<TextureTraits>{ptr, static_cast<unsigned int>(w),
+                                  static_cast<unsigned int>(h), c},
+      std::forward<TextureOptions>(options)};
+}
+
+template <class TextureTraits, class T>
+std::optional<texture_2d> load(const texture_filename<T> &filename,
+                               int requested_channels = 0) {
+  return load<TextureTraits>(filename, texture_options::no_options,
+                             requested_channels);
 }
 
 } // namespace dpsg

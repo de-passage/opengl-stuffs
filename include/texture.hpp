@@ -12,9 +12,11 @@ namespace texture_traits {
 template <gl::texture_target Target> struct base_traits {
   constexpr inline static gl::texture_target texture_target = Target;
 
-  template <class... Args> static void set_parameter(Args &&... args) noexcept {
-    gl::tex_parameter(texture_target, std::forward<Args>(args)...);
-  }
+  struct parameter_setter {
+    template <class... Args> void operator()(Args &&... args) const noexcept {
+      gl::tex_parameter(texture_target, std::forward<Args>(args)...);
+    }
+  } constexpr static inline set_parameter;
 
   static void bind(gl::texture_id id) noexcept {
     gl::bind_texture(texture_target, id);
@@ -34,6 +36,21 @@ struct _2d : base_traits<gl::texture_target::_2d> {
 };
 
 } // namespace texture_traits
+
+namespace texture_options {
+
+constexpr static inline auto repeat_linear = [](auto &&set_parameter) {
+  set_parameter(gl::wrap_target::s, gl::wrap_mode::repeat);
+  set_parameter(gl::wrap_target::t, gl::wrap_mode::repeat);
+  set_parameter(gl::min_filter::linear);
+  set_parameter(gl::mag_filter::linear);
+};
+
+constexpr static inline auto no_options =
+    []([[maybe_unused]] auto &&no_options) {};
+
+} // namespace texture_options
+
 template <class Traits> class basic_texture : private Traits {
   using Traits::generate_image;
   using Traits::generate_mipmap;
@@ -42,19 +59,16 @@ template <class Traits> class basic_texture : private Traits {
 public:
   template <class Image> explicit basic_texture(Image &&i) noexcept {
     gl::gen_texture(_id);
-    assert(_id.value > 0);
-
     bind();
-
-    set_parameter(gl::wrap_target::s, gl::wrap_mode::repeat);
-
-    set_parameter(gl::wrap_target::t, gl::wrap_mode::repeat);
-
-    set_parameter(gl::min_filter::linear);
-    set_parameter(gl::mag_filter::linear);
-
     generate_image(i.width(), i.height(), i.image_format(), i.texture());
+    generate_mipmap();
+  }
 
+  template <class Image, class F> basic_texture(Image &&i, F &&f) noexcept {
+    gl::gen_texture(_id);
+    bind();
+    std::forward<F>(f)(set_parameter);
+    generate_image(i.width(), i.height(), i.image_format(), i.texture());
     generate_mipmap();
   }
 
