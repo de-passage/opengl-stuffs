@@ -3,9 +3,10 @@
 
 #include "fixed_size_element_buffer.hpp"
 #include "load_shaders.hpp"
+#include "stbi_wrapper.hpp"
 #include "structured_buffers.hpp"
-#include "texture.hpp"
 #include "window.hpp"
+
 
 void texture_example(dpsg::window &wdw) {
   using namespace dpsg;
