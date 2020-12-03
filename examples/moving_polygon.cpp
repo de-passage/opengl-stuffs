@@ -1,12 +1,8 @@
-#include "common.hpp"
 #include "key_mapper.hpp"
 #include "load_shaders.hpp"
 #include "make_window.hpp"
 #include "opengl.hpp"
 #include "structured_buffers.hpp"
-#include "utils.hpp"
-
-#include <type_traits>
 
 void moving_polygon(dpsg::window &wdw, key_mapper &kmap) {
   using namespace dpsg;
@@ -31,7 +27,7 @@ void moving_polygon(dpsg::window &wdw, key_mapper &kmap) {
   float x_offset{0};
   const auto move = [&](float &f) {
     return [&, f = std::ref(f)](float offset) {
-      return ignore([&f, offset, &offset_uniform, &x_offset, &y_offset] {
+      return ignore([&, offset] {
         f += offset;
         offset_uniform.bind(x_offset, y_offset);
       });
@@ -50,7 +46,7 @@ void moving_polygon(dpsg::window &wdw, key_mapper &kmap) {
   wdw.render_loop([&] {
     gl::clear(gl::buffer_bit::color);
 
-    b.draw_array(gl::drawing_mode::triangle_strip);
+    b.draw(gl::drawing_mode::triangle_strip);
   });
 }
 

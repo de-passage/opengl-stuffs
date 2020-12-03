@@ -100,12 +100,12 @@ public:
   fixed_size_structured_buffer([[maybe_unused]] L layout, Input (&data)[M])
       : base{layout, data} {}
 
-  void draw_array(gl::drawing_mode mode = gl::drawing_mode::triangles,
-                  gl::index first = gl::index{0},
-                  gl::element_count count =
-                      fixed_size_structured_buffer::element_count) const {
+  void bind() const noexcept { base::get_vertex_array().bind(); }
+
+  void draw(gl::drawing_mode mode = gl::drawing_mode::triangles,
+            gl::index first = gl::index{0},
+            gl::element_count count = element_count) const noexcept {
     assert(first.value + count.value <= element_count.value);
-    base::get_vertex_array().bind();
     gl::draw_arrays(mode, first, element_count);
   }
 };

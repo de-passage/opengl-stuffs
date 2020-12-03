@@ -5,11 +5,12 @@
 
 #include "glfw_context.hpp"
 #include "key_mapper.hpp"
+#include "utils.hpp"
 #include "window.hpp"
+
 
 #include <iostream>
 #include <type_traits>
-
 // settings
 constexpr static inline dpsg::width SCR_WIDTH{800};
 constexpr static inline dpsg::height SCR_HEIGHT{600};

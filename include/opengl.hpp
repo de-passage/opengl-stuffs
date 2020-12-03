@@ -1002,6 +1002,15 @@ inline void active_texture(texture_name name) noexcept {
   glActiveTexture(static_cast<int>(name));
 }
 
+enum class face_mode {
+  clockwise = GL_CW,
+  counter_clockwise = GL_CCW,
+};
+
+inline void front_face(face_mode mode) noexcept {
+  glFrontFace(static_cast<int>(mode));
+}
+
 } // namespace dpsg::gl
 
 #endif

@@ -1,12 +1,8 @@
-#include "common.hpp"
 #include "key_mapper.hpp"
 #include "load_shaders.hpp"
 #include "make_window.hpp"
 #include "opengl.hpp"
 #include "structured_buffers.hpp"
-#include "utils.hpp"
-
-#include <type_traits>
 
 void triangle(dpsg::window &wdw) {
   using namespace dpsg;
@@ -30,7 +26,7 @@ void triangle(dpsg::window &wdw) {
   wdw.render_loop([&] {
     gl::clear(gl::buffer_bit::color);
 
-    b.draw_array();
+    b.draw();
   });
 }
 

@@ -1,14 +1,10 @@
 #include "make_window.hpp"
 #include "opengl.hpp"
-#include "utils.hpp"
 
-#include "buffers.hpp"
-#include "input/keys.hpp"
-#include "key_mapper.hpp"
+#include "fixed_size_element_buffer.hpp"
 #include "load_shaders.hpp"
 #include "structured_buffers.hpp"
 #include "texture.hpp"
-#include "utility.hpp"
 #include "window.hpp"
 
 void texture_example(dpsg::window &wdw) {
@@ -17,6 +13,7 @@ void texture_example(dpsg::window &wdw) {
   auto prog = load(vs_filename{"shaders/textured.vs"},
                    fs_filename{"shaders/textured.fs"});
   auto wallText = load(texture_filename{"assets/wall.jpg"}).value();
+  auto smiley = load(texture_filename{"assets/awesomeface.png"}).value();
 
   constexpr float vertices[] = {
       // positions        // colors         // texture coords
@@ -33,24 +30,17 @@ void texture_example(dpsg::window &wdw) {
 
   using layout = packed<group<3>, group<3>, group<2>>;
   structured_buffer buffer(layout{}, vertices);
-  element_buffer ebo;
-  ebo.bind();
-  gl::buffer_data(gl::buffer_type::element_array, indices,
-                  gl::data_hint::static_draw);
+  fixed_size_element_buffer ebo{indices};
 
   gl::clear_color(gl::r{0.2F}, gl::g{0.3F}, gl::b{0.3F});
   prog.use();
   prog.uniform_location<int>("ourTexture").value().bind(0);
-  wdw.render_loop([&] {
-    // render
-    // ------
-    gl::clear(gl::buffer_bit::color);
-    gl::active_texture(gl::texture_name::_0);
+  wallText.bind();
 
-    wallText.bind();
-    buffer.get_vertex_buffer().bind();
-    gl::draw_elements<unsigned int>(gl::drawing_mode::triangles,
-                                    gl::element_count{6});
+  wdw.render_loop([&] {
+    gl::clear(gl::buffer_bit::color);
+
+    ebo.draw();
   });
 }
 
