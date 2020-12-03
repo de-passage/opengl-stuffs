@@ -17,8 +17,8 @@ constexpr static inline dpsg::height SCR_HEIGHT{600};
 namespace detail {
 template <class T>
 constexpr static inline bool uses_kmap =
-    std::is_invocable_v<T, dpsg::window, key_mapper>;
-}
+    std::is_invocable_v<T, dpsg::window &, key_mapper &>;
+} // namespace detail
 
 template <class F, std::enable_if_t<detail::uses_kmap<F>, int> = 0>
 void invoke(F &&f, dpsg::window &window, key_mapper &kmap) {
