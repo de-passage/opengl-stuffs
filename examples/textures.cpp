@@ -11,9 +11,9 @@ void texture_example(dpsg::window &wdw) {
   using namespace dpsg;
 
   auto prog = load(vs_filename{"shaders/textured.vs"},
-                   fs_filename{"shaders/textured.fs"});
+                   fs_filename{"shaders/two_textures_mixed.fs"});
   auto wallText =
-      load<texture_rgb>(texture_filename{"assets/wall.jpg"}).value();
+      load<texture_rgb>(texture_filename{"assets/container.jpg"}).value();
   auto smiling_face =
       load<texture_rgba>(texture_filename{"assets/awesomeface.png"}).value();
 
@@ -36,10 +36,15 @@ void texture_example(dpsg::window &wdw) {
 
   gl::clear_color(gl::r{0.2F}, gl::g{0.3F}, gl::b{0.3F});
   prog.use();
-  auto uniform_loc = prog.uniform_location<int>("ourTexture").value();
-  uniform_loc.bind(0);
+  auto texture1 = prog.uniform_location<int>("texture1").value();
+  auto texture2 = prog.uniform_location<int>("texture2").value();
+  texture1.bind(0);
+  texture2.bind(1);
 
   wallText.bind();
+
+  gl::active_texture(gl::texture_name::_1);
+  smiling_face.bind();
 
   wdw.render_loop([&] {
     gl::clear(gl::buffer_bit::color);
