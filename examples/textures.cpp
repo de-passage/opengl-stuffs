@@ -6,6 +6,7 @@
 #include "input/keys.hpp"
 #include "key_mapper.hpp"
 #include "load_shaders.hpp"
+#include "structured_buffers.hpp"
 #include "texture.hpp"
 #include "utility.hpp"
 #include "window.hpp"
@@ -30,20 +31,9 @@ void texture_example(dpsg::window &wdw) {
       1, 2, 3  // second triangle
   };
 
-  vertex_buffer vbo;
-  vertex_array vao;
+  using layout = packed<group<3>, group<3>, group<2>>;
+  structured_buffer buffer(layout{}, vertices);
   element_buffer ebo;
-  vao.bind();
-  vbo.bind();
-  gl::buffer_data(gl::buffer_type::array, vertices, gl::data_hint::static_draw);
-
-  gl::vertex_attrib_pointer<float>(gl::index{0}, gl::vec<3>, gl::stride{8});
-  gl::vertex_attrib_pointer<float>(gl::index{1}, gl::element_count{3},
-                                   gl::stride{8}, gl::offset{3});
-  gl::vertex_attrib_pointer<float>(gl::index{2}, gl::vec<2>, gl::stride{8},
-                                   gl::offset{6});
-  gl::enable_vertex_attrib_array(0, gl::index{1}, 2);
-
   ebo.bind();
   gl::buffer_data(gl::buffer_type::element_array, indices,
                   gl::data_hint::static_draw);
@@ -55,10 +45,10 @@ void texture_example(dpsg::window &wdw) {
     // render
     // ------
     gl::clear(gl::buffer_bit::color);
-    glActiveTexture(GL_TEXTURE0);
+    gl::active_texture(gl::texture_name::_0);
 
     wallText.bind();
-    vao.bind();
+    buffer.get_vertex_buffer().bind();
     gl::draw_elements<unsigned int>(gl::drawing_mode::triangles,
                                     gl::element_count{6});
   });

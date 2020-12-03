@@ -12,7 +12,7 @@ protected:
   using base = typename F::template type<mixin<T, Ts...>>;
   template <class... Us>
   constexpr explicit mixin(Us &&... us) noexcept(
-      std::is_nothrow_constructible_v<base, Us...>)
+      std::is_nothrow_constructible_v<base, Us &&...>)
       : base(std::forward<Us>(us)...) {}
 };
 
