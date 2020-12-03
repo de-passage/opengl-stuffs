@@ -21,5 +21,6 @@ target_include_directories(${EXAMPLE_NAME} PUBLIC "${CMAKE_SOURCE_DIR}/include")
 
 endmacro(make_example EXAMPLE_NAME)
 
+make_example(triangle)
 make_example(textures)
 make_example(moving_polygon)

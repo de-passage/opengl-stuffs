@@ -8,7 +8,7 @@
 
 #include <type_traits>
 
-void moving_polygon(dpsg::window &wdw) {
+void triangle(dpsg::window &wdw) {
   using namespace dpsg;
 
   auto shader = load(vs_filename{"shaders/basic_with_color.vs"},
@@ -17,10 +17,9 @@ void moving_polygon(dpsg::window &wdw) {
   // NOLINTNEXTLINE
   constexpr float vertices[] = {
       // positions         // colors
-      0.0F,  0.5F,   0.0F, 0.0F, 0.0F, 1.0F, // top
-      -0.5F, -0.5F,  0.0F, 0.0F, 1.0F, 0.0F, // bottom leFt
-      0.5F,  -0.5F,  0.0F, 1.0F, 0.0F, 0.0F, // bottom right
-      0.0F,  -0.05F, 0.0F, 0.F,  0.F,  0.F   // bottom
+      0.0F,  0.5F,  0.0F, 0.0F, 0.0F, 1.0F, // top
+      -0.5F, -0.5F, 0.0F, 0.0F, 1.0F, 0.0F, // bottom leFt
+      0.5F,  -0.5F, 0.0F, 1.0F, 0.0F, 0.0F, // bottom right
   };
   using packed_layout = packed<group<3>, group<3>>;
   fixed_size_structured_buffer b(packed_layout{}, vertices);
@@ -31,8 +30,8 @@ void moving_polygon(dpsg::window &wdw) {
   wdw.render_loop([&] {
     gl::clear(gl::buffer_bit::color);
 
-    b.draw_array(gl::drawing_mode::triangle_strip);
+    b.draw_array();
   });
 }
 
-int main() { return windowed(moving_polygon); }
+int main() { return windowed(triangle); }

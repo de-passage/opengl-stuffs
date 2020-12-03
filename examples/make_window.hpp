@@ -4,49 +4,70 @@
 #include "glad/glad.h"
 
 #include "glfw_context.hpp"
+#include "key_mapper.hpp"
 #include "window.hpp"
 
 #include <iostream>
+#include <type_traits>
 
 // settings
 constexpr static inline dpsg::width SCR_WIDTH{800};
 constexpr static inline dpsg::height SCR_HEIGHT{600};
 
-template <class F> dpsg::ExecutionStatus make_window(F f) {
+namespace detail {
+template <class T>
+constexpr static inline bool uses_kmap =
+    std::is_invocable_v<T, dpsg::window, key_mapper>;
+}
+
+template <class F, std::enable_if_t<detail::uses_kmap<F>, int> = 0>
+void invoke(F &&f, dpsg::window &window, key_mapper &kmap) {
+  std::forward<F>(f)(window, kmap);
+}
+
+template <class F, std::enable_if_t<!detail::uses_kmap<F>, int> = 0>
+void invoke(F &&f, dpsg::window &window, [[maybe_unused]] key_mapper &unused) {
+  std::forward<F>(f)(window);
+}
+
+template <class F> dpsg::ExecutionStatus make_window(F &&f) {
   using namespace dpsg;
+  using namespace dpsg::input;
 
-  return within_glfw_context([f = std::move(f)]() -> dpsg::ExecutionStatus {
-    using wh = window_hint;
-    glfwSwapInterval(1);
+  return within_glfw_context(
+      [f = std::forward<F>(f)]() -> dpsg::ExecutionStatus {
+        using wh = window_hint;
+        glfwSwapInterval(1);
 
-    return with_window(
-        wh::context_version(3, 3), wh::opengl_profile(profile::core),
+        return with_window(
+            wh::context_version(3, 3), wh::opengl_profile(profile::core),
 #ifdef __APPLE__
-        wh::opengl_forward_compat(true),
+            wh::opengl_forward_compat(true),
 #endif
-        SCR_WIDTH, SCR_HEIGHT, title{"OpenGL example"},
-        [f](window &wdw) -> ExecutionStatus {
-          // glfw window creation
-          // --------------------
-          wdw.make_context_current();
-          wdw.set_framebuffer_size_callback(
-              []([[maybe_unused]] dpsg::window &unused, dpsg::width w,
-                 dpsg::height h) { glViewport(0, 0, w.value, h.value); });
+            SCR_WIDTH, SCR_HEIGHT, title{"OpenGL example"},
+            [f](window &wdw) -> ExecutionStatus {
+              // glfw window creation
+              // --------------------
+              wdw.make_context_current();
+              wdw.set_framebuffer_size_callback(
+                  []([[maybe_unused]] dpsg::window &unused, dpsg::width w,
+                     dpsg::height h) { glViewport(0, 0, w.value, h.value); });
 
-          // glad: load all OpenGL function pointers
-          // ---------------------------------------
-          if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>( // NOLINT
-                  glfwGetProcAddress))) {
-            std::cout << "Failed to initialize GLAD" << std::endl;
-            return dpsg::ExecutionStatus::Failure;
-          }
+              // glad: load all OpenGL function pointers
+              // ---------------------------------------
+              if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>( // NOLINT
+                      glfwGetProcAddress))) {
+                std::cout << "Failed to initialize GLAD" << std::endl;
+                return dpsg::ExecutionStatus::Failure;
+              }
 
-          // render loop
-          // -----------
-          f(wdw);
-          return ExecutionStatus::Success;
-        });
-  });
+              key_mapper kmap;
+              wdw.set_key_callback(std::ref(kmap));
+              kmap.on(key::escape, close);
+              invoke(std::move(f), wdw, kmap);
+              return ExecutionStatus::Success;
+            });
+      });
 }
 
 template <class F> int windowed(F &&func) noexcept {

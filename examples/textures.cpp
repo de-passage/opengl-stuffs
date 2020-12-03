@@ -12,15 +12,10 @@
 
 void texture_example(dpsg::window &wdw) {
   using namespace dpsg;
-  using namespace dpsg::input;
 
   auto prog = load(vs_filename{"shaders/textured.vs"},
                    fs_filename{"shaders/textured.fs"});
   auto wallText = load(texture_filename{"assets/wall.jpg"}).value();
-  key_mapper kmap;
-  wdw.set_key_callback(window::key_callback{std::ref(kmap)});
-
-  kmap.on(key::escape, close);
 
   constexpr float vertices[] = {
       // positions        // colors         // texture coords
