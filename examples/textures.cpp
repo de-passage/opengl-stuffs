@@ -3,6 +3,7 @@
 
 #include "fixed_size_element_buffer.hpp"
 #include "load_shaders.hpp"
+#include "shaders.hpp"
 #include "stbi_wrapper.hpp"
 #include "structured_buffers.hpp"
 #include "window.hpp"
@@ -36,15 +37,11 @@ void texture_example(dpsg::window &wdw) {
 
   gl::clear_color(gl::r{0.2F}, gl::g{0.3F}, gl::b{0.3F});
   prog.use();
-  auto texture1 = prog.uniform_location<int>("texture1").value();
-  auto texture2 = prog.uniform_location<int>("texture2").value();
-  texture1.bind(0);
-  texture2.bind(1);
+  auto texture1 = prog.uniform_location<sampler2D>("texture1").value();
+  auto texture2 = prog.uniform_location<sampler2D>("texture2").value();
 
-  wallText.bind();
-
-  gl::active_texture(gl::texture_name::_1);
-  smiling_face.bind();
+  texture1.bind(wallText, gl::texture_name::_0);
+  texture2.bind(smiling_face, gl::texture_name::_1);
 
   wdw.render_loop([&] {
     gl::clear(gl::buffer_bit::color);

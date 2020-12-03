@@ -4,8 +4,6 @@
 #include "opengl.hpp"
 
 #include "c_str_wrapper.hpp"
-#include "meta/first_of.hpp"
-#include "meta/is_one_of.hpp"
 
 #include <optional>
 #include <stdexcept>
@@ -13,7 +11,7 @@
 #include <variant>
 
 namespace dpsg {
-class texture;
+struct sampler2D;
 
 class shader_error : public std::exception {
 public:
@@ -139,10 +137,24 @@ private:
     template <
         class... Us,
         std::enable_if_t<
-            std::conjunction_v<std::is_same<Ts, std::decay_t<Us>>...>, int> = 0>
+            std::conjunction_v<std::is_convertible<std::decay_t<Us>, Ts>...>,
+            int> = 0>
     void bind(Us &&... args) const {
       gl::uniform(static_cast<const B *>(this)->id(),
                   std::forward<Ts>(args)...);
+    }
+  };
+
+  template <class B> struct bind_impl<B, sampler2D> {
+    template <class T> void bind(T &&t, gl::texture_name name) const {
+      bind(name);
+      gl::active_texture(name);
+      t.bind();
+    }
+    void bind(gl::texture_name name) const {
+      gl::uniform(static_cast<const B *>(this)->id(),
+                  static_cast<gl::int_t>(name) -
+                      static_cast<gl::int_t>(gl::texture_name::_0));
     }
   };
 
@@ -150,13 +162,14 @@ private:
     using type = bind_impl<U<T>, T>;
   };
 
-  template <class B, std::size_t N, typename... Ts> struct repeat_param {
-    using type =
-        typename repeat_param<B, N - 1, first_of_t<Ts...>, Ts...>::type;
+  template <class B, std::size_t N, typename T, typename... Ts>
+  struct repeat_param {
+    using type = typename repeat_param<B, N - 1, T, T, Ts...>::type;
   };
 
-  template <class B, typename... Ts> struct repeat_param<B, 0, Ts...> {
-    using type = bind_impl<B, Ts...>;
+  template <class B, typename T, typename... Ts>
+  struct repeat_param<B, 0, T, Ts...> {
+    using type = bind_impl<B, T, Ts...>;
   };
 
   template <template <class> class U, std::size_t N, typename T>
