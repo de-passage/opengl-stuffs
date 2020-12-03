@@ -7,14 +7,15 @@
 #include "structured_buffers.hpp"
 #include "window.hpp"
 
-
 void texture_example(dpsg::window &wdw) {
   using namespace dpsg;
 
   auto prog = load(vs_filename{"shaders/textured.vs"},
                    fs_filename{"shaders/textured.fs"});
-  auto wallText = load(texture_filename{"assets/wall.jpg"}).value();
-  auto smiley = load(texture_filename{"assets/awesomeface.png"}).value();
+  auto wallText =
+      load<texture_rgb>(texture_filename{"assets/wall.jpg"}).value();
+  auto smiling_face =
+      load<texture_rgba>(texture_filename{"assets/awesomeface.png"}).value();
 
   constexpr float vertices[] = {
       // positions        // colors         // texture coords
@@ -35,7 +36,9 @@ void texture_example(dpsg::window &wdw) {
 
   gl::clear_color(gl::r{0.2F}, gl::g{0.3F}, gl::b{0.3F});
   prog.use();
-  prog.uniform_location<int>("ourTexture").value().bind(0);
+  auto uniform_loc = prog.uniform_location<int>("ourTexture").value();
+  uniform_loc.bind(0);
+
   wallText.bind();
 
   wdw.render_loop([&] {
