@@ -15,8 +15,6 @@ struct sampler2D;
 
 class shader_error : public std::exception {
 public:
-  constexpr static inline std::size_t buffer_size = 512;
-
   explicit shader_error(gl::generic_shader_id id) {
     int out_i{};
     glGetShaderiv(id.value, GL_INFO_LOG_LENGTH, &out_i);
@@ -50,7 +48,7 @@ public:
   }
   ~shader() noexcept { gl::delete_shader(_id); }
 
-  static std::variant<shader, shader_error>
+  [[nodiscard]] static std::variant<shader, shader_error>
   create(const char *source) noexcept {
     auto shader_id = gl::create_shader<Type>();
     gl::shader_source(shader_id, source);
@@ -65,7 +63,9 @@ public:
                                               shader_id};
   }
 
-  explicit operator unsigned int() const noexcept { return _id.value; }
+  [[nodiscard]] explicit operator unsigned int() const noexcept {
+    return _id.value;
+  }
   [[nodiscard]] id_type id() const noexcept { return _id; }
 
 private:
@@ -113,7 +113,7 @@ public:
   ~program() noexcept { gl::delete_program(id); }
 
   template <class... Args>
-  static std::variant<program, program_error>
+  [[nodiscard]] static std::variant<program, program_error>
   create(Args &&... shaders) noexcept {
     auto id = gl::create_program();
     (gl::attach_shader(id, std::forward<Args>(shaders).id()), ...);
@@ -190,7 +190,8 @@ public:
   };
 
   template <class S>
-  std::optional<uniform<S>> uniform_location(const char *c) const {
+  [[nodiscard]] std::optional<uniform<S>>
+  uniform_location(const char *c) const {
     auto i = gl::get_uniform_location(id, c);
     if (!i.has_value()) {
       return {};
