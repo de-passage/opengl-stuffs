@@ -8,7 +8,6 @@
 #include "utils.hpp"
 #include "window.hpp"
 
-
 #include <iostream>
 #include <type_traits>
 // settings
@@ -50,9 +49,7 @@ template <class F> dpsg::ExecutionStatus make_window(F &&f) {
               // glfw window creation
               // --------------------
               wdw.make_context_current();
-              wdw.set_framebuffer_size_callback(
-                  []([[maybe_unused]] dpsg::window &unused, dpsg::width w,
-                     dpsg::height h) { glViewport(0, 0, w.value, h.value); });
+              wdw.set_framebuffer_size_callback(resize);
 
               // glad: load all OpenGL function pointers
               // ---------------------------------------
