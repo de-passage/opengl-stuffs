@@ -46,12 +46,16 @@ public:
     vbo.bind();
     vbo.set_data(i);
     Layout::template set_attrib_pointer<N>();
+    enable();
   }
 
   [[nodiscard]] const vertex_array &get_vertex_array() const { return vao; }
   [[nodiscard]] const vertex_buffer &get_vertex_buffer() const { return vbo; }
 
   void bind() const noexcept { vao.bind(); }
+  void unbind() const noexcept { vao.unbind(); }
+  void enable() const noexcept { Layout::enable(); }
+  void disable() const noexcept { Layout::disable(); }
 
 private:
   vertex_buffer vbo;

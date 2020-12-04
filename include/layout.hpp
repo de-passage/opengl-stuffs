@@ -48,6 +48,14 @@ struct layout<T, packed<group<Args>...>> {
     set_attrib_pointer_impl<N>(std::make_index_sequence<sizeof...(Args)>{});
   }
 
+  static void enable() {
+    enable_impl(std::make_index_sequence<sizeof...(Args)>{});
+  }
+
+  static void disable() {
+    disable_impl(std::make_index_sequence<sizeof...(Args)>{})
+  }
+
 private:
   template <std::size_t N, std::size_t... Is>
   static void
@@ -57,7 +65,17 @@ private:
          gl::index{Is}, gl::element_count{detail::at_v<Is, Args...>},
          gl::stride{count.value}, gl::offset{detail::sum_to_v<Is, Args...>}),
      ...);
+  }
+
+  template <std::size_t... Is>
+  static void enable_impl([[maybe_unused]] std::index_sequence<Is...> indices) {
     (gl::enable_vertex_attrib_array(Is), ...);
+  }
+
+  template <std::size_t... Is>
+  static void
+  disable_impl([[maybe_unused]] std::index_sequence<Is...> indices) {
+    (gl::disable_vertex_attrib_array(Is), ...);
   }
 };
 
@@ -71,6 +89,14 @@ struct layout<T, sequenced<group<Args>...>> {
     set_attrib_pointer_impl<N>(std::make_index_sequence<sizeof...(Args)>{});
   }
 
+  static void enable() {
+    enable_impl(std::make_index_sequence<sizeof...(Args)>{});
+  }
+
+  static void disable() {
+    disable_impl(std::make_index_sequence<sizeof...(Args)>{})
+  }
+
 private:
   template <std::size_t N, std::size_t... Is>
   static void
@@ -80,7 +106,17 @@ private:
          gl::index{Is}, gl::element_count{detail::at_v<Is, Args...>},
          gl::stride{0}, gl::offset{Is * N / sizeof...(Args)}),
      ...);
+  }
+
+  template <std::size_t... Is>
+  static void enable_impl([[maybe_unused]] std::index_sequence<Is...> indices) {
     (gl::enable_vertex_attrib_array(Is), ...);
+  }
+
+  template <std::size_t... Is>
+  static void
+  disable_impl([[maybe_unused]] std::index_sequence<Is...> indices) {
+    (gl::disable_vertex_attrib_array(Is), ...);
   }
 };
 } // namespace dpsg
