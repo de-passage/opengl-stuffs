@@ -1280,49 +1280,83 @@ struct mat_t {
 };
 
 template <class M>
-inline void uniform(uniform_location loc, const mat_t<2, 2, M> &matrix) {
+inline void uniform(uniform_location loc,
+                    const mat_t<2, 2, M> &matrix) noexcept {
   glUniformMatrix2fv(loc.value, 1, M::transpose, matrix.value);
 }
 
 template <class M>
-inline void uniform(uniform_location loc, const mat_t<2, 3, M> &matrix) {
+inline void uniform(uniform_location loc,
+                    const mat_t<2, 3, M> &matrix) noexcept {
   glUniformMatrix2x3fv(loc.value, 1, M::transpose, matrix.value);
 }
 
 template <class M>
-inline void uniform(uniform_location loc, const mat_t<2, 4, M> &matrix) {
+inline void uniform(uniform_location loc,
+                    const mat_t<2, 4, M> &matrix) noexcept {
   glUniformMatrix2x4fv(loc.value, 1, M::transpose, matrix.value);
 }
 
 template <class M>
-inline void uniform(uniform_location loc, const mat_t<3, 2, M> &matrix) {
+inline void uniform(uniform_location loc,
+                    const mat_t<3, 2, M> &matrix) noexcept {
   glUniformMatrix3x2fv(loc.value, 1, M::transpose, matrix.value);
 }
 
 template <class M>
-inline void uniform(uniform_location loc, const mat_t<3, 3, M> &matrix) {
+inline void uniform(uniform_location loc,
+                    const mat_t<3, 3, M> &matrix) noexcept {
   glUniformMatrix3fv(loc.value, 1, M::transpose, matrix.value);
 }
 
 template <class M>
-inline void uniform(uniform_location loc, const mat_t<3, 4, M> &matrix) {
+inline void uniform(uniform_location loc,
+                    const mat_t<3, 4, M> &matrix) noexcept {
   glUniformMatrix3x4fv(loc.value, 1, M::transpose, matrix.value);
 }
 
 template <class M>
-inline void uniform(uniform_location loc, const mat_t<4, 2, M> &matrix) {
+inline void uniform(uniform_location loc,
+                    const mat_t<4, 2, M> &matrix) noexcept {
   glUniformMatrix4x2fv(loc.value, 1, M::transpose, matrix.value);
 }
 
 template <class M>
-inline void uniform(uniform_location loc, const mat_t<4, 3, M> &matrix) {
+inline void uniform(uniform_location loc,
+                    const mat_t<4, 3, M> &matrix) noexcept {
   glUniformMatrix4x3fv(loc.value, 1, M::transpose, matrix.value);
 }
 
 template <class M>
-inline void uniform(uniform_location loc, const mat_t<4, 4, M> &matrix) {
+inline void uniform(uniform_location loc,
+                    const mat_t<4, 4, M> &matrix) noexcept {
   glUniformMatrix4fv(loc.value, 1, M::transpose, matrix.value);
 }
+
+inline void depth_func(compare_function func) noexcept {
+  glDepthFunc(static_cast<enum_t>(func));
+}
+
+template <class T> struct near {
+  explicit constexpr inline near(T val) noexcept : value{std::move(val)} {}
+  T value;
+};
+template <class T> near(T) -> near<T>;
+
+template <class T> struct far {
+  explicit constexpr inline far(T val) noexcept : value{std::move(val)} {}
+  T value;
+};
+template <class T> far(T) -> far<T>;
+
+inline void depth_range(near<double_t> n, far<double_t> f) noexcept {
+  glDepthRange(n.value, f.value);
+}
+
+inline void depth_mask(bool enabled) noexcept {
+  glDepthMask(enabled ? GL_TRUE : GL_FALSE);
+}
+
 } // namespace dpsg::gl
 
 #endif
