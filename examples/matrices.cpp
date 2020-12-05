@@ -1,18 +1,15 @@
-#include "key_mapper.hpp"
-#include "layout.hpp"
 #include "load_shaders.hpp"
 #include "make_window.hpp"
+#include "opengl.hpp"
 #include "shaders.hpp"
 #include "structured_buffers.hpp"
 
-#include "opengl.hpp"
-
-void cube(dpsg::window &window, key_mapper &kmap) {
+void matrices(dpsg::window &window) {
   using namespace dpsg;
-  using namespace dpsg::input;
 
   // NOLINTNEXTLINE
   constexpr float vertex_data[] = {
+      // Vertices
       0.25f, 0.25f, -1.25f, 1.0f,  // NOLINT
       0.25f, -0.25f, -1.25f, 1.0f, // NOLINT
       -0.25f, 0.25f, -1.25f, 1.0f, // NOLINT
@@ -110,8 +107,7 @@ void cube(dpsg::window &window, key_mapper &kmap) {
       0.0f, 1.0f, 1.0f, 1.0f, // NOLINT
       0.0f, 1.0f, 1.0f, 1.0f, // NOLINT
   };
-
-  auto prog = load(vs_filename{"shaders/ortho_with_offset.vs"},
+  auto prog = load(vs_filename("shaders/matrix_perspective.vs"),
                    fs_filename("shaders/basic.fs"));
 
   gl::enable(gl::capability::cull_face);
@@ -122,88 +118,41 @@ void cube(dpsg::window &window, key_mapper &kmap) {
   fixed_size_structured_buffer buffer(seq_layout{}, vertex_data);
   buffer.enable();
 
-  prog.use();
   auto offset_u = prog.uniform_location<gl::vec_t<2, float>>("offset").value();
-  auto z_near_u = prog.uniform_location<float>("z_near").value();
-  auto z_far_u = prog.uniform_location<float>("z_far").value();
-  auto frustum_scale_u = prog.uniform_location<float>("frustum_scale").value();
+  auto perspective_u =
+      prog.uniform_location<gl::mat_t<4, 4>>("perspective").value();
 
-  constexpr float default_x{0};
-  constexpr float default_y{0};
-  constexpr float default_z_near{1};
-  constexpr float default_z_far{3};
-  constexpr float default_fscale{1};
-  float x_offset{default_x};
-  float y_offset{default_y};
-  float z_near{default_z_near};
-  float z_far{default_z_far};
-  float frustum_scale{default_fscale};
+  gl::mat_t<4, 4> perspective;
 
-  const auto update = [](float &u, auto &&f) {
-    return [&u, f = std::forward<decltype(f)>(f)](auto p) {
-      return ignore([&u, f = std::move(f), p] {
-        u += p;
-        f();
-      });
-    };
+  constexpr float frustum_scale = 1.0;
+  constexpr float z_near = 1.0;
+  constexpr float z_far = 3.0;
+
+  perspective[{0, 0}] = frustum_scale;
+  perspective[{1, 1}] = frustum_scale;
+  perspective[{2, 2}] = (z_near * z_far) / (z_near - z_far);
+  perspective[{2, 3}] = -1.0;
+  perspective[{3, 2}] = (2 * z_near * z_far) / (z_near - z_far);
+
+  prog.use();
+
+  offset_u.bind(0.5, 0.5);
+  perspective_u.bind(perspective);
+
+  const auto reshape = [&perspective,
+                        &perspective_u]([[maybe_unused]] dpsg::window &wdw,
+                                        width w, height h) {
+    perspective[{0, 0}] = frustum_scale / (static_cast<float>(w.value) /
+                                           static_cast<float>(h.value));
+    perspective_u.bind(perspective);
+    glViewport(0, 0, w.value, h.value);
   };
+  window.set_framebuffer_size_callback(reshape);
 
-  const auto update_zn = update(z_near, [&] { z_near_u.bind(z_near); });
-
-  const auto update_zf = update(z_far, [&] { z_far_u.bind(z_far); });
-
-  const auto update_fs =
-      update(frustum_scale, [&] { frustum_scale_u.bind(frustum_scale); });
-
-  const auto update_x = update(x_offset, [] {});
-  const auto update_y = update(y_offset, [] {});
-  const auto reset = ignore([&] {
-    frustum_scale = default_fscale;
-    z_near = default_z_near;
-    z_far = default_z_far;
-    x_offset = default_x;
-    y_offset = default_y;
-
-    frustum_scale_u.bind(frustum_scale);
-    z_near_u.bind(z_near);
-    z_far_u.bind(z_far);
-  });
-
-  z_near_u.bind(z_near);
-  z_far_u.bind(z_far);
-  frustum_scale_u.bind(frustum_scale);
-
-  constexpr float off = 0.1;
-  kmap.on(key::down, update_y(-off));
-  kmap.on(key::up, update_y(+off));
-  kmap.on(key::right, update_x(+off));
-  kmap.on(key::left, update_x(-off));
-
-  kmap.on(key::R, reset);
-  kmap.on(key::Q, update_zn(+off));
-  kmap.on(key::A, update_zn(-off));
-  kmap.on(key::W, update_zf(+off));
-  kmap.on(key::S, update_zf(-off));
-  kmap.on(key::E, update_fs(+off));
-  kmap.on(key::D, update_fs(-off));
-
-  const auto bind_offset = [&](float x, float y) {
-    offset_u.bind(x + x_offset, y + y_offset);
-  };
-
-  constexpr float pos = 0.5;
   window.render_loop([&] {
     gl::clear(gl::buffer_bit::color);
-
-    bind_offset(pos, pos);
-    buffer.draw();
-    bind_offset(-pos, pos);
-    buffer.draw();
-    bind_offset(pos, -pos);
-    buffer.draw();
-    bind_offset(-pos, -pos);
     buffer.draw();
   });
 }
 
-int main() { return windowed(cube); }
+int main() { return windowed(matrices); }

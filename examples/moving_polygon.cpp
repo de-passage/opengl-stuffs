@@ -20,6 +20,7 @@ void moving_polygon(dpsg::window &wdw, key_mapper &kmap) {
   };
   using packed_layout = packed<group<3>, group<3>>;
   fixed_size_structured_buffer b(packed_layout{}, vertices);
+  b.enable();
 
   auto offset_uniform =
       shader.uniform_location<gl::vec_t<2, float>>("xyOffset").value();

@@ -17,8 +17,10 @@ void triangle(dpsg::window &wdw) {
       -0.5F, -0.5F, 0.0F, 0.0F, 1.0F, 0.0F, // bottom leFt
       0.5F,  -0.5F, 0.0F, 1.0F, 0.0F, 0.0F, // bottom right
   };
+
   using packed_layout = packed<group<3>, group<3>>;
   fixed_size_structured_buffer b(packed_layout{}, vertices);
+  b.enable();
 
   shader.use();
   gl::clear_color(gl::g{0.3F}, gl::r{0.2F}, gl::b{0.3F});

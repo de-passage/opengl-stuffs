@@ -33,6 +33,7 @@ void texture_example(dpsg::window &wdw) {
 
   using layout = packed<group<3>, group<3>, group<2>>;
   structured_buffer buffer(layout{}, vertices);
+  buffer.enable();
   fixed_size_element_buffer ebo{indices};
 
   gl::clear_color(gl::r{0.2F}, gl::g{0.3F}, gl::b{0.3F});

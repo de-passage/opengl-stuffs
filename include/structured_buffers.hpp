@@ -46,7 +46,6 @@ public:
     vbo.bind();
     vbo.set_data(i);
     Layout::template set_attrib_pointer<N>();
-    enable();
   }
 
   [[nodiscard]] const vertex_array &get_vertex_array() const { return vao; }

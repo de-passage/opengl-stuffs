@@ -1212,6 +1212,87 @@ inline void uniform(uniform_location loc, uint_t u1, uint_t u2, uint_t u3,
   glUniform4ui(loc.value, u1, u2, u3, u4);
 }
 
+struct column_major {
+  constexpr static inline bool_t transpose = GL_FALSE;
+};
+
+struct row_major {
+  constexpr static inline bool_t transpose = GL_TRUE;
+};
+
+template <std::size_t N> struct implicit_matrix_index {
+
+  // NOLINTNEXTLINE
+  constexpr inline implicit_matrix_index(std::size_t n, std::size_t m) noexcept
+      : value(n * N + m) {}
+  std::size_t value;
+};
+
+template <std::size_t N, std::size_t M, class Mode = column_major>
+struct mat_t {
+  static_assert(std::is_same_v<Mode, row_major> ||
+                    std::is_same_v<Mode, column_major>,
+                "Matrix mode must be one of gl::row_major or gl::column_major");
+  static_assert(N > 1 && N <= 4 && M > 1 && M <= 4,
+                "Matrix dimensions must be between 2 and 4");
+  constexpr static inline bool_t transpose = Mode::transpose;
+
+  // NOLINTNEXTLINE
+  float_t value[N * M]{};
+
+  constexpr inline float &operator[](implicit_matrix_index<N> idx) {
+    return value[idx.value];
+  }
+  constexpr inline float operator[](implicit_matrix_index<N> idx) const {
+    return value[idx.value];
+  }
+};
+
+template <class M>
+inline void uniform(uniform_location loc, const mat_t<2, 2, M> &matrix) {
+  glUniformMatrix2fv(loc.value, 1, M::transpose, matrix.value);
+}
+
+template <class M>
+inline void uniform(uniform_location loc, const mat_t<2, 3, M> &matrix) {
+  glUniformMatrix2x3fv(loc.value, 1, M::transpose, matrix.value);
+}
+
+template <class M>
+inline void uniform(uniform_location loc, const mat_t<2, 4, M> &matrix) {
+  glUniformMatrix2x4fv(loc.value, 1, M::transpose, matrix.value);
+}
+
+template <class M>
+inline void uniform(uniform_location loc, const mat_t<3, 2, M> &matrix) {
+  glUniformMatrix3x2fv(loc.value, 1, M::transpose, matrix.value);
+}
+
+template <class M>
+inline void uniform(uniform_location loc, const mat_t<3, 3, M> &matrix) {
+  glUniformMatrix3fv(loc.value, 1, M::transpose, matrix.value);
+}
+
+template <class M>
+inline void uniform(uniform_location loc, const mat_t<3, 4, M> &matrix) {
+  glUniformMatrix3x4fv(loc.value, 1, M::transpose, matrix.value);
+}
+
+template <class M>
+inline void uniform(uniform_location loc, const mat_t<4, 2, M> &matrix) {
+  glUniformMatrix4x2fv(loc.value, 1, M::transpose, matrix.value);
+}
+
+template <class M>
+inline void uniform(uniform_location loc, const mat_t<4, 3, M> &matrix) {
+  glUniformMatrix4x3fv(loc.value, 1, M::transpose, matrix.value);
+}
+
+template <class M>
+inline void uniform(uniform_location loc, const mat_t<4, 4, M> &matrix) {
+  glUniformMatrix4fv(loc.value, 1, M::transpose, matrix.value);
+}
+
 } // namespace dpsg::gl
 
 #endif
