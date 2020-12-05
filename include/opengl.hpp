@@ -40,7 +40,7 @@ auto value(const T &t) noexcept {
 
 } // namespace detail
 
-enum class buffer_bit {
+enum class buffer_bit : enum_t {
   color = GL_COLOR_BUFFER_BIT,
   depth = GL_DEPTH_BUFFER_BIT,
   stencil = GL_STENCIL_BUFFER_BIT,
@@ -66,7 +66,7 @@ constexpr inline buffer_bit operator^(buffer_bit left,
 
 inline void clear(buffer_bit bb) noexcept { glClear(static_cast<int>(bb)); }
 
-enum class drawing_mode {
+enum class drawing_mode : enum_t {
   points = GL_POINTS,
   line_strip = GL_LINE_STRIP,
   line_loop = GL_LINE_LOOP,
@@ -80,7 +80,7 @@ enum class drawing_mode {
   triangles_adjacency = GL_TRIANGLES_ADJACENCY,
 };
 
-enum class capability {
+enum class capability : enum_t {
   blend = GL_BLEND,
   clip_distance_0 = GL_CLIP_DISTANCE0,
   clip_distance_1 = GL_CLIP_DISTANCE1,
@@ -149,7 +149,7 @@ inline bool is_enabled(capability cp, index index) noexcept {
   return glIsEnabledi(static_cast<enum_t>(cp), index.value) == GL_TRUE;
 }
 
-enum class cull_mode {
+enum class cull_mode : enum_t {
   front = GL_FRONT,
   back = GL_BACK,
   front_and_back = GL_FRONT_AND_BACK,
@@ -159,7 +159,7 @@ inline void cull_face(cull_mode cm) noexcept {
   glCullFace(static_cast<enum_t>(cm));
 }
 
-enum class buffer_type {
+enum class buffer_type : enum_t {
   array = GL_ARRAY_BUFFER,
   copy_read = GL_COPY_READ_BUFFER,
   copy_write = GL_COPY_WRITE_BUFFER,
@@ -171,7 +171,7 @@ enum class buffer_type {
   uniform = GL_UNIFORM_BUFFER
 };
 
-enum class data_hint {
+enum class data_hint : enum_t {
   static_draw = GL_STATIC_DRAW,
   stream_draw = GL_STREAM_DRAW,
   dynamic_draw = GL_DYNAMIC_DRAW,
@@ -381,7 +381,7 @@ inline void vertex_attrib_pointer(index idx, U element_count,
                          reinterpret_cast<void *>(o.value * sizeof(T)));
 }
 
-enum class normalized {
+enum class normalized : enum_t {
   yes = GL_TRUE,
   no = GL_FALSE,
 };
@@ -581,7 +581,7 @@ inline uniform_location get_uniform_location(program_id id,
   return uniform_location{glGetUniformLocation(id.value, name)};
 }
 
-enum class shader_type {
+enum class shader_type : enum_t {
   // compute = GL_COMPUTE_SHADER,
   vertex = GL_VERTEX_SHADER,
   // tess_control = GL_TESS_CONTROL_SHADER,
@@ -705,7 +705,7 @@ inline void delete_texture(const texture_id &id) noexcept {
                    reinterpret_cast<const unsigned int *>(&id)); // NOLINT
 }
 
-enum class texture_target {
+enum class texture_target : enum_t {
   _1d = GL_TEXTURE_1D,
   _2d = GL_TEXTURE_2D,
   _3d = GL_TEXTURE_3D,
@@ -727,7 +727,7 @@ inline void unbind_texture(texture_target t) noexcept {
   glBindTexture(static_cast<int>(t), 0);
 }
 
-enum class texture_parameter_name {
+enum class texture_parameter_name : enum_t {
   // depth_stencil = GL_DEPTH_STENCIL_TEXTURE_MODE,
   base_level = GL_TEXTURE_BASE_LEVEL,
   compare_func = GL_TEXTURE_COMPARE_FUNC,
@@ -749,7 +749,7 @@ enum class texture_parameter_name {
   swizzle_rgba = GL_TEXTURE_SWIZZLE_RGBA,
 };
 
-enum class compare_function {
+enum class compare_function : enum_t {
   lequal = GL_LEQUAL,
   gequal = GL_GEQUAL,
   equal = GL_EQUAL,
@@ -760,18 +760,18 @@ enum class compare_function {
   never = GL_NEVER,
 };
 
-enum class compare_mode {
+enum class compare_mode : enum_t {
   compare_ref_to_texture = GL_COMPARE_REF_TO_TEXTURE,
   none = GL_NONE
 };
 
-enum class wrap_target {
+enum class wrap_target : enum_t {
   s = GL_TEXTURE_WRAP_S,
   t = GL_TEXTURE_WRAP_T,
   r = GL_TEXTURE_WRAP_R,
 };
 
-enum class wrap_mode {
+enum class wrap_mode : enum_t {
   clamp_to_edge = GL_CLAMP_TO_EDGE,
   clamp_to_border = GL_CLAMP_TO_BORDER,
   mirrored_repeat = GL_MIRRORED_REPEAT,
@@ -779,14 +779,14 @@ enum class wrap_mode {
   // GL_MIRROR_CLAMP_TO_EDGE,
 };
 
-enum class swizzle_target {
+enum class swizzle_target : enum_t {
   r = GL_TEXTURE_SWIZZLE_R,
   g = GL_TEXTURE_SWIZZLE_G,
   b = GL_TEXTURE_SWIZZLE_B,
   a = GL_TEXTURE_SWIZZLE_A,
 };
 
-enum class swizzle_mode {
+enum class swizzle_mode : enum_t {
   red = GL_RED,
   green = GL_GREEN,
   blue = GL_BLUE,
@@ -795,7 +795,7 @@ enum class swizzle_mode {
   one = GL_ONE
 };
 
-enum class min_filter {
+enum class min_filter : enum_t {
   nearest = GL_NEAREST,
   linear = GL_LINEAR,
   nearest_mipmap_nearest = GL_NEAREST_MIPMAP_NEAREST,
@@ -804,18 +804,18 @@ enum class min_filter {
   linear_mipmap_linear = GL_LINEAR_MIPMAP_LINEAR,
 };
 
-enum class mag_filter {
+enum class mag_filter : enum_t {
   nearest = GL_NEAREST,
   linear = GL_LINEAR,
 };
 
-enum class lod_parameter {
+enum class lod_parameter : enum_t {
   min = GL_TEXTURE_MAX_LOD,
   max = GL_TEXTURE_MIN_LOD,
   bias = GL_TEXTURE_LOD_BIAS,
 };
 
-enum class texture_level {
+enum class texture_level : enum_t {
   base = GL_TEXTURE_BASE_LEVEL,
   max = GL_TEXTURE_MAX_LEVEL,
 };
@@ -915,7 +915,7 @@ inline void generate_mipmap(texture_target target) noexcept {
   glGenerateMipmap(static_cast<int>(target));
 }
 
-enum class texture_image_target {
+enum class texture_image_target : enum_t {
   _2d = GL_TEXTURE_2D,
   proxy_2d = GL_PROXY_TEXTURE_2D,
   array_1d = GL_TEXTURE_1D_ARRAY,
@@ -943,7 +943,7 @@ struct height {
   unsigned int value;
 };
 
-enum class image_format {
+enum class image_format : enum_t {
   red = GL_RED,
   rg = GL_RG,
   rgb = GL_RGB,
@@ -961,7 +961,7 @@ enum class image_format {
   depth_stencil = GL_DEPTH_STENCIL,
 };
 
-enum class base_internal_format {
+enum class base_internal_format : enum_t {
   depth_component = GL_DEPTH_COMPONENT,
   depth_stencil = GL_DEPTH_STENCIL,
   red = GL_RED,
@@ -970,7 +970,7 @@ enum class base_internal_format {
   rgba = GL_RGBA,
 };
 
-enum class sized_internal_format {
+enum class sized_internal_format : enum_t {
   r8 = GL_R8,
   r8_snorm = GL_R8_SNORM,
   r16 = GL_R16,
@@ -1036,7 +1036,7 @@ enum class sized_internal_format {
   */
 };
 
-enum class compressed_internal_format {
+enum class compressed_internal_format : enum_t {
   red = GL_COMPRESSED_RED,
   rg = GL_COMPRESSED_RG,
   rgb = GL_COMPRESSED_RGB,
@@ -1141,7 +1141,7 @@ inline void tex_image_2D(texture_image_target target, Args... args) noexcept {
                data);
 }
 
-enum class texture_name {
+enum class texture_name : enum_t {
   _0 = GL_TEXTURE0,
   _1 = GL_TEXTURE1,
   _2 = GL_TEXTURE2,
@@ -1180,7 +1180,7 @@ inline void active_texture(texture_name name) noexcept {
   glActiveTexture(static_cast<enum_t>(name));
 }
 
-enum class face_mode {
+enum class face_mode : enum_t {
   clockwise = GL_CW,
   counter_clockwise = GL_CCW,
 };
