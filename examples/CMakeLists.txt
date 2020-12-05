@@ -5,6 +5,9 @@ set(COMMON_SOURCES
     utils.cpp
     "${CMAKE_SOURCE_DIR}/src/glad.c")
 
+set(glm_DIR "${PROJECT_SOURCE_DIR}/../glm/cmake/glm")
+find_package(glm REQUIRED)
+
 macro(make_example EXAMPLE_NAME)
 
 add_executable(${EXAMPLE_NAME} WIN32 MACOSX_BUNDLE "${EXAMPLE_NAME}.cpp" ${COMMON_SOURCES})
@@ -17,7 +20,7 @@ else()
 endif(MSVC)
 
 target_link_libraries(${EXAMPLE_NAME} ${CMAKE_SOURCE_DIR}/lib/glfw3.lib)
-target_include_directories(${EXAMPLE_NAME} PUBLIC "${CMAKE_SOURCE_DIR}/include")
+target_include_directories(${EXAMPLE_NAME} PUBLIC "${CMAKE_SOURCE_DIR}/include" "${GLM_INCLUDE_DIRS}")
 
 endmacro(make_example EXAMPLE_NAME)
 
