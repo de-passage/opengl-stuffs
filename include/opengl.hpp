@@ -402,9 +402,9 @@ inline void vertex_attrib_pointer(index idx, U element_count, normalized n,
 
 namespace detail {
 template <typename... Args>
-using acceptable_index_types = std::conjunction<
-    std::disjunction<std::is_same<std::decay_t<Args>, index>,
-                     std::is_convertible<Args, unsigned int>>...>;
+using acceptable_index_types =
+    std::conjunction<std::disjunction<std::is_same<std::decay_t<Args>, index>,
+                                      std::is_convertible<Args, uint_t>>...>;
 } // namespace detail
 
 template <class... Args>
@@ -424,6 +424,37 @@ inline void draw_elements(drawing_mode mode, element_count count,
       "Input type to element rendering must be an unsigned integral type");
   glDrawElements(static_cast<int>(mode), count.value, gl_type,
                  reinterpret_cast<void *>(o.value * sizeof(T)));
+}
+
+template <class T>
+inline void draw_elements_base_vertex(drawing_mode mode, element_count count,
+                                      offset o, index base_vertex) noexcept {
+  constexpr int gl_type = detail::deduce_gl_enum_v<T>;
+  static_assert(
+      gl_type == GL_UNSIGNED_BYTE || gl_type == GL_UNSIGNED_SHORT ||
+          gl_type == GL_UNSIGNED_INT,
+      "Input type to element rendering must be an unsigned integral type");
+  glDrawElementsBaseVertex(static_cast<int>(mode), count.value, gl_type,
+                           reinterpret_cast<void *>(o.value * sizeof(T)),
+                           base_vertex.value);
+}
+
+template <class T>
+inline void draw_elements_base_vertex(drawing_mode mode, element_count count,
+                                      index base_vertex) noexcept {
+  draw_elements_base_vertex<T>(mode, count, offset{0}, base_vertex);
+}
+
+template <class T>
+inline void draw_elements(drawing_mode mode, element_count count, offset offset,
+                          index base_vertex) noexcept {
+  draw_elements_base_vertex<T>(mode, count, offset, base_vertex);
+}
+
+template <class T>
+inline void draw_elements(drawing_mode mode, element_count count,
+                          index base_vertex) noexcept {
+  draw_elements_base_vertex<T>(mode, count, base_vertex);
 }
 
 struct generic_buffer_id {
@@ -1292,7 +1323,6 @@ template <class M>
 inline void uniform(uniform_location loc, const mat_t<4, 4, M> &matrix) {
   glUniformMatrix4fv(loc.value, 1, M::transpose, matrix.value);
 }
-
 } // namespace dpsg::gl
 
 #endif
