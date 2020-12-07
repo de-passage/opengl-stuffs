@@ -4,6 +4,7 @@
 #include "load_shaders.hpp"
 #include "make_window.hpp"
 #include "opengl.hpp"
+#include "opengl/glm.hpp"
 #include "stbi_wrapper.hpp"
 #include "structured_buffers.hpp"
 #include "texture.hpp"
@@ -70,17 +71,19 @@ void rotation(dpsg::window &window) {
   gl::enable(gl::capability::depth_test);
   auto prog = load(vs_filename("shaders/projected.vs"),
                    fs_filename("shaders/two_textures_mixed.fs"));
+
+  prog.use();
   auto tex1 =
       load<texture_rgb>(texture_filename("assets/container.jpg")).value();
   auto tex2 =
-      load<texture_rgb>(texture_filename("assets/awesomeface.png")).value();
+      load<texture_rgba>(texture_filename("assets/awesomeface.png")).value();
 
   auto texture1_u = prog.uniform_location<sampler2D>("texture1").value();
   auto texture2_u = prog.uniform_location<sampler2D>("texture2").value();
 
-  auto projection_u = prog.uniform_location<gl::mat_t<4, 4>>("projection");
-  auto view_u = prog.uniform_location<gl::mat_t<4, 4>>("view");
-  auto model_u = prog.uniform_location<gl::mat_t<4, 4>>("model");
+  auto projection_u = prog.uniform_location<glm::mat4>("projection").value();
+  auto view_u = prog.uniform_location<glm::mat4>("view").value();
+  auto model_u = prog.uniform_location<glm::mat4>("model").value();
 
   texture1_u.bind(tex1, gl::texture_name::_0);
   texture2_u.bind(tex2, gl::texture_name::_1);
@@ -92,12 +95,26 @@ void rotation(dpsg::window &window) {
   fixed_size_structured_buffer buff{my_layout{}, vertices};
   buff.enable();
 
-  constexpr float aspect_ratio = static_cast<float>(SCR_WIDTH.value) /
-                                 static_cast<float>(SCR_HEIGHT.value);
-  glm::mat4 projection{
-      glm::perspective(glm::radians(45.F), aspect_ratio, 0.1F, 100.F)};
+  float aspect_ratio = static_cast<float>(SCR_WIDTH.value) /
+                       static_cast<float>(SCR_HEIGHT.value);
+
+  const auto project = [&aspect_ratio, &projection_u] {
+    glm::mat4 projection{
+        glm::perspective(glm::radians(45.F), aspect_ratio, 0.1F, 100.F)};
+    projection_u.bind(projection);
+  };
+  const auto reshape = [&aspect_ratio,
+                        &project]([[maybe_unused]] dpsg::window &wdw, width w,
+                                  height h) {
+    glViewport(0, 0, w.value, h.value);
+    aspect_ratio = static_cast<float>(w.value) / static_cast<float>(h.value);
+    project();
+  };
+
+  window.set_framebuffer_size_callback(reshape);
+
+  project();
   glm::mat4 view{glm::translate(glm::mat4(1.F), glm::vec3(0.F, 0.F, -3.F))};
-  projection_u.bind(projection);
   view_u.bind(view);
 
   window.render_loop([&] {
