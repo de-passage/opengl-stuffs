@@ -10,6 +10,7 @@
 
 void texture_example(dpsg::window &wdw) {
   using namespace dpsg;
+  using namespace dpsg::input;
 
   auto prog = load(vs_filename{"shaders/textured.vs"},
                    fs_filename{"shaders/two_textures_mixed.fs"});
