@@ -23,6 +23,19 @@ decltype(auto) with_window(window_hint::value<T> hint, Args &&... args) {
   return with_window(std::forward<Args>(args)...);
 }
 
+enum class input_mode : int {
+  sticky_keys = GLFW_STICKY_KEYS,
+  sticky_mouse_buttons = GLFW_STICKY_MOUSE_BUTTONS,
+  lock_key_mods = GLFW_LOCK_KEY_MODS,
+  raw_mouse_motion = GLFW_RAW_MOUSE_MOTION,
+};
+
+enum class cursor_mode : int {
+  normal = GLFW_CURSOR_NORMAL,
+  hidden = GLFW_CURSOR_HIDDEN,
+  disabled = GLFW_CURSOR_DISABLED,
+};
+
 struct window_impl {
   template <class T> class type : public T {
   public:
@@ -70,6 +83,15 @@ struct window_impl {
         swap_buffers();
         glfwPollEvents();
       }
+    }
+
+    inline void set_input_mode(cursor_mode mode) const {
+      glfwSetInputMode(_window, GLFW_CURSOR, static_cast<int>(mode));
+    }
+
+    inline void set_input_mode(input_mode mode, bool enabled) const {
+      glfwSetInputMode(_window, static_cast<int>(mode),
+                       enabled ? GLFW_TRUE : GLFW_FALSE);
     }
 
   private:
@@ -169,10 +191,72 @@ struct framebuffer_size_cb {
   };
 };
 
+struct cursor_pos_cb {
+  template <class B> struct type : B {
+    using signature = void(real_type_t<B> &, double, double);
+    using cursor_pos_callback = std::function<signature>;
+
+    template <class... Args>
+    constexpr explicit type(Args &&... args) noexcept(
+        std::is_nothrow_constructible_v<B, Args...>)
+        : B(std::forward<Args>(args)...) {}
+
+    cursor_pos_callback set_cursor_pos_callback(cursor_pos_callback &&f) {
+      if (f != nullptr) {
+        glfwSetCursorPosCallback(B::_window, &call);
+      } else {
+        glfwSetCursorPosCallback(B::_window, nullptr);
+      }
+      return std::exchange(_cb, f);
+    }
+
+  private:
+    static void call(GLFWwindow *wdw, double x, double y) {
+      auto *ptr = detail::get_window_ptr<type>(wdw);
+      if (auto &f = ptr->_cb) {
+        f(static_cast<real_type_t<B> &>(*ptr), x, y);
+      }
+    }
+
+    cursor_pos_callback _cb;
+  };
+};
+
+struct scroll_cb {
+  template <class B> struct type : B {
+    using signature = void(real_type_t<B> &, double, double);
+    using scroll_callback = std::function<signature>;
+
+    template <class... Args>
+    constexpr explicit type(Args &&... args) noexcept(
+        std::is_nothrow_constructible_v<B, Args...>)
+        : B(std::forward<Args>(args)...) {}
+
+    scroll_callback set_scroll_callback(scroll_callback &&f) {
+      if (f != nullptr) {
+        glfwSetScrollCallback(B::_window, &call);
+      } else {
+        glfwSetScrollCallback(B::_window, nullptr);
+      }
+      return std::exchange(_cb, f);
+    }
+
+  private:
+    static void call(GLFWwindow *wdw, double x, double y) {
+      auto *ptr = detail::get_window_ptr<type>(wdw);
+      if (auto &f = ptr->_cb) {
+        f(static_cast<real_type_t<B> &>(*ptr), x, y);
+      }
+    }
+
+    scroll_callback _cb;
+  };
+};
+
 namespace detail {
 template <class Window>
-using window_mixin =
-    mixin<Window, function_key_cb, framebuffer_size_cb, window_impl>;
+using window_mixin = mixin<Window, function_key_cb, framebuffer_size_cb,
+                           scroll_cb, cursor_pos_cb, window_impl>;
 } // namespace detail
 
 class window : public detail::window_mixin<window> {
