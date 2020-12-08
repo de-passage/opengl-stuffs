@@ -141,7 +141,7 @@ private:
             int> = 0>
     void bind(Us &&... args) const {
       gl::uniform(static_cast<const B *>(this)->id(),
-                  std::forward<Ts>(args)...);
+                  static_cast<std::add_const_t<Ts>>(args)...);
     }
   };
 
