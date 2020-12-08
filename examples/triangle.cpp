@@ -12,7 +12,7 @@ void triangle(dpsg::window &wdw) {
 
   // NOLINTNEXTLINE
   constexpr float vertices[] = {
-      // positions         // colors
+      // positions        // colors
       0.0F,  0.5F,  0.0F, 0.0F, 0.0F, 1.0F, // top
       -0.5F, -0.5F, 0.0F, 0.0F, 1.0F, 0.0F, // bottom leFt
       0.5F,  -0.5F, 0.0F, 1.0F, 0.0F, 0.0F, // bottom right
@@ -23,7 +23,7 @@ void triangle(dpsg::window &wdw) {
   b.enable();
 
   shader.use();
-  gl::clear_color(gl::g{0.3F}, gl::r{0.2F}, gl::b{0.3F});
+  gl::clear_color(gl::g{0.3F}, gl::r{0.2F}, gl::b{0.3F}); // NOLINT
 
   wdw.render_loop([&] {
     gl::clear(gl::buffer_bit::color);

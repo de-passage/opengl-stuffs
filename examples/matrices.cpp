@@ -136,7 +136,7 @@ void matrices(dpsg::window &window) {
 
   prog.use();
 
-  offset_u.bind(0.5, 0.5);
+  offset_u.bind(0.5, 0.5); // NOLINT
   perspective_u.bind(perspective);
 
   const auto reshape = [&perspective,

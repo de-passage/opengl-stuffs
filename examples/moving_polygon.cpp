@@ -1,3 +1,4 @@
+#include "input_timer.hpp"
 #include "key_mapper.hpp"
 #include "load_shaders.hpp"
 #include "make_window.hpp"
@@ -36,19 +37,25 @@ void moving_polygon(dpsg::window &wdw, key_mapper &kmap) {
   };
   const auto move_x = move(x_offset);
   const auto move_y = move(y_offset);
-  kmap.while_(key::up, move_y(+0.1F));
-  kmap.while_(key::down, move_y(-0.1F));
-  kmap.while_(key::right, move_x(+0.1F));
-  kmap.while_(key::left, move_x(-0.1F));
+  using namespace std::literals::chrono_literals;
+  constexpr float defoff = 0.01F;
+  constexpr auto interval = 10ms;
+  kmap.while_(key::up, move_y(+defoff));
+  kmap.while_(key::down, move_y(-defoff));
+  kmap.while_(key::right, move_x(+defoff));
+  kmap.while_(key::left, move_x(-defoff));
+
+  input_timer timer{[&kmap, &wdw] { kmap.trigger_pressed_callbacks(wdw); },
+                    interval};
 
   shader.use();
-  gl::clear_color(gl::g{0.3F}, gl::r{0.2F}, gl::b{0.3F});
+  gl::clear_color(gl::g{0.3F}, gl::r{0.2F}, gl::b{0.3F}); // NOLINT
 
   wdw.render_loop([&] {
     gl::clear(gl::buffer_bit::color);
 
     b.draw(gl::drawing_mode::triangle_strip);
-    kmap.trigger_pressed_callbacks(wdw);
+    timer.trigger();
   });
 }
 
