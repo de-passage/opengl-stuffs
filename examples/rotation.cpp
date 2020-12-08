@@ -1,3 +1,5 @@
+#define GLM_FORCE_SILENT_WARNINGS
+
 #include "common.hpp"
 #include "glm/fwd.hpp"
 #include "glm/trigonometric.hpp"

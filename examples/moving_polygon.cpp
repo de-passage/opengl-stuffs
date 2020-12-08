@@ -36,10 +36,10 @@ void moving_polygon(dpsg::window &wdw, key_mapper &kmap) {
   };
   const auto move_x = move(x_offset);
   const auto move_y = move(y_offset);
-  kmap.on(key::up, move_y(+0.1F));
-  kmap.on(key::down, move_y(-0.1F));
-  kmap.on(key::right, move_x(+0.1F));
-  kmap.on(key::left, move_x(-0.1F));
+  kmap.while_(key::up, move_y(+0.1F));
+  kmap.while_(key::down, move_y(-0.1F));
+  kmap.while_(key::right, move_x(+0.1F));
+  kmap.while_(key::left, move_x(-0.1F));
 
   shader.use();
   gl::clear_color(gl::g{0.3F}, gl::r{0.2F}, gl::b{0.3F});
@@ -48,6 +48,7 @@ void moving_polygon(dpsg::window &wdw, key_mapper &kmap) {
     gl::clear(gl::buffer_bit::color);
 
     b.draw(gl::drawing_mode::triangle_strip);
+    kmap.trigger_pressed_callbacks(wdw);
   });
 }
 
