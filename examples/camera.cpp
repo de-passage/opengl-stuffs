@@ -77,6 +77,8 @@ void camera(dpsg::window &wdw, key_mapper &kmap) {
   constexpr glm::vec3 default_camera_position = glm::vec3(0.0f, 0.0f, 3.0f);
   constexpr glm::vec3 camera_front = glm::vec3(0.0f, 0.0f, -1.0f);
   constexpr glm::vec3 camera_up = glm::vec3(0.0f, 1.0f, 0.0f);
+  const glm::vec3 camera_horizontal =
+      glm::normalize(glm::cross(camera_front, camera_up));
 
   using namespace dpsg;
   using namespace dpsg::input;
@@ -123,14 +125,34 @@ void camera(dpsg::window &wdw, key_mapper &kmap) {
                                                width w, height h) {
     aspect_ratio = static_cast<float>(w.value) / static_cast<float>(h.value);
     project(aspect_ratio);
+    glViewport(0, 0, w.value, h.value);
   });
 
   // Input
   constexpr auto interval = 10ms;
-  constexpr float off = 0.01;
+  constexpr float camera_speed = .25;
   auto camera_position{default_camera_position};
   input_timer timer{[&] { kmap.trigger_pressed_callbacks(wdw); }, interval};
 
+  const auto move_forward =
+      ignore([&] { camera_position += camera_speed * camera_front; });
+  const auto move_backward =
+      ignore([&] { camera_position -= camera_speed * camera_front; });
+  const auto strafe_left =
+      ignore([&] { camera_position -= camera_speed * camera_horizontal; });
+  const auto strafe_right =
+      ignore([&] { camera_position += camera_speed * camera_horizontal; });
+
+  kmap.while_(key::up, move_forward);
+  kmap.while_(key::W, move_forward);
+  kmap.while_(key::down, move_backward);
+  kmap.while_(key::S, move_backward);
+  kmap.while_(key::left, strafe_left);
+  kmap.while_(key::A, strafe_left);
+  kmap.while_(key::right, strafe_right);
+  kmap.while_(key::D, strafe_right);
+
+  // Render loop
   gl::clear_color({0.2F, 0.3F, 0.3F}); // NOLINT
   wdw.render_loop([&] {
     gl::clear(gl::buffer_bit::color | gl::buffer_bit::depth);
