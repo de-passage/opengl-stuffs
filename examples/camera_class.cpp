@@ -82,7 +82,7 @@ void camera_class(dpsg::window &wdw, key_mapper &kmap) {
   using namespace dpsg::input;
   using namespace std::literals::chrono_literals;
 
-  using camera = dpsg::camera<dpsg::glm_traits>;
+  using camera = dpsg::camera<dpsg::traits::glm>;
 
   constexpr radians default_yaw{to_radians(degrees{-90})};
   constexpr radians default_pitch{0};
