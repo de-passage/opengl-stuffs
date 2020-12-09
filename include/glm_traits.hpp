@@ -32,6 +32,17 @@ struct glm_traits {
                                  const vec_type &up) {
     return glm::lookAt(eye, facing, up);
   }
+
+  inline static mat_type rotate(const mat_type &mat, radians angle,
+                                const vec_type &axis) {
+    return glm::rotate(mat, angle.value, axis);
+  }
+
+  inline static mat_type translate(const mat_type &mat, const vec_type &vec) {
+    return glm::translate(mat, vec);
+  }
+
+  constexpr static inline mat_type identity_matrix{1.0};
 };
 } // namespace dpsg
 
