@@ -123,12 +123,10 @@ void camera(dpsg::window &wdw, key_mapper &kmap) {
                                           aspect_ratio, 0.1F, 100.F)};
     projection_u.bind(projection);
   };
-  wdw.set_framebuffer_size_callback(
-      [&aspect_ratio]([[maybe_unused]] window &unused, width w, height h) {
-        aspect_ratio =
-            static_cast<float>(w.value) / static_cast<float>(h.value);
-        glViewport(0, 0, w.value, h.value);
-      });
+  wdw.set_framebuffer_size_callback(ignore([&aspect_ratio](width w, height h) {
+    aspect_ratio = static_cast<float>(w.value) / static_cast<float>(h.value);
+    glViewport(0, 0, w.value, h.value);
+  }));
 
   glm::vec3 camera_front = default_camera_front;
   const auto camera_horizontal = [&camera_front, &camera_up] {
@@ -180,8 +178,7 @@ void camera(dpsg::window &wdw, key_mapper &kmap) {
   wdw.set_cursor_pos_callback([&](window &wdw, double x, double y) {
     last_x = x;
     last_y = y;
-    const auto callback = [&]([[maybe_unused]] window &wdw, double x,
-                              double y) {
+    const auto callback = [&](double x, double y) {
       constexpr float sensitivity = 0.1F;
       double x_offset = (x - last_x) * sensitivity;
       double y_offset = (last_y - y) * sensitivity;
@@ -197,14 +194,13 @@ void camera(dpsg::window &wdw, key_mapper &kmap) {
                              cos(glm::radians(pitch)))};
       camera_front = glm::normalize(direction);
     };
-    callback(wdw, x, y);
-    wdw.set_cursor_pos_callback(callback);
+    callback(x, y);
+    wdw.set_cursor_pos_callback(ignore(callback));
   });
 
-  wdw.set_scroll_callback(
-      [&]([[maybe_unused]] window &wdw, [[maybe_unused]] double x, double y) {
-        fov = std::clamp(fov - y, min_fov, max_fov);
-      });
+  wdw.set_scroll_callback(ignore([&]([[maybe_unused]] double x, double y) {
+    fov = std::clamp(fov - y, min_fov, max_fov);
+  }));
 
   // Render loop
   gl::clear_color({0.2F, 0.3F, 0.3F}); // NOLINT

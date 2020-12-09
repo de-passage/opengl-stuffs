@@ -97,21 +97,18 @@ void rotation(dpsg::window &window) {
   fixed_size_structured_buffer buff{my_layout{}, vertices};
   buff.enable();
 
-  float aspect_ratio = static_cast<float>(SCR_WIDTH.value) /
-                       static_cast<float>(SCR_HEIGHT.value);
+  aspect_ratio aspect_ratio = SCR_WIDTH / SCR_HEIGHT;
 
   const auto project = [&aspect_ratio, &projection_u] {
     glm::mat4 projection{
-        glm::perspective(glm::radians(45.F), aspect_ratio, 0.1F, 100.F)};
+        glm::perspective(glm::radians(45.F), aspect_ratio.value, 0.1F, 100.F)};
     projection_u.bind(projection);
   };
-  const auto reshape = [&aspect_ratio,
-                        &project]([[maybe_unused]] dpsg::window &wdw, width w,
-                                  height h) {
+  const auto reshape = ignore([&aspect_ratio, &project](width w, height h) {
     glViewport(0, 0, w.value, h.value);
-    aspect_ratio = static_cast<float>(w.value) / static_cast<float>(h.value);
+    aspect_ratio = w / h;
     project();
-  };
+  });
 
   window.set_framebuffer_size_callback(reshape);
 

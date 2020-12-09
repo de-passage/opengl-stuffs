@@ -139,14 +139,12 @@ void matrices(dpsg::window &window) {
   offset_u.bind(0.5, 0.5); // NOLINT
   perspective_u.bind(perspective);
 
-  const auto reshape = [&perspective,
-                        &perspective_u]([[maybe_unused]] dpsg::window &wdw,
-                                        width w, height h) {
-    perspective[{0, 0}] = frustum_scale / (static_cast<float>(w.value) /
-                                           static_cast<float>(h.value));
-    perspective_u.bind(perspective);
-    glViewport(0, 0, w.value, h.value);
-  };
+  const auto reshape =
+      ignore([&perspective, &perspective_u](width w, height h) {
+        perspective[{0, 0}] = frustum_scale / (w / h).value;
+        perspective_u.bind(perspective);
+        glViewport(0, 0, w.value, h.value);
+      });
   window.set_framebuffer_size_callback(reshape);
 
   window.render_loop([&] {

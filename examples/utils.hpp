@@ -11,8 +11,10 @@ class window;
 void close(dpsg::window &w);
 
 template <class F> auto ignore(F &&f) {
-  return
-      [f = std::forward<F>(f)]([[maybe_unused]] dpsg::window &unused) { f(); };
+  return [f = std::forward<F>(f)]([[maybe_unused]] dpsg::window &unused,
+                                  auto &&... args) {
+    f(std::forward<decltype(args)>(args)...);
+  };
 }
 
 void resize([[maybe_unused]] dpsg::window &unused, dpsg::width w,

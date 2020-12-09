@@ -119,11 +119,10 @@ void camera_class(dpsg::window &wdw, key_mapper &kmap) {
   aspect_ratio aspect_ratio = SCR_WIDTH / SCR_HEIGHT;
   camera cam{aspect_ratio};
 
-  wdw.set_framebuffer_size_callback(
-      [&cam]([[maybe_unused]] window &unused, width w, height h) {
-        cam.aspect_ratio(w, h);
-        glViewport(0, 0, w.value, h.value);
-      });
+  wdw.set_framebuffer_size_callback(ignore([&cam](width w, height h) {
+    cam.aspect_ratio(w, h);
+    glViewport(0, 0, w.value, h.value);
+  }));
 
   // Input
   constexpr auto interval = 10ms;
@@ -153,8 +152,7 @@ void camera_class(dpsg::window &wdw, key_mapper &kmap) {
   wdw.set_cursor_pos_callback([&](window &wdw, double x, double y) {
     last_x = x;
     last_y = y;
-    const auto callback = [&]([[maybe_unused]] window &wdw, double x,
-                              double y) {
+    const auto callback = [&](double x, double y) {
       constexpr float sensitivity = 0.1F;
       double x_offset = (x - last_x) * sensitivity;
       double y_offset = (last_y - y) * sensitivity;
@@ -162,13 +160,12 @@ void camera_class(dpsg::window &wdw, key_mapper &kmap) {
       last_y = y;
       cam.rotate(x_offset, y_offset);
     };
-    callback(wdw, x, y);
-    wdw.set_cursor_pos_callback(callback);
+    callback(x, y);
+    wdw.set_cursor_pos_callback(ignore(callback));
   });
 
-  wdw.set_scroll_callback([&]([[maybe_unused]] window &wdw,
-                              [[maybe_unused]] double x,
-                              double y) { cam.zoom(y); });
+  wdw.set_scroll_callback(
+      ignore([&]([[maybe_unused]] double x, double y) { cam.zoom(y); }));
 
   // Render loop
   gl::clear_color({0.2F, 0.3F, 0.3F}); // NOLINT
