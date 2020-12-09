@@ -68,6 +68,14 @@ constexpr inline basic_radians<T> to_radians(basic_degrees<T> degs) {
 
 using degrees = basic_degrees<float>;
 
+template <class T> struct basic_z_near { T value; };
+using z_near = basic_z_near<float>;
+template <class T> basic_z_near(T) -> basic_z_near<T>;
+
+template <class T> struct basic_z_far { T value; };
+using z_far = basic_z_far<float>;
+template <class T> basic_z_far(T) -> basic_z_far<T>;
+
 } // namespace dpsg
 
 #endif // GUARD_DPSG_COMMON_HEADER

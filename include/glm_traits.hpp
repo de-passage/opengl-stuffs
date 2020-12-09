@@ -15,9 +15,9 @@ struct glm_traits {
   using vec_type = glm::vec3;
   using mat_type = glm::mat4;
 
-  inline static mat_type perspective(radians f, aspect_ratio ar, float z_near,
-                                     float z_far) {
-    return glm::perspective(f.value, ar.value, z_near, z_far);
+  inline static mat_type perspective(radians f, aspect_ratio ar, z_near z_near,
+                                     z_far z_far) {
+    return glm::perspective(f.value, ar.value, z_near.value, z_far.value);
   }
 
   inline static vec_type normalize(const vec_type &input) {
@@ -26,6 +26,11 @@ struct glm_traits {
 
   inline static vec_type cross(const vec_type &lhs, const vec_type &rhs) {
     return glm::cross(lhs, rhs);
+  }
+
+  inline static mat_type look_at(const vec_type &eye, const vec_type &facing,
+                                 const vec_type &up) {
+    return glm::lookAt(eye, facing, up);
   }
 };
 } // namespace dpsg

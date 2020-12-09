@@ -2,6 +2,9 @@
 #define GUARD_DPSG_CAMERA_HEADER
 
 #include "common.hpp"
+#include "opengl.hpp"
+
+#include <algorithm>
 
 namespace dpsg {
 
@@ -10,29 +13,71 @@ public:
   using value_type = typename Traits::value_type;
   using vec_type = typename Traits::vec_type;
   using mat_type = typename Traits::mat_type;
+  using z_far = basic_z_far<value_type>;
+  using z_near = basic_z_near<value_type>;
+  using radians = basic_radians<value_type>;
+  using degrees = basic_degrees<value_type>;
+
+  constexpr static inline radians max_pitch{89};
+  constexpr static inline radians min_pitch{-max_pitch.value};
+  constexpr static inline radians default_yaw{to_radians(degrees{-90})};
+  constexpr static inline radians default_pitch{0};
+  constexpr static inline radians default_fov{to_radians(degrees{45})};
+  constexpr static inline z_far default_z_far{100};
+  constexpr static inline z_near default_z_near{.1};
+  constexpr static inline radians max_fov{to_radians(degrees{45})};
+  constexpr static inline radians min_fov{to_radians(degrees{1})};
 
 private:
   using Traits::cross;
+  using Traits::look_at;
   using Traits::normalize;
   using Traits::perspective;
-  using Traits::rotate;
-  using Traits::translate;
 
   aspect_ratio _aspect_ratio;
   radians _fov;
-  value_type _z_near;
-  value_type _z_far;
+  z_near _z_near;
+  z_far _z_far;
+  radians _pitch;
+  radians _yaw;
 
-  mat_type _projection;
+  vec_type _position{0, 0, 0};
+  vec_type _front{0, 0, -1};
+  vec_type _up{0, 1, 0};
+  vec_type _world_up{0, 1, 0};
+  vec_type _right{0, 1, 0};
 
   [[nodiscard]] constexpr mat_type _compute_projection() const {
     return perspective(_fov, _aspect_ratio, _z_near, _z_far);
   }
 
+  [[nodiscard]] constexpr mat_type _compute_view() const {
+    return look_at(_position, _position + _front, _up);
+  }
+
+  [[nodiscard]] constexpr vec_type _compute_front() const {
+    return normalize(vec_type{cos(_yaw.value) * cos(_pitch.value), _pitch.value,
+                              sin(_yaw.value) * cos(_pitch.value)});
+  }
+
+  [[nodiscard]] constexpr vec_type _compute_right() const {
+    return normalize(cross(_front, _world_up));
+  }
+
+  [[nodiscard]] constexpr vec_type _compute_up() const {
+    return normalize(cross(_right, _front));
+  }
+
+  void _update_vecs() {
+    _front = _compute_front();
+    _right = _compute_right();
+    _up = _compute_up();
+  }
+
 public:
   constexpr inline explicit camera(aspect_ratio ar)
-      : _aspect_ratio{ar}, _fov{45}, _z_near{0.1}, _z_far{100},
-        _projection{compute_projection()} {}
+      : _aspect_ratio{ar}, _fov{default_fov}, _z_near{default_z_near},
+        _z_far{default_z_far}, _pitch{default_pitch}, _yaw{default_yaw} {}
 
   constexpr value_type aspect_ratio() const { return _aspect_ratio; }
 
@@ -40,7 +85,34 @@ public:
 
   constexpr void aspect_ratio(struct aspect_ratio ar) { _aspect_ratio = ar; }
 
-  const mat_type &projection() const { return _projection; }
+  inline mat_type projection() const { return _compute_projection(); }
+  inline mat_type view() const { return _compute_view(); }
+
+  inline mat_type projected_view() const { return projection() * view(); }
+
+  inline void advance(value_type offset) { _position += offset * _front; }
+
+  inline void strafe(value_type offset) {
+    _position += offset * normalize(cross(_front, _up));
+  }
+
+  inline void reset(radians yaw, radians pitch, radians fov) {
+    _yaw = yaw;
+    _pitch = pitch;
+    _fov = fov;
+    _update_vecs();
+  }
+
+  inline void rotate(value_type x_offset, value_type y_offset) {
+    _yaw.value += x_offset;
+    _pitch.value =
+        std::clamp(_pitch.value + y_offset, min_pitch.value, max_pitch.value);
+    _update_vecs();
+  }
+
+  inline void zoom(value_type offset) {
+    _fov.value = std::clamp(_fov.value + offset, min_fov.value, max_fov.value);
+  }
 };
 } // namespace dpsg
 
