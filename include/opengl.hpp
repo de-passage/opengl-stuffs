@@ -1357,6 +1357,22 @@ inline void depth_mask(bool enabled) noexcept {
   glDepthMask(enabled ? GL_TRUE : GL_FALSE);
 }
 
+struct x {
+  int_t value;
+};
+
+struct y {
+  int_t value;
+};
+
+inline void viewport(width w, height h) noexcept {
+  glViewport(0, 0, w.value, h.value);
+}
+
+inline void viewport(x x, y y, width w, height h) noexcept {
+  glViewport(x.value, y.value, w.value, h.value);
+}
+
 } // namespace dpsg::gl
 
 #endif
