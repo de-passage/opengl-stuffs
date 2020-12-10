@@ -17,65 +17,64 @@
 
 #include <algorithm>
 
-void camera_class(dpsg::window &wdw, key_mapper &kmap) {
-
+void camera_class(dpsg::window& wdw, key_mapper& kmap) {
   // NOLINTNEXTLINE
   constexpr float vertices[] = {
-      -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, // NOLINT
-      0.5f,  -0.5f, -0.5f, 1.0f, 0.0f, // NOLINT
-      0.5f,  0.5f,  -0.5f, 1.0f, 1.0f, // NOLINT
-      0.5f,  0.5f,  -0.5f, 1.0f, 1.0f, // NOLINT
-      -0.5f, 0.5f,  -0.5f, 0.0f, 1.0f, // NOLINT
-      -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, // NOLINT
+      -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,  // NOLINT
+      0.5f,  -0.5f, -0.5f, 1.0f, 0.0f,  // NOLINT
+      0.5f,  0.5f,  -0.5f, 1.0f, 1.0f,  // NOLINT
+      0.5f,  0.5f,  -0.5f, 1.0f, 1.0f,  // NOLINT
+      -0.5f, 0.5f,  -0.5f, 0.0f, 1.0f,  // NOLINT
+      -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,  // NOLINT
 
-      -0.5f, -0.5f, 0.5f,  0.0f, 0.0f, // NOLINT
-      0.5f,  -0.5f, 0.5f,  1.0f, 0.0f, // NOLINT
-      0.5f,  0.5f,  0.5f,  1.0f, 1.0f, // NOLINT
-      0.5f,  0.5f,  0.5f,  1.0f, 1.0f, // NOLINT
-      -0.5f, 0.5f,  0.5f,  0.0f, 1.0f, // NOLINT
-      -0.5f, -0.5f, 0.5f,  0.0f, 0.0f, // NOLINT
+      -0.5f, -0.5f, 0.5f,  0.0f, 0.0f,  // NOLINT
+      0.5f,  -0.5f, 0.5f,  1.0f, 0.0f,  // NOLINT
+      0.5f,  0.5f,  0.5f,  1.0f, 1.0f,  // NOLINT
+      0.5f,  0.5f,  0.5f,  1.0f, 1.0f,  // NOLINT
+      -0.5f, 0.5f,  0.5f,  0.0f, 1.0f,  // NOLINT
+      -0.5f, -0.5f, 0.5f,  0.0f, 0.0f,  // NOLINT
 
-      -0.5f, 0.5f,  0.5f,  1.0f, 0.0f, // NOLINT
-      -0.5f, 0.5f,  -0.5f, 1.0f, 1.0f, // NOLINT
-      -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, // NOLINT
-      -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, // NOLINT
-      -0.5f, -0.5f, 0.5f,  0.0f, 0.0f, // NOLINT
-      -0.5f, 0.5f,  0.5f,  1.0f, 0.0f, // NOLINT
+      -0.5f, 0.5f,  0.5f,  1.0f, 0.0f,  // NOLINT
+      -0.5f, 0.5f,  -0.5f, 1.0f, 1.0f,  // NOLINT
+      -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,  // NOLINT
+      -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,  // NOLINT
+      -0.5f, -0.5f, 0.5f,  0.0f, 0.0f,  // NOLINT
+      -0.5f, 0.5f,  0.5f,  1.0f, 0.0f,  // NOLINT
 
-      0.5f,  0.5f,  0.5f,  1.0f, 0.0f, // NOLINT
-      0.5f,  0.5f,  -0.5f, 1.0f, 1.0f, // NOLINT
-      0.5f,  -0.5f, -0.5f, 0.0f, 1.0f, // NOLINT
-      0.5f,  -0.5f, -0.5f, 0.0f, 1.0f, // NOLINT
-      0.5f,  -0.5f, 0.5f,  0.0f, 0.0f, // NOLINT
-      0.5f,  0.5f,  0.5f,  1.0f, 0.0f, // NOLINT
+      0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  // NOLINT
+      0.5f,  0.5f,  -0.5f, 1.0f, 1.0f,  // NOLINT
+      0.5f,  -0.5f, -0.5f, 0.0f, 1.0f,  // NOLINT
+      0.5f,  -0.5f, -0.5f, 0.0f, 1.0f,  // NOLINT
+      0.5f,  -0.5f, 0.5f,  0.0f, 0.0f,  // NOLINT
+      0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  // NOLINT
 
-      -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, // NOLINT
-      0.5f,  -0.5f, -0.5f, 1.0f, 1.0f, // NOLINT
-      0.5f,  -0.5f, 0.5f,  1.0f, 0.0f, // NOLINT
-      0.5f,  -0.5f, 0.5f,  1.0f, 0.0f, // NOLINT
-      -0.5f, -0.5f, 0.5f,  0.0f, 0.0f, // NOLINT
-      -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, // NOLINT
+      -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,  // NOLINT
+      0.5f,  -0.5f, -0.5f, 1.0f, 1.0f,  // NOLINT
+      0.5f,  -0.5f, 0.5f,  1.0f, 0.0f,  // NOLINT
+      0.5f,  -0.5f, 0.5f,  1.0f, 0.0f,  // NOLINT
+      -0.5f, -0.5f, 0.5f,  0.0f, 0.0f,  // NOLINT
+      -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,  // NOLINT
 
-      -0.5f, 0.5f,  -0.5f, 0.0f, 1.0f, // NOLINT
-      0.5f,  0.5f,  -0.5f, 1.0f, 1.0f, // NOLINT
-      0.5f,  0.5f,  0.5f,  1.0f, 0.0f, // NOLINT
-      0.5f,  0.5f,  0.5f,  1.0f, 0.0f, // NOLINT
-      -0.5f, 0.5f,  0.5f,  0.0f, 0.0f, // NOLINT
-      -0.5f, 0.5f,  -0.5f, 0.0f, 1.0f  // NOLINT
+      -0.5f, 0.5f,  -0.5f, 0.0f, 1.0f,  // NOLINT
+      0.5f,  0.5f,  -0.5f, 1.0f, 1.0f,  // NOLINT
+      0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  // NOLINT
+      0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  // NOLINT
+      -0.5f, 0.5f,  0.5f,  0.0f, 0.0f,  // NOLINT
+      -0.5f, 0.5f,  -0.5f, 0.0f, 1.0f   // NOLINT
   };
 
   // NOLINTNEXTLINE
   glm::vec3 cube_positions[] = {
-      glm::vec3(0.0f, 0.0f, 0.0f),     // NOLINT
-      glm::vec3(2.0f, 5.0f, -15.0f),   // NOLINT
-      glm::vec3(-1.5f, -2.2f, -2.5f),  // NOLINT
-      glm::vec3(-3.8f, -2.0f, -12.3f), // NOLINT
-      glm::vec3(2.4f, -0.4f, -3.5f),   // NOLINT
-      glm::vec3(-1.7f, 3.0f, -7.5f),   // NOLINT
-      glm::vec3(1.3f, -2.0f, -2.5f),   // NOLINT
-      glm::vec3(1.5f, 2.0f, -2.5f),    // NOLINT
-      glm::vec3(1.5f, 0.2f, -1.5f),    // NOLINT
-      glm::vec3(-1.3f, 1.0f, -1.5f)    // NOLINT
+      glm::vec3(0.0f, 0.0f, 0.0f),      // NOLINT
+      glm::vec3(2.0f, 5.0f, -15.0f),    // NOLINT
+      glm::vec3(-1.5f, -2.2f, -2.5f),   // NOLINT
+      glm::vec3(-3.8f, -2.0f, -12.3f),  // NOLINT
+      glm::vec3(2.4f, -0.4f, -3.5f),    // NOLINT
+      glm::vec3(-1.7f, 3.0f, -7.5f),    // NOLINT
+      glm::vec3(1.3f, -2.0f, -2.5f),    // NOLINT
+      glm::vec3(1.5f, 2.0f, -2.5f),     // NOLINT
+      glm::vec3(1.5f, 0.2f, -1.5f),     // NOLINT
+      glm::vec3(-1.3f, 1.0f, -1.5f)     // NOLINT
   };
 
   using namespace dpsg;
@@ -131,7 +130,7 @@ void camera_class(dpsg::window &wdw, key_mapper &kmap) {
 
   const auto move_forward = ignore([&] { cam.advance(camera_speed); });
   const auto move_backward = ignore([&] { cam.advance(-camera_speed); });
-  const auto strafe_left = ignore([&] { cam.strafe(camera_speed); });
+  const auto strafe_left = ignore([&] { cam.strafe(-camera_speed); });
   const auto strafe_right = ignore([&] { cam.strafe(camera_speed); });
 
   kmap.while_(key::up, move_forward);
@@ -149,11 +148,11 @@ void camera_class(dpsg::window &wdw, key_mapper &kmap) {
   wdw.set_input_mode(cursor_mode::disabled);
   double last_x{0};
   double last_y{0};
-  wdw.set_cursor_pos_callback([&](window &wdw, double x, double y) {
+  wdw.set_cursor_pos_callback([&](window& wdw, double x, double y) {
     last_x = x;
     last_y = y;
     const auto callback = [&](double x, double y) {
-      constexpr float sensitivity = 0.1F;
+      constexpr float sensitivity = 0.01F;
       double x_offset = (x - last_x) * sensitivity;
       double y_offset = (last_y - y) * sensitivity;
       last_x = x;
@@ -168,7 +167,7 @@ void camera_class(dpsg::window &wdw, key_mapper &kmap) {
       ignore([&]([[maybe_unused]] double x, double y) { cam.zoom(y); }));
 
   // Render loop
-  gl::clear_color({0.2F, 0.3F, 0.3F}); // NOLINT
+  gl::clear_color({0.2F, 0.3F, 0.3F});  // NOLINT
   wdw.render_loop([&] {
     gl::clear(gl::buffer_bit::color | gl::buffer_bit::depth);
     projection_u.bind(cam.projection());
@@ -179,7 +178,8 @@ void camera_class(dpsg::window &wdw, key_mapper &kmap) {
       const float angle{20.F * i};
       const glm::mat4 model{
           glm::rotate(glm::translate(glm::mat4(1.F), cube_positions[i]),
-                      glm::radians(angle), glm::vec3(1.F, 0.3F, 0.5F))};
+                      glm::radians(angle),
+                      glm::vec3(1.F, 0.3F, 0.5F))};
 
       model_u.bind(model);
       buffer.draw();
@@ -189,4 +189,6 @@ void camera_class(dpsg::window &wdw, key_mapper &kmap) {
   });
 }
 
-int main() { windowed(camera_class); }
+int main() {
+  windowed(camera_class);
+}

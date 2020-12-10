@@ -8,8 +8,9 @@
 
 namespace dpsg {
 
-template <class Traits> class camera : Traits {
-public:
+template <class Traits>
+class camera : Traits {
+ public:
   using value_type = typename Traits::value_type;
   using vec_type = typename Traits::vec_type;
   using mat_type = typename Traits::mat_type;
@@ -27,8 +28,9 @@ public:
   constexpr static inline z_near default_z_near{.1};
   constexpr static inline radians max_fov{to_radians(degrees{45})};
   constexpr static inline radians min_fov{to_radians(degrees{1})};
+  constexpr static inline vec_type default_position{0, 0, 3};
 
-private:
+ private:
   using Traits::cross;
   using Traits::look_at;
   using Traits::normalize;
@@ -41,7 +43,7 @@ private:
   radians _pitch;
   radians _yaw;
 
-  vec_type _position{0, 0, 0};
+  vec_type _position{default_position};
   vec_type _front{0, 0, -1};
   vec_type _up{0, 1, 0};
   vec_type _world_up{0, 1, 0};
@@ -56,7 +58,8 @@ private:
   }
 
   [[nodiscard]] constexpr vec_type _compute_front() const {
-    return normalize(vec_type{cos(_yaw.value) * cos(_pitch.value), _pitch.value,
+    return normalize(vec_type{cos(_yaw.value) * cos(_pitch.value),
+                              _pitch.value,
                               sin(_yaw.value) * cos(_pitch.value)});
   }
 
@@ -74,10 +77,14 @@ private:
     _up = _compute_up();
   }
 
-public:
+ public:
   constexpr inline explicit camera(aspect_ratio ar)
-      : _aspect_ratio{ar}, _fov{default_fov}, _z_near{default_z_near},
-        _z_far{default_z_far}, _pitch{default_pitch}, _yaw{default_yaw} {}
+      : _aspect_ratio{ar},
+        _fov{default_fov},
+        _z_near{default_z_near},
+        _z_far{default_z_far},
+        _pitch{default_pitch},
+        _yaw{default_yaw} {}
 
   constexpr value_type aspect_ratio() const { return _aspect_ratio; }
 
@@ -100,6 +107,7 @@ public:
     _yaw = yaw;
     _pitch = pitch;
     _fov = fov;
+    _position = default_position;
     _update_vecs();
   }
 
@@ -114,6 +122,6 @@ public:
     _fov.value = std::clamp(_fov.value + offset, min_fov.value, max_fov.value);
   }
 };
-} // namespace dpsg
+}  // namespace dpsg
 
-#endif // GUARD_DPSG_CAMERA_HEADER
+#endif  // GUARD_DPSG_CAMERA_HEADER
