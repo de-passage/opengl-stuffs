@@ -1,14 +1,19 @@
 #define GLM_FORCE_SILENT_WARNINGS
 
+#include "buffers.hpp"
+#include "camera.hpp"
 #include "common.hpp"
-#include "glm/ext/matrix_float4x4.hpp"
+#include "fixed_size_element_buffer.hpp"
 #include "glm_traits.hpp"
+#include "input_timer.hpp"
 #include "load_shaders.hpp"
 #include "make_window.hpp"
 #include "opengl.hpp"
 #include "opengl/glm.hpp"
 #include "stbi_wrapper.hpp"
+#include "structured_buffers.hpp"
 
+#include <chrono>
 #include <type_traits>
 #include <vector>
 
@@ -147,16 +152,16 @@ constexpr hierarchy_t wrist_segment{
     draw};
 
 constexpr hierarchy_t wrist{tag<struct wrist>,
-                            position{0, 0, 0.5},
+                            position{0, 0, 5},
                             z_rotation{wrist_roll_angle},
                             x_rotation{wrist_pitch_angle},
                             wrist_segment,
                             left_finger,
                             right_finger};
 
-constexpr float lower_arm_angle(146.25);
-constexpr float lower_arm_length(2.5);
-constexpr float lower_arm_width(1.5);
+constexpr float lower_arm_angle = 146.25;
+constexpr float lower_arm_length = 2.5;
+constexpr float lower_arm_width = 0.75;
 constexpr hierarchy_t lower_arm_segment{
     tag<struct lower_arm_segment>,
     position{0, 0, lower_arm_length},
@@ -279,7 +284,7 @@ constexpr auto print = [](const auto& v, auto next, int indent_level = 0) {
 
   if constexpr (is_hierarchy_v<value_type>) {
     std::cout << name<value_type>::value << "{\n";
-    next(indent_level + 1);
+    next(indent_level + 2);
     indent(indent_level);
     std::cout << "},\n";
   }
@@ -289,7 +294,7 @@ constexpr auto print = [](const auto& v, auto next, int indent_level = 0) {
   }
   else if constexpr (std::is_base_of_v<rotation, value_type>) {
     std::cout << "rotation: (" << v.value[0] << "," << v.value[1] << ","
-              << v.value[2] << ", theta(" << v.angle.value << ")),\n";
+              << v.value[2] << ", rad(" << v.angle.value << ")),\n";
   }
   else if constexpr (std::is_same_v<scale, value_type>) {
     std::cout << "scale: (" << v.value[0] << "," << v.value[1] << ","
@@ -298,49 +303,267 @@ constexpr auto print = [](const auto& v, auto next, int indent_level = 0) {
   else if constexpr (std::is_same_v<draw_t, value_type>) {
     std::cout << "draw required\n";
   }
+  else {
+    static_assert(std::is_same_v<value_type, void>, "Non exhaustive");
+  }
 };
 
-constexpr auto gl_draw = [](auto& mstack, const auto& loc) {
-  return [&mstack, &loc](const auto& v, auto next, glm::mat4& matrix) {
-    using value_type = std::decay_t<decltype(v)>;
+constexpr auto gl_draw =
+    [](auto& mstack, const auto& loc, const auto& elements) {
+      return [&mstack, &loc, &elements](
+                 const auto& v, auto next, glm::mat4& matrix) {
+        using value_type = std::decay_t<decltype(v)>;
 
-    if constexpr (is_hierarchy_v<value_type>) {
-      mstack.push(next);
-    }
-    else if constexpr (std::is_base_of_v<rotation, value_type>) {
-      matrix = glm::rotate(matrix, v.angle.value, v.value);
-    }
-    else if constexpr (std::is_same_v<position, value_type>) {
-      matrix = glm::translate(matrix, v.value);
-    }
-    else if constexpr (std::is_same_v<scale, value_type>) {
-      matrix = glm::scale(matrix, v.value);
-    }
-    else if constexpr (std::is_same_v<draw_t, value_type>) {
-      loc.bind(matrix);
-    }
-    else {
-      static_assert(std::is_same_v<value_type, void>, "Non exhaustive");
-    }
-  };
+        if constexpr (is_hierarchy_v<value_type>) {
+          mstack.push(next);
+        }
+        else if constexpr (std::is_base_of_v<rotation, value_type>) {
+          matrix = glm::rotate(matrix, v.angle.value, v.value);
+        }
+        else if constexpr (std::is_same_v<position, value_type>) {
+          matrix = glm::translate(matrix, v.value);
+        }
+        else if constexpr (std::is_same_v<scale, value_type>) {
+          matrix = glm::scale(matrix, v.value);
+        }
+        else if constexpr (std::is_same_v<draw_t, value_type>) {
+          loc.bind(matrix);
+          elements.draw();
+        }
+        else {
+          static_assert(std::is_same_v<value_type, void>, "Non exhaustive");
+        }
+      };
+    };
+
+namespace detail {
+
+template <class R, class... Args>
+struct find_similar;
+template <class R, class... Args>
+struct find_similar<R, R, Args...> {
+  using type = R;
+};
+template <class R, class S, class... Args>
+struct find_similar<R, S, Args...> {
+  using type = typename find_similar<R, Args...>::type;
+};
+template <class R, class... Cs, class... Args>
+struct find_similar<R, hierarchy_t<R, Cs...>, Args...> {
+  using type = hierarchy_t<R, Cs...>;
 };
 
-void hierarchy(dpsg::window& wdw) {
+template <class R, class... Args>
+using find_similar_t = typename find_similar<R, Args...>::type;
+
+template <class... Args>
+struct tuple {};
+
+template <class H>
+struct components;
+template <class T, class... Args>
+struct components<hierarchy_t<T, Args...>> {
+  using type = tuple<Args...>;
+};
+template <class H>
+using components_t = typename components<H>::type;
+
+template <class R, class T, class... Args>
+constexpr decltype(auto) extract([[maybe_unused]] tuple<Args...> tag,
+                                 T&& tupl) noexcept {
+  return std::get<find_similar_t<R, Args...>>(std::forward<T>(tupl));
+}
+}  // namespace detail
+
+template <class... Args>
+struct path_t {};
+template <class T, class... Args>
+struct path_t<T, Args...> {
+  using head = T;
+  using tail = path_t<Args...>;
+};
+template <class... Args>
+constexpr static inline path_t<Args...> path{};
+
+template <class H, class... P>
+constexpr decltype(auto) extract([[maybe_unused]] path_t<P...> unused,
+                                 H&& hierarchy) noexcept {
+  using head = typename path_t<P...>::head;
+  using tail = typename path_t<P...>::tail;
+  constexpr auto S = sizeof...(P);
+  static_assert(S >= 1, "Invalid empty path");
+  if constexpr (sizeof...(P) > 1) {
+    return extract(
+        tail{},
+        detail::extract<head>(detail::components_t<std::decay_t<H>>{},
+                              std::forward<H>(hierarchy).components));
+  }
+  else {
+    return detail::extract<head>(detail::components_t<std::decay_t<H>>{},
+                                 std::forward<H>(hierarchy).components);
+  }
+}
+
+template <class R, class H>
+constexpr decltype(auto) extract(H&& hierarchy) noexcept {
+  return extract(path<R>, std::forward<H>(hierarchy));
+}
+
+template <class H>
+constexpr auto rotate_base(H& model, float angle) noexcept {
+  return ignore([&model, angle] {
+    extract<y_rotation>(model).angle.value += glm::radians(angle);
+  });
+}
+
+// clang-format off
+const dpsg::gl::ushort_t index_data[] = {
+    0,  1,  2,  // NOLINT
+    2,  3,  0,  // NOLINT
+
+    4,  5,  6,  // NOLINT
+    6,  7,  4,  // NOLINT
+
+    8,  9,  10,  // NOLINT
+    10, 11, 8,   // NOLINT
+
+    12, 13, 14,  // NOLINT
+    14, 15, 12,  // NOLINT
+
+    16, 17, 18,  // NOLINT
+    18, 19, 16,  // NOLINT
+
+    20, 21, 22,  // NOLINT
+    22, 23, 20,  // NOLINT
+};
+
+
+#define RED_COLOR 1.0F, 0.0F, 0.0F, 1.0F
+#define GREEN_COLOR 0.0F, 1.0F, 0.0F, 1.0F
+#define BLUE_COLOR 	0.0F, 0.0F, 1.0F, 1.0F
+
+#define YELLOW_COLOR 1.0F, 1.0F, 0.0F, 1.0F
+#define CYAN_COLOR 0.0F, 1.0F, 1.0F, 1.0F
+#define MAGENTA_COLOR 	1.0F, 0.0F, 1.0F, 1.0F
+
+const dpsg::gl::float_t vertex_data[] =
+{
+	//Front
+	+1.0F, +1.0F, +1.0F, // NOLINT
+	+1.0F, -1.0F, +1.0F, // NOLINT
+	-1.0F, -1.0F, +1.0F, // NOLINT
+	-1.0F, +1.0F, +1.0F, // NOLINT
+
+	//Top
+	+1.0F, +1.0F, +1.0F, // NOLINT
+	-1.0F, +1.0F, +1.0F, // NOLINT
+	-1.0F, +1.0F, -1.0F, // NOLINT
+	+1.0F, +1.0F, -1.0F, // NOLINT
+
+	//LeFt
+	+1.0F, +1.0F, +1.0F, // NOLINT
+	+1.0F, +1.0F, -1.0F, // NOLINT
+	+1.0F, -1.0F, -1.0F, // NOLINT
+	+1.0F, -1.0F, +1.0F, // NOLINT
+
+	//Back
+	+1.0F, +1.0F, -1.0F, // NOLINT
+	-1.0F, +1.0F, -1.0F, // NOLINT
+	-1.0F, -1.0F, -1.0F, // NOLINT
+	+1.0F, -1.0F, -1.0F, // NOLINT
+
+	//Bottom
+	+1.0F, -1.0F, +1.0F, // NOLINT
+	+1.0F, -1.0F, -1.0F, // NOLINT
+	-1.0F, -1.0F, -1.0F, // NOLINT
+	-1.0F, -1.0F, +1.0F, // NOLINT
+
+	//Right
+	-1.0F, +1.0F, +1.0F, // NOLINT
+	-1.0F, -1.0F, +1.0F, // NOLINT
+	-1.0F, -1.0F, -1.0F, // NOLINT
+	-1.0F, +1.0F, -1.0F, // NOLINT
+
+
+	GREEN_COLOR,
+	GREEN_COLOR,
+	GREEN_COLOR,
+	GREEN_COLOR,
+
+	BLUE_COLOR,
+	BLUE_COLOR,
+	BLUE_COLOR,
+	BLUE_COLOR,
+
+	RED_COLOR,
+	RED_COLOR,
+	RED_COLOR,
+	RED_COLOR,
+
+	YELLOW_COLOR,
+	YELLOW_COLOR,
+	YELLOW_COLOR,
+	YELLOW_COLOR,
+
+	CYAN_COLOR,
+	CYAN_COLOR,
+	CYAN_COLOR,
+	CYAN_COLOR,
+
+	MAGENTA_COLOR,
+	MAGENTA_COLOR,
+	MAGENTA_COLOR,
+	MAGENTA_COLOR,
+};
+// clang-format on
+
+void hierarchy(dpsg::window& wdw, key_mapper& kmap) {
   using namespace dpsg;
+  using namespace dpsg::input;
+
+  gl::enable(gl::capability::cull_face);
+  gl::cull_face(gl::cull_mode::back);
+  gl::front_face(gl::face_mode::clockwise);
+
+  gl::enable(gl::capability::depth_test);
+  gl::depth_mask(true);
+  gl::depth_func(gl::compare_function::lequal);
+  gl::depth_range(gl::near{0}, gl::far{1});
 
   matrix_stack<traits::glm> stack;
+  camera<traits::glm> camera(SCR_WIDTH / SCR_HEIGHT);
   auto prog = load(vs_filename{"shaders/projected_with_colors.vs"},
                    fs_filename{"shaders/basic.fs"});
+  prog.use();
   auto model_u = prog.uniform_location<glm::mat4>("model").value();
   auto projection_u =
       prog.uniform_location<glm::mat4>("projected_view").value();
-  gl::enable(gl::capability::depth_test);
+  projection_u.bind(camera.projected_view());
 
-  traverse(crane, print);
+  using layout = sequenced<group<3>, group<4>>;
+  fixed_size_structured_buffer vertex_array{layout{}, vertex_data};
+  vertex_array.enable();
+  fixed_size_element_buffer element_buffer{index_data};
+
+  auto model{crane};
+
+  kmap.on(key::enter, ignore([&model] {
+            // print the inner values of the crane on the console
+            traverse(model, print);
+          }));
+  constexpr float standard_angle_increment = 11.25;
+  kmap.while_(key::N, rotate_base(model, standard_angle_increment));
+  kmap.while_(key::M, rotate_base(model, -standard_angle_increment));
+
+  using namespace std::literals::chrono_literals;
+  constexpr auto interval = 10ms;
+  input_timer timer{[&kmap, &wdw] { kmap.trigger_pressed_callbacks(wdw); },
+                    interval};
 
   wdw.render_loop([&] {
     gl::clear(gl::buffer_bit::color | gl::buffer_bit::depth);
-    traverse(crane, gl_draw(stack, model_u), stack.top());
+    traverse(model, gl_draw(stack, model_u, element_buffer), stack.top());
+    timer.trigger();
   });
 }
 
