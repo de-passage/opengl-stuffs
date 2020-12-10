@@ -152,7 +152,7 @@ void camera_class(dpsg::window& wdw, key_mapper& kmap) {
     last_x = x;
     last_y = y;
     const auto callback = [&](double x, double y) {
-      constexpr float sensitivity = 0.01F;
+      constexpr float sensitivity = glm::radians(0.1F);
       double x_offset = (x - last_x) * sensitivity;
       double y_offset = (last_y - y) * sensitivity;
       last_x = x;
