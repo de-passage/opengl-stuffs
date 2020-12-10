@@ -120,12 +120,17 @@ constexpr decltype(auto) extract([[maybe_unused]] tuple<Args...> tag,
 }  // namespace detail
 
 template <class... Args>
-struct path_t {};
+struct path_t {
+  template <class... Ts>
+  constexpr static inline path_t<Args..., Ts...> then{};
+};
 
 template <class T, class... Args>
 struct path_t<T, Args...> {
   using head = T;
   using tail = path_t<Args...>;
+  template <class... Ts>
+  constexpr static inline path_t<T, Args..., Ts...> then{};
 };
 
 template <class... Args>

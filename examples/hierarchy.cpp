@@ -56,7 +56,7 @@ using dpsg::tag;
 constexpr float finger_length = 2;
 constexpr float finger_width = 0.25;
 constexpr float angle_lower_finger = 45;
-constexpr float angle_upper_finger = 180;
+constexpr float angle_upper_finger = 9;
 constexpr composite finger_segment{
     tag<struct finger_segment>,
     position{0, 0, finger_length / 2},
@@ -240,31 +240,65 @@ constexpr auto gl_draw =
 constexpr float full_circle{glm::radians(360.F)};
 constexpr float quarter_circle{glm::radians(90.F)};
 
+constexpr auto base_path = dpsg::path<>;
 template <class H>
 constexpr auto rotate_base(H& model, float angle) noexcept {
   return ignore([&model, angle] {
-    auto& v = dpsg::extract<y_rotation>(model).angle.value;
+    auto& v = dpsg::extract(base_path.then<y_rotation>, model).angle.value;
+    v = std::fmodf(v + glm::radians(angle), full_circle);
+  });
+}
+
+constexpr auto upper_arm_path = base_path.then<struct upper_arm>;
+template <class H>
+constexpr auto rotate_upper_arm(H& model, float angle) noexcept {
+  return ignore([&model, angle] {
+    auto& v = dpsg::extract(upper_arm_path.then<x_rotation>, model).angle.value;
+    v = std::clamp(v + glm::radians(angle), -quarter_circle, 0.F);
+  });
+}
+
+constexpr auto lower_arm_path = upper_arm_path.then<struct lower_arm>;
+template <class H>
+constexpr auto rotate_lower_arm(H& model, float angle) noexcept {
+  return ignore([&model, angle] {
+    auto& v = dpsg::extract(lower_arm_path.then<x_rotation>, model).angle.value;
+    v = std::clamp(v + glm::radians(angle), 0.F, glm::radians(lower_arm_angle));
+  });
+}
+
+constexpr auto wrist_path = lower_arm_path.then<struct wrist>;
+template <class H>
+constexpr auto roll_wrist(H& model, float angle) noexcept {
+  return ignore([&model, angle] {
+    auto& v = dpsg::extract(wrist_path.then<z_rotation>, model).angle.value;
     v = std::fmodf(v + glm::radians(angle), full_circle);
   });
 }
 
 template <class H>
-constexpr auto rotate_upper_arm(H& model, float angle) noexcept {
+constexpr auto pitch_wrist(H& model, float angle) noexcept {
   return ignore([&model, angle] {
-    auto& v = dpsg::extract(dpsg::path<struct upper_arm, x_rotation>, model)
-                  .angle.value;
-    v = std::clamp(v + glm::radians(angle), -quarter_circle, 0.F);
+    auto& v = dpsg::extract(wrist_path.then<x_rotation>, model).angle.value;
+    v = std::clamp(v + glm::radians(angle), 0.F, quarter_circle);
   });
 }
 
+constexpr auto right_finger_path = wrist_path.then<struct right_finger>;
+constexpr auto left_finger_path = wrist_path.then<struct left_finger>;
 template <class H>
-constexpr auto rotate_lower_arm(H& model, float angle) noexcept {
+constexpr auto rotate_fingers(H& model, float angle) noexcept {
   return ignore([&model, angle] {
-    auto& v =
-        dpsg::extract(
-            dpsg::path<struct upper_arm, struct lower_arm, x_rotation>, model)
-            .angle.value;
-    v = std::clamp(v + glm::radians(angle), 0.F, glm::radians(lower_arm_angle));
+    auto& r =
+        dpsg::extract(right_finger_path.then<y_rotation>, model).angle.value;
+    auto& l =
+        dpsg::extract(left_finger_path.then<y_rotation>, model).angle.value;
+    r = std::clamp(r - glm::radians(angle),
+                   -quarter_circle,
+                   glm::radians(-angle_upper_finger));
+    l = std::clamp(l + glm::radians(angle),
+                   glm::radians(angle_upper_finger),
+                   quarter_circle);
   });
 }
 
@@ -402,12 +436,17 @@ void hierarchy(dpsg::window& wdw, key_mapper& kmap) {
   kmap.on(key::enter, print(model));
   constexpr float standard_angle_increment = 11.25;
   constexpr float small_angle_increment = 9;
-  kmap.while_(key::M, rotate_base(model, standard_angle_increment));
+  kmap.while_(key::M, rotate_base(model, +standard_angle_increment));
   kmap.while_(key::N, rotate_base(model, -standard_angle_increment));
-  kmap.while_(key::J, rotate_upper_arm(model, -standard_angle_increment));
   kmap.while_(key::H, rotate_upper_arm(model, +standard_angle_increment));
-  kmap.while_(key::Y, rotate_lower_arm(model, standard_angle_increment));
+  kmap.while_(key::Y, rotate_upper_arm(model, -standard_angle_increment));
+  kmap.while_(key::J, rotate_lower_arm(model, +standard_angle_increment));
   kmap.while_(key::U, rotate_lower_arm(model, -standard_angle_increment));
+  kmap.while_(key::O, roll_wrist(model, +standard_angle_increment));
+  kmap.while_(key::P, roll_wrist(model, -standard_angle_increment));
+  kmap.while_(key::K, pitch_wrist(model, +standard_angle_increment));
+  kmap.while_(key::L, rotate_fingers(model, +small_angle_increment));
+  kmap.while_(key::semicolon, rotate_fingers(model, -small_angle_increment));
 
   using namespace std::literals::chrono_literals;
   constexpr auto interval = 30ms;
