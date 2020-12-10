@@ -7,36 +7,47 @@
 #include <utility>
 
 namespace dpsg {
-template <std::size_t N> using group = gl::vec_t<N, void>;
-template <class... Ts> struct packed {};
-template <class... Ts> struct sequenced {};
-template <class T, class L> struct layout {};
-template <class T, std::size_t N> struct vertex_indices {};
+template <std::size_t N>
+using group = gl::vec_t<N, void>;
+template <class... Ts>
+struct packed {};
+template <class... Ts>
+struct sequenced {};
+template <class T, class L>
+struct layout {};
+template <class T, std::size_t N>
+struct vertex_indices {};
 
 namespace detail {
 
-template <std::size_t I, auto S, auto... Ss> struct at : at<I - 1, Ss...> {};
-template <auto S, auto... Ss> struct at<0, S, Ss...> {
+template <std::size_t I, auto S, auto... Ss>
+struct at : at<I - 1, Ss...> {};
+template <auto S, auto... Ss>
+struct at<0, S, Ss...> {
   constexpr static inline auto value = S;
 };
 
 template <std::size_t I, auto... Ss>
 constexpr static inline auto at_v = at<I, Ss...>::value;
 
-template <std::size_t I, auto... Ss> struct sum_to;
-template <std::size_t I, auto S, auto... Ss> struct sum_to<I, S, Ss...> {
+template <std::size_t I, auto... Ss>
+struct sum_to;
+template <std::size_t I, auto S, auto... Ss>
+struct sum_to<I, S, Ss...> {
   constexpr static inline auto value = S + sum_to<I - 1, Ss...>::value;
 };
-template <auto S, auto... Ss> struct sum_to<0, S, Ss...> {
+template <auto S, auto... Ss>
+struct sum_to<0, S, Ss...> {
   constexpr static inline auto value = 0;
 };
-template <auto... Ss> struct sum_to<0, Ss...> {
+template <auto... Ss>
+struct sum_to<0, Ss...> {
   constexpr static inline auto value = 0;
 };
 template <std::size_t I, auto... Ss>
 constexpr static inline auto sum_to_v = sum_to<I, Ss...>::value;
 
-} // namespace detail
+}  // namespace detail
 
 template <class T, std::size_t... Args>
 struct layout<T, packed<group<Args>...>> {
@@ -44,7 +55,8 @@ struct layout<T, packed<group<Args>...>> {
   using layout_type = packed<group<Args>...>;
   using value_type = std::remove_cv_t<std::remove_reference_t<T>>;
 
-  template <std::size_t N> static void set_attrib_pointer() {
+  template <std::size_t N>
+  static void set_attrib_pointer() {
     set_attrib_pointer_impl<N>(std::make_index_sequence<sizeof...(Args)>{});
   }
 
@@ -56,14 +68,16 @@ struct layout<T, packed<group<Args>...>> {
     disable_impl(std::make_index_sequence<sizeof...(Args)>{})
   }
 
-private:
+ private:
   template <std::size_t N, std::size_t... Is>
-  static void
-  set_attrib_pointer_impl([[maybe_unused]] std::index_sequence<Is...> indices) {
+  static void set_attrib_pointer_impl([
+      [maybe_unused]] std::index_sequence<Is...> indices) {
     // NOLINTNEXTLINE
     (gl::vertex_attrib_pointer<value_type>(
-         gl::index{Is}, gl::element_count{detail::at_v<Is, Args...>},
-         gl::stride{count.value}, gl::offset{detail::sum_to_v<Is, Args...>}),
+         gl::index{Is},
+         gl::element_count{detail::at_v<Is, Args...>},
+         gl::stride{count.value},
+         gl::offset{detail::sum_to_v<Is, Args...>}),
      ...);
   }
 
@@ -73,8 +87,8 @@ private:
   }
 
   template <std::size_t... Is>
-  static void
-  disable_impl([[maybe_unused]] std::index_sequence<Is...> indices) {
+  static void disable_impl([
+      [maybe_unused]] std::index_sequence<Is...> indices) {
     (gl::disable_vertex_attrib_array(Is), ...);
   }
 };
@@ -85,7 +99,8 @@ struct layout<T, sequenced<group<Args>...>> {
   using layout_type = sequenced<group<Args>...>;
   using value_type = std::remove_cv_t<std::remove_reference_t<T>>;
 
-  template <std::size_t N> static void set_attrib_pointer() {
+  template <std::size_t N>
+  static void set_attrib_pointer() {
     set_attrib_pointer_impl<N>(std::make_index_sequence<sizeof...(Args)>{});
   }
 
@@ -97,14 +112,16 @@ struct layout<T, sequenced<group<Args>...>> {
     disable_impl(std::make_index_sequence<sizeof...(Args)>{})
   }
 
-private:
+ private:
   template <std::size_t N, std::size_t... Is>
-  static void
-  set_attrib_pointer_impl([[maybe_unused]] std::index_sequence<Is...> indices) {
+  static void set_attrib_pointer_impl([
+      [maybe_unused]] std::index_sequence<Is...> indices) {
     // NOLINTNEXTLINE
     (gl::vertex_attrib_pointer<value_type>(
-         gl::index{Is}, gl::element_count{detail::at_v<Is, Args...>},
-         gl::stride{0}, gl::offset{Is * N / sizeof...(Args)}),
+         gl::index{Is},
+         gl::element_count{detail::at_v<Is, Args...>},
+         gl::stride{0},
+         gl::offset{detail::sum_to_v<Is, Args...> * (N / count.value)}),
      ...);
   }
 
@@ -114,10 +131,10 @@ private:
   }
 
   template <std::size_t... Is>
-  static void
-  disable_impl([[maybe_unused]] std::index_sequence<Is...> indices) {
+  static void disable_impl([
+      [maybe_unused]] std::index_sequence<Is...> indices) {
     (gl::disable_vertex_attrib_array(Is), ...);
   }
 };
-} // namespace dpsg
-#endif // GUARD_DPSG_LAYOUT_HEADER
+}  // namespace dpsg
+#endif  // GUARD_DPSG_LAYOUT_HEADER

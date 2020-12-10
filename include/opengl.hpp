@@ -3,8 +3,8 @@
 
 #include "glad/glad.h"
 
-#include "meta/is_one_of.hpp"
 #include <type_traits>
+#include "meta/is_one_of.hpp"
 
 namespace dpsg::gl {
 
@@ -21,7 +21,8 @@ using size_t = GLsizei;
 using bool_t = GLboolean;
 
 namespace detail {
-template <class T, class = void> struct has_value_member : std::false_type {};
+template <class T, class = void>
+struct has_value_member : std::false_type {};
 template <class T>
 struct has_value_member<T, std::void_t<decltype(std::declval<T>().value)>>
     : std::true_type {};
@@ -34,11 +35,11 @@ auto value(T t) noexcept {
   return t;
 }
 template <class T, std::enable_if_t<has_value_member_v<T>, int> = 0>
-auto value(const T &t) noexcept {
+auto value(const T& t) noexcept {
   return t.value;
 }
 
-} // namespace detail
+}  // namespace detail
 
 enum class buffer_bit : enum_t {
   color = GL_COLOR_BUFFER_BIT,
@@ -64,7 +65,9 @@ constexpr inline buffer_bit operator^(buffer_bit left,
                                  static_cast<unsigned int>(right));
 }
 
-inline void clear(buffer_bit bb) noexcept { glClear(static_cast<int>(bb)); }
+inline void clear(buffer_bit bb) noexcept {
+  glClear(static_cast<int>(bb));
+}
 
 enum class drawing_mode : enum_t {
   points = GL_POINTS,
@@ -125,7 +128,8 @@ struct index {
 inline void enable(capability cp) noexcept {
   glEnable(static_cast<enum_t>(cp));
 }
-template <class... Args> inline void enable(Args &&... args) noexcept {
+template <class... Args>
+inline void enable(Args&&... args) noexcept {
   (enable(std::forward<Args>(args)), ...);
 }
 
@@ -187,7 +191,8 @@ struct element_count {
   size_t value;
 };
 
-inline void draw_arrays(drawing_mode mode, index first,
+inline void draw_arrays(drawing_mode mode,
+                        index first,
                         element_count count) noexcept {
   glDrawArrays(static_cast<enum_t>(mode), first.value, count.value);
 }
@@ -215,43 +220,58 @@ struct a {
   float_t value;
 };
 
-inline void clear_color(color c) noexcept { glClearColor(c.r, c.g, c.b, c.a); }
+inline void clear_color(color c) noexcept {
+  glClearColor(c.r, c.g, c.b, c.a);
+}
 
 namespace detail {
 template <class T>
 struct valid_colors : std::bool_constant<is_one_of_v<T, r, g, b, a>> {};
 
-template <class... Args> struct no_duplication;
-template <> struct no_duplication<> : std::true_type {};
+template <class... Args>
+struct no_duplication;
+template <>
+struct no_duplication<> : std::true_type {};
 template <class T, class... Args>
 struct no_duplication<T, Args...>
     : std::bool_constant<!is_one_of_v<T, Args...> &&
                          no_duplication<Args...>::value> {};
 
-template <class T, class U> inline auto get(U val) noexcept { return val; }
+template <class T, class U>
+inline auto get(U val) noexcept {
+  return val;
+}
 
-template <class U, class T, std::enable_if_t<std::is_same_v<T, U>, int> = 0,
+template <class U,
+          class T,
+          std::enable_if_t<std::is_same_v<T, U>, int> = 0,
           class... Args>
 inline auto get(T val, [[maybe_unused]] Args... ignored) noexcept {
   return value(val);
 }
 
-template <class T, class U, class V,
-          std::enable_if_t<!std::is_same_v<T, U>, int> = 0, class... Args>
+template <class T,
+          class U,
+          class V,
+          std::enable_if_t<!std::is_same_v<T, U>, int> = 0,
+          class... Args>
 inline auto get([[maybe_unused]] U ignored, V next, Args... args) noexcept {
   return get<T>(next, args...);
 }
 
-} // namespace detail
+}  // namespace detail
 
-template <class... Args> inline void clear_color(Args &&... colors) noexcept {
+template <class... Args>
+inline void clear_color(Args&&... colors) noexcept {
   static_assert(sizeof...(Args) <= 4, "Too many components");
   static_assert((detail::valid_colors<Args>::value && ...),
                 "clear_color(...) only accept r, g, b and a inputs");
   static_assert(detail::no_duplication<Args...>::value,
                 "A color is duplicated");
-  glClearColor(detail::get<r>(colors..., 0.F), detail::get<g>(colors..., 0.F),
-               detail::get<b>(colors..., 0.F), detail::get<a>(colors..., 1.F));
+  glClearColor(detail::get<r>(colors..., 0.F),
+               detail::get<g>(colors..., 0.F),
+               detail::get<b>(colors..., 0.F),
+               detail::get<a>(colors..., 1.F));
 }
 
 struct memory_size {
@@ -260,51 +280,64 @@ struct memory_size {
 
 namespace detail {
 
-template <class T, class = void> struct deduce_gl_enum;
-template <> struct deduce_gl_enum<float_t> {
+template <class T, class = void>
+struct deduce_gl_enum;
+template <>
+struct deduce_gl_enum<float_t> {
   constexpr static inline enum_t value = GL_FLOAT;
 };
-template <> struct deduce_gl_enum<int_t> {
+template <>
+struct deduce_gl_enum<int_t> {
   constexpr static inline enum_t value = GL_INT;
 };
-template <> struct deduce_gl_enum<uint_t> {
+template <>
+struct deduce_gl_enum<uint_t> {
   constexpr static inline enum_t value = GL_UNSIGNED_INT;
 };
-template <> struct deduce_gl_enum<byte_t> {
+template <>
+struct deduce_gl_enum<byte_t> {
   constexpr static inline enum_t value = GL_BYTE;
 };
-template <> struct deduce_gl_enum<ubyte_t> {
+template <>
+struct deduce_gl_enum<ubyte_t> {
   constexpr static inline enum_t value = GL_UNSIGNED_BYTE;
 };
 
 // NOLINTNEXTLINE
-template <> struct deduce_gl_enum<ushort_t> {
+template <>
+struct deduce_gl_enum<ushort_t> {
   constexpr static inline int value = GL_UNSIGNED_SHORT;
 };
 // NOLINTNEXTLINE
-template <> struct deduce_gl_enum<short_t> {
+template <>
+struct deduce_gl_enum<short_t> {
   constexpr static inline int value = GL_SHORT;
 };
-template <> struct deduce_gl_enum<double_t> {
+template <>
+struct deduce_gl_enum<double_t> {
   constexpr static inline int value = GL_DOUBLE;
 };
 
 template <class T>
 constexpr static inline int deduce_gl_enum_v = deduce_gl_enum<T>::value;
 
-template <class T, class = void> struct is_valid_gl_type : std::false_type {};
+template <class T, class = void>
+struct is_valid_gl_type : std::false_type {};
 
 template <class T>
 struct is_valid_gl_type<
-    T, std::void_t<decltype(deduce_gl_enum<std::decay_t<T>>::value)>>
+    T,
+    std::void_t<decltype(deduce_gl_enum<std::decay_t<T>>::value)>>
     : std::true_type {};
 
 template <class T>
 constexpr static inline bool is_valid_gl_type_v = is_valid_gl_type<T>::value;
-} // namespace detail
+}  // namespace detail
 
 template <class T>
-inline void buffer_data(buffer_type type, memory_size size, T *ptr,
+inline void buffer_data(buffer_type type,
+                        memory_size size,
+                        T* ptr,
                         data_hint dmode) noexcept {
   static_assert(detail::is_valid_gl_type_v<T>,
                 "Input pointer type is incompatible with the OpenGL API");
@@ -312,38 +345,46 @@ inline void buffer_data(buffer_type type, memory_size size, T *ptr,
 }
 
 template <class T>
-inline void buffer_data(buffer_type type, element_count count, T *ptr,
+inline void buffer_data(buffer_type type,
+                        element_count count,
+                        T* ptr,
                         data_hint dmode) noexcept {
   static_assert(detail::is_valid_gl_type_v<T>,
                 "Input pointer type is incompatible with the OpenGL API");
-  glBufferData(static_cast<int>(type), count.value * sizeof(T), ptr,
+  glBufferData(static_cast<int>(type),
+               count.value * sizeof(T),
+               ptr,
                static_cast<int>(dmode));
 }
 
 template <class T, std::size_t N>
 // NOLINTNEXTLINE
-inline void buffer_data(buffer_type type, T (&ptr)[N],
+inline void buffer_data(buffer_type type,
+                        T (&ptr)[N],
                         data_hint dmode) noexcept {
   static_assert(detail::is_valid_gl_type_v<T>,
                 "Input pointer type is incompatible with the OpenGL API");
-  glBufferData(static_cast<int>(type), N * sizeof(T), ptr,
-               static_cast<int>(dmode));
+  glBufferData(
+      static_cast<int>(type), N * sizeof(T), ptr, static_cast<int>(dmode));
 }
 
-template <std::size_t N, typename T> struct vec_t {
+template <std::size_t N, typename T>
+struct vec_t {
   constexpr static inline std::size_t value = N;
   static_assert(N > 1 && N <= 4, "invalid vec size");
 };
 
 namespace detail {
-template <class T> struct is_vec_dimension_type : std::false_type {};
+template <class T>
+struct is_vec_dimension_type : std::false_type {};
 template <std::size_t N, typename T>
 struct is_vec_dimension_type<vec_t<N, T>> : std::true_type {};
-template <> struct is_vec_dimension_type<element_count> : std::true_type {};
+template <>
+struct is_vec_dimension_type<element_count> : std::true_type {};
 template <class T>
 constexpr static inline bool is_vec_dimension_type_v =
     is_vec_dimension_type<T>::value;
-} // namespace detail
+}  // namespace detail
 
 template <std::size_t N, typename T = void>
 constexpr static inline vec_t<N, T> vec;
@@ -355,30 +396,39 @@ struct offset {
   unsigned int value;
 };
 
-template <typename T, class U,
+template <typename T,
+          class U,
           std::enable_if_t<detail::is_vec_dimension_type_v<U>, int> = 0,
           std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-inline void vertex_attrib_pointer(index idx, U element_count,
+inline void vertex_attrib_pointer(index idx,
+                                  U element_count,
                                   stride s = stride{0},
                                   offset o = offset{0}) noexcept {
   static_assert(detail::is_valid_gl_type_v<T>,
                 "The selected type is not supported by OpenGL");
-  glVertexAttribPointer(
-      idx.value, element_count.value, detail::deduce_gl_enum_v<T>, GL_FALSE,
-      s.value * sizeof(T), reinterpret_cast<void *>(o.value * sizeof(T)));
+  glVertexAttribPointer(idx.value,
+                        element_count.value,
+                        detail::deduce_gl_enum_v<T>,
+                        GL_FALSE,
+                        s.value * sizeof(T),
+                        reinterpret_cast<void*>(o.value * sizeof(T)));
 }
 
-template <typename T, class U,
+template <typename T,
+          class U,
           std::enable_if_t<detail::is_vec_dimension_type_v<U>, int> = 0,
           std::enable_if_t<std::is_integral_v<T>, int> = 0>
-inline void vertex_attrib_pointer(index idx, U element_count,
+inline void vertex_attrib_pointer(index idx,
+                                  U element_count,
                                   stride s = stride{0},
                                   offset o = offset{0}) noexcept {
   static_assert(detail::is_valid_gl_type_v<T>,
                 "The selected type is not supported by OpenGL");
-  glVertexAttribIPointer(idx.value, element_count.value,
-                         detail::deduce_gl_enum_v<T>, s.value * sizeof(T),
-                         reinterpret_cast<void *>(o.value * sizeof(T)));
+  glVertexAttribIPointer(idx.value,
+                         element_count.value,
+                         detail::deduce_gl_enum_v<T>,
+                         s.value * sizeof(T),
+                         reinterpret_cast<void*>(o.value * sizeof(T)));
 }
 
 enum class normalized : enum_t {
@@ -386,18 +436,23 @@ enum class normalized : enum_t {
   no = GL_FALSE,
 };
 
-template <typename T, class U,
+template <typename T,
+          class U,
           std::enable_if_t<detail::is_vec_dimension_type_v<U>, int> = 0,
           std::enable_if_t<std::is_integral_v<T>, int> = 0>
-inline void vertex_attrib_pointer(index idx, U element_count, normalized n,
+inline void vertex_attrib_pointer(index idx,
+                                  U element_count,
+                                  normalized n,
                                   stride s = stride{0},
                                   offset o = offset{0}) noexcept {
   static_assert(detail::is_valid_gl_type_v<T>,
                 "The selected type is not supported by OpenGL");
-  glVertexAttribPointer(idx.value, element_count.value,
-                        detail::deduce_gl_enum_v<T>, static_cast<int>(n),
+  glVertexAttribPointer(idx.value,
+                        element_count.value,
+                        detail::deduce_gl_enum_v<T>,
+                        static_cast<int>(n),
                         s.value * sizeof(T),
-                        reinterpret_cast<void *>(o.value * sizeof(T)));
+                        reinterpret_cast<void*>(o.value * sizeof(T)));
 }
 
 namespace detail {
@@ -405,54 +460,65 @@ template <typename... Args>
 using acceptable_index_types =
     std::conjunction<std::disjunction<std::is_same<std::decay_t<Args>, index>,
                                       std::is_convertible<Args, uint_t>>...>;
-} // namespace detail
+}  // namespace detail
 
 template <class... Args>
 inline auto
-enable_vertex_attrib_array(Args &&... is) noexcept -> std::void_t<decltype(
+enable_vertex_attrib_array(Args&&... is) noexcept -> std::void_t<decltype(
     std::enable_if_t<detail::acceptable_index_types<Args...>::value, int>{})> {
   (glEnableVertexAttribArray(detail::value(is)), ...);
 }
 
 template <class T>
-inline void draw_elements(drawing_mode mode, element_count count,
+inline void draw_elements(drawing_mode mode,
+                          element_count count,
                           offset o = offset{0}) noexcept {
   constexpr int gl_type = detail::deduce_gl_enum_v<T>;
   static_assert(
       gl_type == GL_UNSIGNED_BYTE || gl_type == GL_UNSIGNED_SHORT ||
           gl_type == GL_UNSIGNED_INT,
       "Input type to element rendering must be an unsigned integral type");
-  glDrawElements(static_cast<int>(mode), count.value, gl_type,
-                 reinterpret_cast<void *>(o.value * sizeof(T)));
+  glDrawElements(static_cast<int>(mode),
+                 count.value,
+                 gl_type,
+                 reinterpret_cast<void*>(o.value * sizeof(T)));
 }
 
 template <class T>
-inline void draw_elements_base_vertex(drawing_mode mode, element_count count,
-                                      offset o, index base_vertex) noexcept {
+inline void draw_elements_base_vertex(drawing_mode mode,
+                                      element_count count,
+                                      offset o,
+                                      index base_vertex) noexcept {
   constexpr int gl_type = detail::deduce_gl_enum_v<T>;
   static_assert(
       gl_type == GL_UNSIGNED_BYTE || gl_type == GL_UNSIGNED_SHORT ||
           gl_type == GL_UNSIGNED_INT,
       "Input type to element rendering must be an unsigned integral type");
-  glDrawElementsBaseVertex(static_cast<int>(mode), count.value, gl_type,
-                           reinterpret_cast<void *>(o.value * sizeof(T)),
+  glDrawElementsBaseVertex(static_cast<int>(mode),
+                           count.value,
+                           gl_type,
+                           reinterpret_cast<void*>(o.value * sizeof(T)),
                            base_vertex.value);
 }
 
 template <class T>
-inline void draw_elements_base_vertex(drawing_mode mode, element_count count,
+inline void draw_elements_base_vertex(drawing_mode mode,
+                                      element_count count,
                                       index base_vertex) noexcept {
   draw_elements_base_vertex<T>(mode, count, offset{0}, base_vertex);
 }
 
 template <class T>
-inline void draw_elements(drawing_mode mode, element_count count, offset offset,
+inline void draw_elements(drawing_mode mode,
+                          element_count count,
+                          offset offset,
                           index base_vertex) noexcept {
   draw_elements_base_vertex<T>(mode, count, offset, base_vertex);
 }
 
 template <class T>
-inline void draw_elements(drawing_mode mode, element_count count,
+inline void draw_elements(drawing_mode mode,
+                          element_count count,
                           index base_vertex) noexcept {
   draw_elements_base_vertex<T>(mode, count, base_vertex);
 }
@@ -465,7 +531,8 @@ struct vertex_array_id {
   unsigned int value;
 };
 
-template <buffer_type Type> struct buffer_id : generic_buffer_id {
+template <buffer_type Type>
+struct buffer_id : generic_buffer_id {
   constexpr static inline buffer_type buffer_type{Type};
 };
 
@@ -485,18 +552,19 @@ inline void unbind_buffer(buffer_type type) noexcept {
 template <std::size_t N>
 // NOLINTNEXTLINE
 inline void gen_buffers(generic_buffer_id (&buffer)[N]) noexcept {
-  glGenBuffers(N, reinterpret_cast<unsigned int *>(buffer)); // NOLINT
+  glGenBuffers(N, reinterpret_cast<unsigned int*>(buffer));  // NOLINT
 }
 
-inline void gen_buffers(std::size_t count, generic_buffer_id *buffer) noexcept {
-  glGenBuffers(count, reinterpret_cast<unsigned int *>(buffer)); // NOLINT
+inline void gen_buffers(std::size_t count, generic_buffer_id* buffer) noexcept {
+  glGenBuffers(count, reinterpret_cast<unsigned int*>(buffer));  // NOLINT
 }
 
-inline void gen_buffer(generic_buffer_id &id) noexcept {
-  glGenBuffers(1, reinterpret_cast<unsigned int *>(&id)); // NOLINT
+inline void gen_buffer(generic_buffer_id& id) noexcept {
+  glGenBuffers(1, reinterpret_cast<unsigned int*>(&id));  // NOLINT
 }
 
-template <buffer_type Type> inline buffer_id<Type> gen_buffer() noexcept {
+template <buffer_type Type>
+inline buffer_id<Type> gen_buffer() noexcept {
   unsigned int i;
   glGenBuffers(1, &i);
   return buffer_id<Type>{i};
@@ -505,36 +573,36 @@ template <buffer_type Type> inline buffer_id<Type> gen_buffer() noexcept {
 template <std::size_t N>
 // NOLINTNEXTLINE
 inline void delete_buffers(const generic_buffer_id (&buffer)[N]) noexcept {
-  glDeleteBuffers(N, reinterpret_cast<const unsigned int *>(buffer)); // NOLINT
+  glDeleteBuffers(N, reinterpret_cast<const unsigned int*>(buffer));  // NOLINT
 }
 
 inline void delete_buffers(std::size_t count,
-                           const generic_buffer_id *buffers) noexcept {
+                           const generic_buffer_id* buffers) noexcept {
   glDeleteBuffers(count,
-                  reinterpret_cast<const unsigned int *>(buffers)); // NOLINT
+                  reinterpret_cast<const unsigned int*>(buffers));  // NOLINT
 }
 
-inline void delete_buffer(const generic_buffer_id &buffer) noexcept {
-  glDeleteBuffers(1, reinterpret_cast<const unsigned int *>(&buffer)); // NOLINT
+inline void delete_buffer(const generic_buffer_id& buffer) noexcept {
+  glDeleteBuffers(1, reinterpret_cast<const unsigned int*>(&buffer));  // NOLINT
 }
 
 template <std::size_t N>
 // NOLINTNEXTLINE
 inline void gen_vertex_arrays(vertex_array_id (&buffer)[N]) noexcept {
-  glGenVertexArrays(N, reinterpret_cast<unsigned int *>(buffer)); // NOLINT
+  glGenVertexArrays(N, reinterpret_cast<unsigned int*>(buffer));  // NOLINT
 }
 
 inline void gen_vertex_arrays(std::size_t count,
-                              vertex_array_id *buffer) noexcept {
-  glGenVertexArrays(count, reinterpret_cast<unsigned int *>(buffer)); // NOLINT
+                              vertex_array_id* buffer) noexcept {
+  glGenVertexArrays(count, reinterpret_cast<unsigned int*>(buffer));  // NOLINT
 }
 
-inline void gen_vertex_array(vertex_array_id &buffer) noexcept {
-  glGenVertexArrays(1, reinterpret_cast<unsigned int *>(&buffer)); // NOLINT
+inline void gen_vertex_array(vertex_array_id& buffer) noexcept {
+  glGenVertexArrays(1, reinterpret_cast<unsigned int*>(&buffer));  // NOLINT
 }
 
 inline vertex_array_id gen_vertex_array() noexcept {
-  unsigned int id; // NOLINT
+  unsigned int id;  // NOLINT
   glGenVertexArrays(1, &id);
   return vertex_array_id{id};
 }
@@ -543,25 +611,27 @@ template <std::size_t N>
 // NOLINTNEXTLINE
 inline void delete_vertex_arrays(const vertex_array_id (&buffer)[N]) noexcept {
   glDeleteVertexArrays(
-      N, reinterpret_cast<const unsigned int *>(buffer)); // NOLINT
+      N, reinterpret_cast<const unsigned int*>(buffer));  // NOLINT
 }
 
 inline void delete_vertex_arrays(std::size_t count,
-                                 const vertex_array_id *buffer) noexcept {
+                                 const vertex_array_id* buffer) noexcept {
   glDeleteVertexArrays(
-      count, reinterpret_cast<const unsigned int *>(buffer)); // NOLINT
+      count, reinterpret_cast<const unsigned int*>(buffer));  // NOLINT
 }
 
-inline void delete_vertex_array(const vertex_array_id &id) noexcept {
+inline void delete_vertex_array(const vertex_array_id& id) noexcept {
   glDeleteVertexArrays(1,
-                       reinterpret_cast<const unsigned int *>(&id)); // NOLINT
+                       reinterpret_cast<const unsigned int*>(&id));  // NOLINT
 }
 
 inline void bind_vertex_array(vertex_array_id id) noexcept {
   glBindVertexArray(id.value);
 }
 
-inline void unbind_vertex_array() noexcept { glBindVertexArray(0); }
+inline void unbind_vertex_array() noexcept {
+  glBindVertexArray(0);
+}
 
 struct program_id {
   unsigned int value;
@@ -577,7 +647,7 @@ struct uniform_location {
 };
 
 inline uniform_location get_uniform_location(program_id id,
-                                             const char *name) noexcept {
+                                             const char* name) noexcept {
   return uniform_location{glGetUniformLocation(id.value, name)};
 }
 
@@ -594,56 +664,61 @@ struct generic_shader_id {
   unsigned int value;
 };
 
-template <shader_type Type> struct shader_id : generic_shader_id {};
+template <shader_type Type>
+struct shader_id : generic_shader_id {};
 
 template <shader_type Type>
 [[nodiscard]] inline shader_id<Type> create_shader() noexcept {
   return shader_id<Type>{{glCreateShader(static_cast<unsigned int>(Type))}};
 }
 
-[[nodiscard]] inline generic_shader_id
-create_shader(shader_type type) noexcept {
+[[nodiscard]] inline generic_shader_id create_shader(
+    shader_type type) noexcept {
   return generic_shader_id{glCreateShader(static_cast<unsigned int>(type))};
 }
 
-inline void shader_source(const generic_shader_id &id, std::size_t count,
-                          const char **string, int *lengths) noexcept {
+inline void shader_source(const generic_shader_id& id,
+                          std::size_t count,
+                          const char** string,
+                          int* lengths) noexcept {
   glShaderSource(id.value, count, string, lengths);
 }
 
 template <std::size_t N>
 // NOLINTNEXTLINE
-inline void shader_source(const generic_shader_id &id, const char *(&string)[N],
-                          int (&lengths)[N]) noexcept { // NOLINT
-  shader_source(id, N, static_cast<const char **>(string),
-                static_cast<int *>(lengths));
+inline void shader_source(const generic_shader_id& id,
+                          const char* (&string)[N],
+                          int (&lengths)[N]) noexcept {  // NOLINT
+  shader_source(
+      id, N, static_cast<const char**>(string), static_cast<int*>(lengths));
 }
 
-inline void shader_source(const generic_shader_id &id,
-                          const char *string) noexcept {
+inline void shader_source(const generic_shader_id& id,
+                          const char* string) noexcept {
   shader_source(id, 1, &string, nullptr);
 }
 
-inline void shader_source(const generic_shader_id &id, const char *string,
+inline void shader_source(const generic_shader_id& id,
+                          const char* string,
                           int length) noexcept {
   shader_source(id, 1, &string, &length);
 }
 
 template <std::size_t N>
-inline void shader_source(const generic_shader_id &id,
-                          const char (&string)[N] // NOLINT
+inline void shader_source(const generic_shader_id& id,
+                          const char (&string)[N]  // NOLINT
                           ) noexcept {
-  shader_source(id, static_cast<const char *>(string), N);
+  shader_source(id, static_cast<const char*>(string), N);
 }
 
-inline void compile_shader(const generic_shader_id &id) noexcept {
+inline void compile_shader(const generic_shader_id& id) noexcept {
   glCompileShader(id.value);
 }
 
 static_assert(std::is_base_of<generic_shader_id, generic_shader_id>::value);
 
 template <class... Args>
-inline void attach_shader(program_id program, Args &&... args) noexcept {
+inline void attach_shader(program_id program, Args&&... args) noexcept {
   static_assert(
       std::conjunction_v<
           std::is_convertible<std::decay_t<Args>, generic_shader_id>...>,
@@ -652,15 +727,19 @@ inline void attach_shader(program_id program, Args &&... args) noexcept {
   (glAttachShader(program.value, std::forward<Args>(args).value), ...);
 }
 
-inline void link_program(program_id id) noexcept { glLinkProgram(id.value); }
+inline void link_program(program_id id) noexcept {
+  glLinkProgram(id.value);
+}
 
-inline void use_program(program_id id) noexcept { glUseProgram(id.value); }
+inline void use_program(program_id id) noexcept {
+  glUseProgram(id.value);
+}
 
 inline void delete_program(program_id id) noexcept {
   glDeleteProgram(id.value);
 }
 
-inline void delete_shader(const generic_shader_id &id) noexcept {
+inline void delete_shader(const generic_shader_id& id) noexcept {
   glDeleteShader(id.value);
 }
 
@@ -671,19 +750,19 @@ struct texture_id {
 template <std::size_t N>
 // NOLINTNEXTLINE
 inline void gen_textures(texture_id (&buffer)[N]) noexcept {
-  glGenTextures(N, reinterpret_cast<unsigned int *>(buffer)); // NOLINT
+  glGenTextures(N, reinterpret_cast<unsigned int*>(buffer));  // NOLINT
 }
 
-inline void gen_textures(std::size_t count, texture_id *buffer) noexcept {
-  glGenTextures(count, reinterpret_cast<unsigned int *>(buffer)); // NOLINT
+inline void gen_textures(std::size_t count, texture_id* buffer) noexcept {
+  glGenTextures(count, reinterpret_cast<unsigned int*>(buffer));  // NOLINT
 }
 
-inline void gen_texture(texture_id &buffer) noexcept {
-  glGenTextures(1, reinterpret_cast<unsigned int *>(&buffer)); // NOLINT
+inline void gen_texture(texture_id& buffer) noexcept {
+  glGenTextures(1, reinterpret_cast<unsigned int*>(&buffer));  // NOLINT
 }
 
 [[nodiscard]] inline texture_id gen_texture() noexcept {
-  unsigned int id; // NOLINT
+  unsigned int id;  // NOLINT
   glGenTextures(1, &id);
   return texture_id{id};
 }
@@ -691,18 +770,18 @@ inline void gen_texture(texture_id &buffer) noexcept {
 template <std::size_t N>
 // NOLINTNEXTLINE
 inline void delete_textures(const texture_id (&buffer)[N]) noexcept {
-  glDeleteTextures(N, reinterpret_cast<const unsigned int *>(buffer)); // NOLINT
+  glDeleteTextures(N, reinterpret_cast<const unsigned int*>(buffer));  // NOLINT
 }
 
 inline void delete_textures(std::size_t count,
-                            const texture_id *buffer) noexcept {
+                            const texture_id* buffer) noexcept {
   glDeleteTextures(count,
-                   reinterpret_cast<const unsigned int *>(buffer)); // NOLINT
+                   reinterpret_cast<const unsigned int*>(buffer));  // NOLINT
 }
 
-inline void delete_texture(const texture_id &id) noexcept {
+inline void delete_texture(const texture_id& id) noexcept {
   glDeleteTextures(1,
-                   reinterpret_cast<const unsigned int *>(&id)); // NOLINT
+                   reinterpret_cast<const unsigned int*>(&id));  // NOLINT
 }
 
 enum class texture_target : enum_t {
@@ -820,95 +899,111 @@ enum class texture_level : enum_t {
   max = GL_TEXTURE_MAX_LEVEL,
 };
 
-inline void tex_parameter(texture_target target, texture_parameter_name pname,
+inline void tex_parameter(texture_target target,
+                          texture_parameter_name pname,
                           float f) noexcept {
   glTexParameterf(static_cast<int>(target), static_cast<int>(pname), f);
 }
 
-inline void tex_parameter(texture_target target, texture_parameter_name pname,
+inline void tex_parameter(texture_target target,
+                          texture_parameter_name pname,
                           int i) noexcept {
   glTexParameteri(static_cast<int>(target), static_cast<int>(pname), i);
 }
 
-inline void tex_parameter(texture_target target, texture_parameter_name pname,
-                          const int *i) noexcept {
+inline void tex_parameter(texture_target target,
+                          texture_parameter_name pname,
+                          const int* i) noexcept {
   glTexParameteriv(static_cast<int>(target), static_cast<int>(pname), i);
 }
 
-inline void tex_parameter(texture_target target, texture_parameter_name pname,
-                          const float *i) noexcept {
+inline void tex_parameter(texture_target target,
+                          texture_parameter_name pname,
+                          const float* i) noexcept {
   glTexParameterfv(static_cast<int>(target), static_cast<int>(pname), i);
 }
 
-inline void tex_parameter(texture_target target, wrap_target wt,
+inline void tex_parameter(texture_target target,
+                          wrap_target wt,
                           wrap_mode mode) noexcept {
-  glTexParameteri(static_cast<int>(target), static_cast<int>(wt),
-                  static_cast<int>(mode));
+  glTexParameteri(
+      static_cast<int>(target), static_cast<int>(wt), static_cast<int>(mode));
 }
 
-inline void tex_parameter(texture_target target, swizzle_target wt,
+inline void tex_parameter(texture_target target,
+                          swizzle_target wt,
                           swizzle_mode mode) noexcept {
-  glTexParameteri(static_cast<int>(target), static_cast<int>(wt),
-                  static_cast<int>(mode));
+  glTexParameteri(
+      static_cast<int>(target), static_cast<int>(wt), static_cast<int>(mode));
 }
 
 inline void tex_parameter(texture_target target, min_filter filter) noexcept {
-  glTexParameteri(static_cast<int>(target), GL_TEXTURE_MIN_FILTER,
+  glTexParameteri(static_cast<int>(target),
+                  GL_TEXTURE_MIN_FILTER,
                   static_cast<int>(filter));
 }
 
 inline void tex_parameter(texture_target target, mag_filter filter) noexcept {
-  glTexParameteri(static_cast<int>(target), GL_TEXTURE_MAG_FILTER,
+  glTexParameteri(static_cast<int>(target),
+                  GL_TEXTURE_MAG_FILTER,
                   static_cast<int>(filter));
 }
 
 inline void tex_parameter(texture_target target, compare_mode mode) noexcept {
-  glTexParameteri(static_cast<int>(target), GL_TEXTURE_COMPARE_MODE,
+  glTexParameteri(static_cast<int>(target),
+                  GL_TEXTURE_COMPARE_MODE,
                   static_cast<int>(mode));
 }
 
 inline void tex_parameter(texture_target target,
                           compare_function mode) noexcept {
-  glTexParameteri(static_cast<int>(target), GL_TEXTURE_COMPARE_FUNC,
+  glTexParameteri(static_cast<int>(target),
+                  GL_TEXTURE_COMPARE_FUNC,
                   static_cast<int>(mode));
 }
 
-inline void tex_parameter(texture_target target, lod_parameter param,
+inline void tex_parameter(texture_target target,
+                          lod_parameter param,
                           float value) noexcept {
   glTexParameterf(static_cast<int>(target), static_cast<int>(param), value);
 }
 
-inline void tex_parameter(texture_target target, texture_level level,
+inline void tex_parameter(texture_target target,
+                          texture_level level,
                           int value) noexcept {
   glTexParameteri(static_cast<int>(target), static_cast<int>(level), value);
 }
 
 inline void tex_parameter(texture_target target,
-                          const int (&colors)[4] // NOLINT
+                          const int (&colors)[4]  // NOLINT
                           ) noexcept {
-  glTexParameteriv(static_cast<int>(target), GL_TEXTURE_BORDER_COLOR,
-                   static_cast<const int *>(colors));
+  glTexParameteriv(static_cast<int>(target),
+                   GL_TEXTURE_BORDER_COLOR,
+                   static_cast<const int*>(colors));
 }
 
 inline void tex_parameter(texture_target target,
-                          const float (&colors)[4] // NOLINT
+                          const float (&colors)[4]  // NOLINT
                           ) noexcept {
-  glTexParameterfv(static_cast<int>(target), GL_TEXTURE_BORDER_COLOR,
-                   static_cast<const float *>(colors));
+  glTexParameterfv(static_cast<int>(target),
+                   GL_TEXTURE_BORDER_COLOR,
+                   static_cast<const float*>(colors));
 }
 
 inline void tex_parameter_I(texture_target target,
-                            const int (&colors)[4] // NOLINT
+                            const int (&colors)[4]  // NOLINT
                             ) noexcept {
-  glTexParameterIiv(static_cast<int>(target), GL_TEXTURE_BORDER_COLOR,
-                    static_cast<const int *>(colors));
+  glTexParameterIiv(static_cast<int>(target),
+                    GL_TEXTURE_BORDER_COLOR,
+                    static_cast<const int*>(colors));
 }
 
 inline void tex_parameter_I(texture_target target,
-                            const unsigned int (&colors)[4] // NOLINT
+                            const unsigned int (&colors)[4]  // NOLINT
                             ) noexcept {
-  glTexParameterIuiv(static_cast<int>(target), GL_TEXTURE_BORDER_COLOR,
-                     static_cast<const unsigned int *>(colors));
+  glTexParameterIuiv(static_cast<int>(target),
+                     GL_TEXTURE_BORDER_COLOR,
+                     static_cast<const unsigned int*>(colors));
 }
 
 inline void generate_mipmap(texture_target target) noexcept {
@@ -1057,7 +1152,8 @@ enum class compressed_internal_format : enum_t {
 
 namespace detail {
 struct pointer_placeholder {};
-template <class T1, class... Ts> struct one_of {};
+template <class T1, class... Ts>
+struct one_of {};
 
 template <template <class...> class C, class T>
 struct match : std::false_type {};
@@ -1070,7 +1166,8 @@ template <class T>
 using ignore_special =
     std::void_t<decltype(std::enable_if_t<!match_v<one_of, T>, int>{})>;
 
-template <class MustBeVoid, class... Args> struct contains_impl;
+template <class MustBeVoid, class... Args>
+struct contains_impl;
 template <class T, class... Args>
 using contains = contains_impl<void, T, Args...>;
 
@@ -1081,10 +1178,11 @@ struct contains_impl<ignore_special<T>, T, U, Args...> : contains<T, Args...> {
 template <class T, class... Args>
 struct contains_impl<void, T, T, Args...> : std::true_type {};
 
-template <class T> struct contains_impl<void, T> : std::false_type {};
+template <class T>
+struct contains_impl<void, T> : std::false_type {};
 
 template <class T, class... Args>
-struct contains_impl<void, pointer_placeholder, T *, Args...> : std::true_type {
+struct contains_impl<void, pointer_placeholder, T*, Args...> : std::true_type {
 };
 
 template <class... Ts, class... Args>
@@ -1103,20 +1201,22 @@ static_assert(!contains_v<one_of<float, int>, char, unsigned, double>);
 //*/
 
 template <class T, class... Args>
-inline T *get_data(T *data, Args... args) noexcept {
+inline T* get_data(T* data, Args... args) noexcept {
   return data;
 }
 
-template <class T, std::enable_if_t<!std::is_pointer_v<T>, int> = 0,
+template <class T,
+          std::enable_if_t<!std::is_pointer_v<T>, int> = 0,
           class... Args>
-inline auto *get_data([[maybe_unused]] T unused, Args... args) noexcept {
+inline auto* get_data([[maybe_unused]] T unused, Args... args) noexcept {
   return get_data(args...);
 }
 
-using internal_format = one_of<base_internal_format, compressed_internal_format,
+using internal_format = one_of<base_internal_format,
+                               compressed_internal_format,
                                sized_internal_format>;
 
-} // namespace detail
+}  // namespace detail
 
 template <class... Args>
 inline void tex_image_2D(texture_image_target target, Args... args) noexcept {
@@ -1129,12 +1229,15 @@ inline void tex_image_2D(texture_image_target target, Args... args) noexcept {
   static_assert(detail::contains_v<image_format, Args...>,
                 "Parameter list must contain a format description");
 
-  auto *const data = detail::get_data(args...);
+  auto* const data = detail::get_data(args...);
   const auto img_frmt = static_cast<int>(detail::get<image_format>(args...));
 
-  glTexImage2D(static_cast<int>(target), detail::get<mipmap_level>(args..., 0),
+  glTexImage2D(static_cast<int>(target),
+               detail::get<mipmap_level>(args..., 0),
                detail::get<detail::internal_format>(args..., img_frmt),
-               detail::get<width>(args...), detail::get<height>(args...), 0,
+               detail::get<width>(args...),
+               detail::get<height>(args...),
+               0,
                img_frmt,
                detail::deduce_gl_enum_v<
                    std::remove_pointer_t<std::decay_t<decltype(data)>>>,
@@ -1213,32 +1316,47 @@ inline void uniform(uniform_location loc, uint_t u1, uint_t u2) noexcept {
   glUniform2ui(loc.value, u1, u2);
 }
 
-inline void uniform(uniform_location loc, float_t f1, float_t f2,
+inline void uniform(uniform_location loc,
+                    float_t f1,
+                    float_t f2,
                     float_t f3) noexcept {
   glUniform3f(loc.value, f1, f2, f3);
 }
 
-inline void uniform(uniform_location loc, int_t i1, int_t i2,
+inline void uniform(uniform_location loc,
+                    int_t i1,
+                    int_t i2,
                     int_t i3) noexcept {
   glUniform3i(loc.value, i1, i2, i3);
 }
 
-inline void uniform(uniform_location loc, uint_t u1, uint_t u2,
+inline void uniform(uniform_location loc,
+                    uint_t u1,
+                    uint_t u2,
                     uint_t u3) noexcept {
   glUniform3ui(loc.value, u1, u2, u3);
 }
 
-inline void uniform(uniform_location loc, float_t f1, float_t f2, float_t f3,
+inline void uniform(uniform_location loc,
+                    float_t f1,
+                    float_t f2,
+                    float_t f3,
                     float_t f4) noexcept {
   glUniform4f(loc.value, f1, f2, f3, f4);
 }
 
-inline void uniform(uniform_location loc, int_t i1, int_t i2, int_t i3,
+inline void uniform(uniform_location loc,
+                    int_t i1,
+                    int_t i2,
+                    int_t i3,
                     int_t i4) noexcept {
   glUniform4i(loc.value, i1, i2, i3, i4);
 }
 
-inline void uniform(uniform_location loc, uint_t u1, uint_t u2, uint_t u3,
+inline void uniform(uniform_location loc,
+                    uint_t u1,
+                    uint_t u2,
+                    uint_t u3,
                     uint_t u4) noexcept {
   glUniform4ui(loc.value, u1, u2, u3, u4);
 }
@@ -1251,8 +1369,8 @@ struct row_major {
   constexpr static inline bool_t transpose = GL_TRUE;
 };
 
-template <std::size_t N> struct implicit_matrix_index {
-
+template <std::size_t N>
+struct implicit_matrix_index {
   // NOLINTNEXTLINE
   constexpr inline implicit_matrix_index(std::size_t n, std::size_t m) noexcept
       : value(n * N + m) {}
@@ -1271,7 +1389,7 @@ struct mat_t {
   // NOLINTNEXTLINE
   float_t value[N * M]{};
 
-  constexpr inline float &operator[](implicit_matrix_index<N> idx) {
+  constexpr inline float& operator[](implicit_matrix_index<N> idx) {
     return value[idx.value];
   }
   constexpr inline float operator[](implicit_matrix_index<N> idx) const {
@@ -1281,55 +1399,55 @@ struct mat_t {
 
 template <class M>
 inline void uniform(uniform_location loc,
-                    const mat_t<2, 2, M> &matrix) noexcept {
+                    const mat_t<2, 2, M>& matrix) noexcept {
   glUniformMatrix2fv(loc.value, 1, M::transpose, matrix.value);
 }
 
 template <class M>
 inline void uniform(uniform_location loc,
-                    const mat_t<2, 3, M> &matrix) noexcept {
+                    const mat_t<2, 3, M>& matrix) noexcept {
   glUniformMatrix2x3fv(loc.value, 1, M::transpose, matrix.value);
 }
 
 template <class M>
 inline void uniform(uniform_location loc,
-                    const mat_t<2, 4, M> &matrix) noexcept {
+                    const mat_t<2, 4, M>& matrix) noexcept {
   glUniformMatrix2x4fv(loc.value, 1, M::transpose, matrix.value);
 }
 
 template <class M>
 inline void uniform(uniform_location loc,
-                    const mat_t<3, 2, M> &matrix) noexcept {
+                    const mat_t<3, 2, M>& matrix) noexcept {
   glUniformMatrix3x2fv(loc.value, 1, M::transpose, matrix.value);
 }
 
 template <class M>
 inline void uniform(uniform_location loc,
-                    const mat_t<3, 3, M> &matrix) noexcept {
+                    const mat_t<3, 3, M>& matrix) noexcept {
   glUniformMatrix3fv(loc.value, 1, M::transpose, matrix.value);
 }
 
 template <class M>
 inline void uniform(uniform_location loc,
-                    const mat_t<3, 4, M> &matrix) noexcept {
+                    const mat_t<3, 4, M>& matrix) noexcept {
   glUniformMatrix3x4fv(loc.value, 1, M::transpose, matrix.value);
 }
 
 template <class M>
 inline void uniform(uniform_location loc,
-                    const mat_t<4, 2, M> &matrix) noexcept {
+                    const mat_t<4, 2, M>& matrix) noexcept {
   glUniformMatrix4x2fv(loc.value, 1, M::transpose, matrix.value);
 }
 
 template <class M>
 inline void uniform(uniform_location loc,
-                    const mat_t<4, 3, M> &matrix) noexcept {
+                    const mat_t<4, 3, M>& matrix) noexcept {
   glUniformMatrix4x3fv(loc.value, 1, M::transpose, matrix.value);
 }
 
 template <class M>
 inline void uniform(uniform_location loc,
-                    const mat_t<4, 4, M> &matrix) noexcept {
+                    const mat_t<4, 4, M>& matrix) noexcept {
   glUniformMatrix4fv(loc.value, 1, M::transpose, matrix.value);
 }
 
@@ -1337,20 +1455,26 @@ inline void depth_func(compare_function func) noexcept {
   glDepthFunc(static_cast<enum_t>(func));
 }
 
-template <class T> struct near {
+template <class T>
+struct near {
   explicit constexpr inline near(T val) noexcept : value{std::move(val)} {}
   T value;
 };
-template <class T> near(T) -> near<T>;
+template <class T>
+near(T) -> near<T>;
 
-template <class T> struct far {
+template <class T>
+struct far {
   explicit constexpr inline far(T val) noexcept : value{std::move(val)} {}
   T value;
 };
-template <class T> far(T) -> far<T>;
+template <class T>
+far(T) -> far<T>;
 
-inline void depth_range(near<double_t> n, far<double_t> f) noexcept {
-  glDepthRange(n.value, f.value);
+template <typename T,
+          std::enable_if_t<std::is_convertible_v<T, double_t>, int> = 0>
+inline void depth_range(near<T> n, far<T> f) noexcept {
+  glDepthRange(static_cast<double_t>(n.value), static_cast<double_t>(f.value));
 }
 
 inline void depth_mask(bool enabled) noexcept {
@@ -1373,6 +1497,6 @@ inline void viewport(x x, y y, width w, height h) noexcept {
   glViewport(x.value, y.value, w.value, h.value);
 }
 
-} // namespace dpsg::gl
+}  // namespace dpsg::gl
 
 #endif
