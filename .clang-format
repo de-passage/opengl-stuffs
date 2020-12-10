@@ -2,5 +2,8 @@
 BasedOnStyle: Chromium
 BinPackParameters: false
 BinPackArguments: false
-
+BreakBeforeBraces: Custom
+BraceWrapping:
+    BeforeElse: true
+    BeforeCatch: true
 ...
