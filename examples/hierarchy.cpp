@@ -83,8 +83,10 @@ struct draw_t {
 template <class T> struct tag_t {};
 template <class T> constexpr tag_t<T> tag{};
 template <class Tag, class... Components> struct hierarchy_t {
+  using tag = Tag;
+
   template <class... Args>
-  constexpr explicit hierarchy_t([[maybe_unused]] tag_t<Tag> tag,
+  constexpr explicit hierarchy_t([[maybe_unused]] tag_t<tag> tag_,
                                  Args &&... args)
       : components(std::forward<Args>(args)...) {}
 
@@ -95,12 +97,12 @@ template <class Tag, class... Components>
 hierarchy_t(tag_t<Tag>, Components...) -> hierarchy_t<Tag, Components...>;
 
 constexpr float finger_length = 2;
-constexpr float finger_width = 0.5;
+constexpr float finger_width = 0.25;
 constexpr float angle_lower_finger = 45;
 constexpr float angle_upper_finger = 180;
 constexpr hierarchy_t finger_segment{
     tag<struct finger_segment>, position{0, 0, finger_length / 2},
-    scale{finger_width / 2, finger_width / 2, finger_length / 2}, draw};
+    scale{finger_width, finger_width, finger_length / 2}, draw};
 
 constexpr hierarchy_t left_lower_finger{
     tag<struct left_lower_finger>, position{0, 0, finger_length},
@@ -165,12 +167,57 @@ constexpr hierarchy_t crane{
     tag<struct crane>, position{3, -5, -40}, y_rotation{base_angle},
     left_base,         right_base,           upper_arm};
 
-template <class T, class H> struct contains;
-template <class T, class... Components>
-struct contains<T, hierarchy_t<Components...>>
-    : std::disjunction<std::is_same<T, Components>...> {};
-template <class T, class H>
-constexpr static inline bool contains_v = contains<T, H>::value;
+template <class H> struct is_hierarchy : std::false_type {};
+template <class T, class... Cs>
+struct is_hierarchy<hierarchy_t<T, Cs...>> : std::true_type {};
+
+template <class H> constexpr bool is_hierarchy_v = is_hierarchy<H>::value;
+
+struct traverse_t {
+  template <class H, class F,
+            std::enable_if_t<is_hierarchy_v<std::decay_t<H>>, int> = 0>
+  constexpr void operator()(H &&h, F f) const {
+    f(h, next(h, f));
+  }
+
+  template <class T, class F,
+            std::enable_if_t<!is_hierarchy_v<std::decay_t<T>>, int> = 0>
+  constexpr void operator()(T &&t, F &&f) const {
+    std::forward<F>(f)(std::forward<T>(t), [] {});
+  }
+
+private:
+  template <class Tag, class F, class... Args>
+  constexpr static auto next(const hierarchy_t<Tag, Args...> &h, F f) {
+    return [&h, f] { (traverse_t{}(std::get<Args>(h.components), f), ...); };
+  }
+
+  template <class Tag, class F, class... Args>
+  constexpr static auto next(hierarchy_t<Tag, Args...> &h, F f) {
+    return [&h, f]() mutable {
+      (traverse_t{}(std::get<Args>(h.components), f), ...);
+    };
+  }
+
+} constexpr traverse;
+
+static_assert(is_hierarchy_v<std::decay_t<decltype(crane)>>);
+
+template <class T> struct name;
+template <class Tag, class... Cs> struct name<hierarchy_t<Tag, Cs...>> {
+  constexpr static inline const char *value = name<Tag>::value;
+};
+#define GEN_SPECIALIZATION(name_)                                              \
+  template <> struct name<struct name_> {                                      \
+    constexpr static inline const char value[] = #name_;                       \
+  };
+#define TAGS(f)                                                                \
+  f(finger_segment) f(crane) f(left_lower_finger) f(right_lower_finger)        \
+      f(left_finger) f(right_finger) f(upper_arm) f(upper_arm_segment)         \
+          f(lower_arm_segment) f(lower_arm) f(left_base) f(wrist)              \
+              f(wrist_segment) f(right_base)
+
+TAGS(GEN_SPECIALIZATION)
 
 void hierarchy(dpsg::window &wdw) {
   using namespace dpsg;
@@ -178,6 +225,24 @@ void hierarchy(dpsg::window &wdw) {
   matrix_stack<traits::glm> stack;
 
   gl::enable(gl::capability::depth_test);
+
+  traverse(crane, [](const auto &v, auto next) {
+    using value_type = std::decay_t<decltype(v)>;
+    if constexpr (is_hierarchy_v<value_type>) {
+      std::cout << name<value_type>::value << "{ ";
+      next();
+      std::cout << "},\n";
+    } else if constexpr (std::is_same_v<value_type, position>) {
+      std::cout << "position: (" << v.value.x << "," << v.value.y << ","
+                << v.value.z << "),\n";
+    } else if constexpr (std::is_base_of_v<rotation, value_type>) {
+      std::cout << "rotation: (" << v.value.x << "," << v.value.y << ","
+                << v.value.z << ", theta(" << v.angle.value << ")),\n";
+    } else if constexpr (std::is_same_v<scale, value_type>) {
+      std::cout << "scale: (" << v.value.x << "," << v.value.y << ","
+                << v.value.z << "),\n";
+    }
+  });
 
   wdw.render_loop(
       [&] { gl::clear(gl::buffer_bit::color | gl::buffer_bit::depth); });
