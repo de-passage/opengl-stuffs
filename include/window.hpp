@@ -106,6 +106,10 @@ struct window_impl {
           _window, static_cast<int>(mode), enabled ? GLFW_TRUE : GLFW_FALSE);
     }
 
+    inline cursor_mode get_cursor_mode() const {
+      return static_cast<cursor_mode>(glfwGetInputMode(_window, GLFW_CURSOR));
+    }
+
    private:
     void _clean() {
       if (_window != nullptr) {
