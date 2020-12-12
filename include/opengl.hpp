@@ -3,8 +3,9 @@
 
 #include "glad/glad.h"
 
-#include <type_traits>
 #include "meta/is_one_of.hpp"
+
+#include <type_traits>
 
 namespace dpsg::gl {
 
@@ -95,8 +96,10 @@ enum class capability : enum_t {
   clip_distance_7 = GL_CLIP_DISTANCE7,
   color_logic_op = GL_COLOR_LOGIC_OP,
   cull_face = GL_CULL_FACE,
-  // debug_output = GL_DEBUG_OUTPUT,
-  // debug_output_synchronous = GL_DEBUG_OUTPUT_SYNCHRONOUS,
+#ifdef GL_VERSION_4_3
+  debug_output = GL_DEBUG_OUTPUT,
+  debug_output_synchronous = GL_DEBUG_OUTPUT_SYNCHRONOUS,
+#endif
   depth_clamp = GL_DEPTH_CLAMP,
   depth_test = GL_DEPTH_TEST,
   dither = GL_DITHER,
@@ -108,12 +111,16 @@ enum class capability : enum_t {
   polygon_offset_point = GL_POLYGON_OFFSET_POINT,
   polygon_smooth = GL_POLYGON_SMOOTH,
   primitive_restart = GL_PRIMITIVE_RESTART,
-  // primitive_restart_fixed_index = GL_PRIMITIVE_RESTART_FIXED_INDEX,
+#ifdef GL_VERSION_4_3
+  primitive_restart_fixed_index = GL_PRIMITIVE_RESTART_FIXED_INDEX,
+#endif
   rasterizer_discard = GL_RASTERIZER_DISCARD,
   sample_alpha_to_coverage = GL_SAMPLE_ALPHA_TO_COVERAGE,
   sample_alpha_to_one = GL_SAMPLE_ALPHA_TO_ONE,
   sample_coverage = GL_SAMPLE_COVERAGE,
-  // sample_shading = GL_SAMPLE_SHADING,
+#ifdef GL_VERSION_4_0
+  sample_shading = GL_SAMPLE_SHADING,
+#endif
   sample_mask = GL_SAMPLE_MASK,
   scissor_test = GL_SCISSOR_TEST,
   stencil_test = GL_STENCIL_TEST,
@@ -172,7 +179,17 @@ enum class buffer_type : enum_t {
   pixel_unpack = GL_PIXEL_UNPACK_BUFFER,
   texture = GL_TEXTURE_BUFFER,
   transform_feedback = GL_TRANSFORM_FEEDBACK_BUFFER,
-  uniform = GL_UNIFORM_BUFFER
+  uniform = GL_UNIFORM_BUFFER,
+#ifdef GL_VERSION_4_2
+  atomic_counter = GL_ATOMIC_COUNTER_BUFFER,
+#endif
+#ifdef GL_VERSION_4_3
+  dispatch_indirect = GL_DISPATCH_INDIRECT_BUFFER,
+  shader_storage = GL_SHADER_STORAGE_BUFFER,
+#endif
+#ifdef GL_VERSION_4_4
+  query = GL_QUERY_BUFFER,
+#endif
 };
 
 enum class data_hint : enum_t {
@@ -358,9 +375,8 @@ inline void buffer_data(buffer_type type,
 }
 
 template <class T, std::size_t N>
-// NOLINTNEXTLINE
 inline void buffer_data(buffer_type type,
-                        T (&ptr)[N],
+                        T (&ptr)[N],  // NOLINT
                         data_hint dmode) noexcept {
   static_assert(detail::is_valid_gl_type_v<T>,
                 "Input pointer type is incompatible with the OpenGL API");
@@ -652,12 +668,14 @@ inline uniform_location get_uniform_location(program_id id,
 }
 
 enum class shader_type : enum_t {
-  // compute = GL_COMPUTE_SHADER,
   vertex = GL_VERTEX_SHADER,
-  // tess_control = GL_TESS_CONTROL_SHADER,
-  // tess_evaluation = GL_TESS_EVALUATION_SHADER,
   geometry = GL_GEOMETRY_SHADER,
-  fragment = GL_FRAGMENT_SHADER
+  fragment = GL_FRAGMENT_SHADER,
+#ifdef GL_VERSION_4_5
+  compute = GL_COMPUTE_SHADER,
+  tess_control = GL_TESS_CONTROL_SHADER,
+  tess_evaluation = GL_TESS_EVALUATION_SHADER,
+#endif
 };
 
 struct generic_shader_id {
@@ -685,9 +703,8 @@ inline void shader_source(const generic_shader_id& id,
 }
 
 template <std::size_t N>
-// NOLINTNEXTLINE
 inline void shader_source(const generic_shader_id& id,
-                          const char* (&string)[N],
+                          const char* (&string)[N],      // NOLINT
                           int (&lengths)[N]) noexcept {  // NOLINT
   shader_source(
       id, N, static_cast<const char**>(string), static_cast<int*>(lengths));
@@ -792,10 +809,12 @@ enum class texture_target : enum_t {
   _2d_array = GL_TEXTURE_2D_ARRAY,
   rectangle = GL_TEXTURE_RECTANGLE,
   cube_map = GL_TEXTURE_CUBE_MAP,
-  // cube_map_array = GL_TEXTURE_CUBE_MAP_ARRAY,
   buffer = GL_TEXTURE_BUFFER,
   _2d_multisample = GL_TEXTURE_2D_MULTISAMPLE,
   _2d_multisample_array = GL_TEXTURE_2D_MULTISAMPLE_ARRAY,
+#ifdef GL_VERSION_4_5
+  cube_map_array = GL_TEXTURE_CUBE_MAP_ARRAY,
+#endif
 };
 
 inline void bind_texture(texture_target t, texture_id id) noexcept {
@@ -807,7 +826,6 @@ inline void unbind_texture(texture_target t) noexcept {
 }
 
 enum class texture_parameter_name : enum_t {
-  // depth_stencil = GL_DEPTH_STENCIL_TEXTURE_MODE,
   base_level = GL_TEXTURE_BASE_LEVEL,
   compare_func = GL_TEXTURE_COMPARE_FUNC,
   compare_mode = GL_TEXTURE_COMPARE_MODE,
@@ -826,6 +844,9 @@ enum class texture_parameter_name : enum_t {
   wrap_r = GL_TEXTURE_WRAP_R,
   border_color = GL_TEXTURE_BORDER_COLOR,
   swizzle_rgba = GL_TEXTURE_SWIZZLE_RGBA,
+#ifdef GL_VERSION_4_3
+  depth_stencil = GL_DEPTH_STENCIL_TEXTURE_MODE,
+#endif
 };
 
 enum class compare_function : enum_t {
@@ -855,7 +876,9 @@ enum class wrap_mode : enum_t {
   clamp_to_border = GL_CLAMP_TO_BORDER,
   mirrored_repeat = GL_MIRRORED_REPEAT,
   repeat = GL_REPEAT,
-  // GL_MIRROR_CLAMP_TO_EDGE,
+#ifdef GL_VERSION_4_4
+  mirror_clamp_to_edge = GL_MIRROR_CLAMP_TO_EDGE,
+#endif
 };
 
 enum class swizzle_target : enum_t {
@@ -1023,7 +1046,7 @@ enum class texture_image_target : enum_t {
   cube_map_negative_y = GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
   cube_map_positive_z = GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
   cube_map_negative_z = GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
-  // proxy_cube_ma = GL_PROXY_TEXTURE_CUBE_MA,
+  proxy_cube_ma = GL_PROXY_TEXTURE_CUBE_MAP,
 };
 
 struct mipmap_level {
@@ -1051,9 +1074,11 @@ enum class image_format : enum_t {
   bgr_integer = GL_BGR_INTEGER,
   rgba_integer = GL_RGBA_INTEGER,
   bgra_integer = GL_BGRA_INTEGER,
-  stencil_index = GL_STENCIL_INDEX,
   depth_component = GL_DEPTH_COMPONENT,
   depth_stencil = GL_DEPTH_STENCIL,
+#ifdef GL_VERSION_4_4
+  stencil_index = GL_STENCIL_INDEX,
+#endif
 };
 
 enum class base_internal_format : enum_t {
@@ -1085,50 +1110,48 @@ enum class sized_internal_format : enum_t {
   rgba2 = GL_RGBA2,
   rgba4 = GL_RGBA4,
   rgb5_a1 = GL_RGB5_A1,
-  /*
-  GL_RGBA8,
-  GL_RGBA8_SNORM,
-  GL_RGB10_A2,
-  GL_RGB10_A2UI,
-  GL_RGBA12,
-  GL_RGBA16,
-  GL_SRGB8,
-  GL_SRGB8_ALPHA8,
-  GL_R16F,
-  GL_RG16F,
-  GL_RGB16F,
-  GL_RGBA16F,
-  GL_R32F,
-  GL_RG32F,
-  GL_RGB32F,
-  GL_RGBA32F,
-  GL_R11F_G11F_B10F,
-  GL_RGB9_E5,
-  GL_R8I,
-  GL_R8UI,
-  GL_R16I,
-  GL_R16UI,
-  GL_R32I,
-  GL_R32UI,
-  GL_RG8I,
-  GL_RG8UI,
-  GL_RG16I,
-  GL_RG16UI,
-  GL_RG32I,
-  GL_RG32UI,
-  GL_RGB8I,
-  GL_RGB8UI,
-  GL_RGB16I,
-  GL_RGB16UI,
-  GL_RGB32I,
-  GL_RGB32UI,
-  GL_RGBA8I,
-  GL_RGBA8UI,
-  GL_RGBA16I,
-  GL_RGBA16UI,
-  GL_RGBA32I,
-  GL_RGBA32UI,
-  */
+  rgba8 = GL_RGBA8,
+  rgba8_snorm = GL_RGBA8_SNORM,
+  rgb10_a2 = GL_RGB10_A2,
+  rgb10_a2ui = GL_RGB10_A2UI,
+  rgba12 = GL_RGBA12,
+  rgba16 = GL_RGBA16,
+  srgb8 = GL_SRGB8,
+  srgb8_alpha8 = GL_SRGB8_ALPHA8,
+  r16f = GL_R16F,
+  rg16f = GL_RG16F,
+  rgb16f = GL_RGB16F,
+  rgba16f = GL_RGBA16F,
+  r32f = GL_R32F,
+  rg32f = GL_RG32F,
+  rgb32f = GL_RGB32F,
+  rgba32f = GL_RGBA32F,
+  r11f_g11f_b10f = GL_R11F_G11F_B10F,
+  rgb9_e5 = GL_RGB9_E5,
+  r8i = GL_R8I,
+  r8ui = GL_R8UI,
+  r16i = GL_R16I,
+  r16ui = GL_R16UI,
+  r32i = GL_R32I,
+  r32ui = GL_R32UI,
+  rg8i = GL_RG8I,
+  rg8ui = GL_RG8UI,
+  rg16i = GL_RG16I,
+  rg16ui = GL_RG16UI,
+  rg32i = GL_RG32I,
+  rg32ui = GL_RG32UI,
+  rgb8i = GL_RGB8I,
+  rgb8ui = GL_RGB8UI,
+  rgb16i = GL_RGB16I,
+  rgb16ui = GL_RGB16UI,
+  rgb32i = GL_RGB32I,
+  rgb32ui = GL_RGB32UI,
+  rgba8i = GL_RGBA8I,
+  rgba8ui = GL_RGBA8UI,
+  rgba16i = GL_RGBA16I,
+  rgba16ui = GL_RGBA16UI,
+  rgba32i = GL_RGBA32I,
+  rgba32ui = GL_RGBA32UI,
 };
 
 enum class compressed_internal_format : enum_t {
@@ -1142,12 +1165,12 @@ enum class compressed_internal_format : enum_t {
   signed_red_rgtc1 = GL_COMPRESSED_SIGNED_RED_RGTC1,
   rg_rgtc2 = GL_COMPRESSED_RG_RGTC2,
   signed_rg_rgtc2 = GL_COMPRESSED_SIGNED_RG_RGTC2,
-  /*
-  GL_COMPRESSED_RGBA_BPTC_UNORM,
-  GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM,
-  GL_COMPRESSED_RGB_BPTC_SIGNED_FLOAT,
-  GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT
-  */
+#ifdef GL_VERSION_4_2
+  rgba_bptc_unorm = GL_COMPRESSED_RGBA_BPTC_UNORM,
+  srgb_alpha_bptc_unorm = GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM,
+  rgb_bptc_signed_float = GL_COMPRESSED_RGB_BPTC_SIGNED_FLOAT,
+  rgb_bptc_unsigned_float = GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT,
+#endif
 };
 
 namespace detail {
@@ -1192,7 +1215,7 @@ struct contains_impl<void, one_of<Ts...>, Args...>
 template <class T, class... Args>
 constexpr static inline bool contains_v = contains<T, Args...>::value;
 
-//*
+/*
 static_assert(contains_v<float, char, float, double>);
 static_assert(!contains_v<int, char, float, double>);
 static_assert(contains_v<one_of<float, int>, char, int, double>);
