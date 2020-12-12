@@ -424,7 +424,6 @@ void hierarchy(dpsg::window& wdw, key_mapper& kmap) {
   auto model_u = prog.uniform_location<glm::mat4>("model").value();
   auto projection_u =
       prog.uniform_location<glm::mat4>("projected_view").value();
-  projection_u.bind(camera.projected_view());
 
   using layout = sequenced<group<3>, group<4>>;
   fixed_size_structured_buffer vertex_array{layout{}, vertex_data};
@@ -434,8 +433,8 @@ void hierarchy(dpsg::window& wdw, key_mapper& kmap) {
   auto model{crane};
 
   kmap.on(key::enter, print(model));
-  constexpr float standard_angle_increment = 11.25;
-  constexpr float small_angle_increment = 9;
+  constexpr float standard_angle_increment = 6.25;
+  constexpr float small_angle_increment = 3;
   kmap.while_(key::M, rotate_base(model, +standard_angle_increment));
   kmap.while_(key::N, rotate_base(model, -standard_angle_increment));
   kmap.while_(key::H, rotate_upper_arm(model, +standard_angle_increment));
@@ -445,16 +444,51 @@ void hierarchy(dpsg::window& wdw, key_mapper& kmap) {
   kmap.while_(key::O, roll_wrist(model, +standard_angle_increment));
   kmap.while_(key::P, roll_wrist(model, -standard_angle_increment));
   kmap.while_(key::K, pitch_wrist(model, +standard_angle_increment));
+  kmap.while_(key::I, pitch_wrist(model, -standard_angle_increment));
   kmap.while_(key::L, rotate_fingers(model, +small_angle_increment));
   kmap.while_(key::semicolon, rotate_fingers(model, -small_angle_increment));
+
+  constexpr float camera_speed = 0.4;
+  kmap.while_(key::W, ignore([&] { camera.advance(camera_speed); }));
+  kmap.while_(key::S, ignore([&] { camera.advance(-camera_speed); }));
+  kmap.while_(key::D, ignore([&] { camera.strafe(camera_speed); }));
+  kmap.while_(key::A, ignore([&] { camera.strafe(-camera_speed); }));
 
   using namespace std::literals::chrono_literals;
   constexpr auto interval = 30ms;
   input_timer timer{[&kmap, &wdw] { kmap.trigger_pressed_callbacks(wdw); },
                     interval};
 
+  double last_x{0};
+  double last_y{0};
+  wdw.set_input_mode(cursor_mode::hidden);
+  kmap.on(key::space, [](window& wdw) {
+    auto mode = wdw.get_cursor_mode();
+    if (mode == cursor_mode::hidden) {
+      wdw.set_input_mode(cursor_mode::disabled);
+    }
+    else {
+      wdw.set_input_mode(cursor_mode::hidden);
+    }
+  });
+  wdw.set_cursor_pos_callback([&](window& wdw, double x, double y) {
+    last_x = x;
+    last_y = y;
+    const auto callback = [&](double x, double y) {
+      constexpr float sensitivity = glm::radians(0.1F);
+      double x_offset = (x - last_x) * sensitivity;
+      double y_offset = (last_y - y) * sensitivity;
+      last_x = x;
+      last_y = y;
+      camera.rotate(x_offset, y_offset);
+    };
+    callback(x, y);
+    wdw.set_cursor_pos_callback(ignore(callback));
+  });
+
   wdw.render_loop([&] {
     gl::clear(gl::buffer_bit::color | gl::buffer_bit::depth);
+    projection_u.bind(camera.projected_view());
     traverse(model, gl_draw(stack, model_u, element_buffer), stack.top());
     timer.trigger();
   });
