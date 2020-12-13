@@ -1,8 +1,3 @@
-#include "buffers.hpp"
-#include "layout.hpp"
-#include "opengl.hpp"
-#include "window.hpp"
-
 #define NK_INCLUDE_FIXED_TYPES
 #define NK_INCLUDE_STANDARD_IO
 #define NK_INCLUDE_STANDARD_VARARGS
@@ -13,7 +8,13 @@
 #define NK_KEYSTATE_BASED_INPUT
 #include "nuklear/nuklear.h"
 
+#include "window.hpp"
+
 #include "shaders.hpp"
+#include "program.hpp"
+#include "buffers.hpp"
+#include "layout.hpp"
+#include "opengl.hpp"
 
 namespace dpsg {
 class nk_gl3_backend {

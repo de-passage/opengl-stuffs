@@ -4,6 +4,7 @@
 #include "c_str.hpp"
 #include "common.hpp"
 #include "shaders.hpp"
+#include "program.hpp"
 
 #include <fstream>
 #include <sstream>
