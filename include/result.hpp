@@ -205,6 +205,54 @@ class result {
   [[nodiscard]] constexpr const variant_type&& to_variant() const&& noexcept {
     return std::move(_value);
   }
+
+  template <class F, class S = std::invoke_result_t<F, const success_type&>>
+  [[nodiscard]] constexpr variant_t<S, error_type> map(F&& f) const& noexcept(
+      noexcept_call<F, const success_type&>) {
+    if (has_value()) {
+      return variant_t<S, error_type>{
+          in_place_success,
+          std::forward<F>(f)(std::get<success_index>(_value))};
+    }
+    return variant_t<S, error_type>{in_place_error, error()};
+  }
+
+  template <class F, class S = std::invoke_result_t<F, success_type&&>>
+  [[nodiscard]] constexpr result<S, error_type> map(F&& f) && noexcept(
+      noexcept_call<F, success_type&&>) {
+    if (has_value()) {
+      return result<S, error_type>{
+          in_place_success,
+          std::forward<F>(f)(std::get<success_index>(std::move(_value)))};
+    }
+    return result<S, error_type>{in_place_error, error()};
+  }
+
+  template <class F,
+            class R = std::invoke_result_t<F, const success_type&>,
+            class S = typename R::success_type,
+            class E = typename R::error_type,
+            std::enable_if_t<std::is_convertible_v<error_type, E>, int> = 0>
+  [[nodiscard]] constexpr R then(F&& f) const& noexcept(
+      noexcept_call<F, const success_type&>) {
+    if (has_value()) {
+      return std::forward<F>(f)(std::get<success_index>(_value));
+    }
+    return R{in_place_error, error()};
+  }
+
+  template <class F,
+            class R = std::invoke_result_t<F, success_type&&>,
+            class S = typename R::success_type,
+            class E = typename R::error_type,
+            std::enable_if_t<std::is_convertible_v<error_type, E>, int> = 0>
+  [[nodiscard]] constexpr R then(F&& f) const&& noexcept(
+      noexcept_call<F, success_type&&>) {
+    if (has_value()) {
+      return std::forward<F>(f)(std::get<success_index>(std::move(_value)));
+    }
+    return R{in_place_error, error()};
+  }
 };
 }  // namespace dpsg
 
