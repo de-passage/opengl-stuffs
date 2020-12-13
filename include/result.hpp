@@ -13,7 +13,9 @@ struct in_place_success_t {
 template <class Success, class Error>
 class result {
  private:
-  using variant_type = std::variant<Success, Error>;
+  template <class S, class E>
+  using variant_t = std::variant<S, E>;
+  using variant_type = variant_t<Success, Error>;
   variant_type _value;
   constexpr static inline std::size_t success_index = 0;
   constexpr static inline std::size_t error_index = 1;
@@ -22,34 +24,38 @@ class result {
   using success_type = Success;
   using error_type = Error;
 
-  template <class T>
-  constexpr explicit result(T&& value) noexcept
+  template <class T,
+            std::enable_if_t<std::is_convertible_v<T, variant_type>, int> = 0>
+  constexpr explicit result(T&& value) noexcept(
+      std::is_nothrow_constructible_v<variant_type, T>)
       : _value(std::forward<T>(value)) {}
 
   template <class... Args>
   constexpr explicit result(
       [[maybe_unused]] in_place_success_t success,
-      Args&&... args) noexcept(std::is_nothrow_constructible_v<Success,
+      Args&&... args) noexcept(std::is_nothrow_constructible_v<success_type,
                                                                Args...>)
       : _value(std::in_place_type<Success>, std::forward<Args>(args)...) {}
 
   template <class... Args>
   constexpr explicit result(
       [[maybe_unused]] in_place_error_t error,
-      Args&&... args) noexcept(std::is_nothrow_constructible_v<Error, Args...>)
+      Args&&... args) noexcept(std::is_nothrow_constructible_v<error_type,
+                                                               Args...>)
       : _value(std::in_place_type<Error>, std::forward<Args>(args)...) {}
 
-  template <class V,
-            class S = typename V::success_type,
-            class E = typename V::error_type,
-            std::enable_if_t<
-                std::conjunction_v<
-                    std::is_convertible<S, Success>,
-                    std::is_convertible<E, Error>,
-                    std::disjunction<std::negation<std::is_same<S, Success>>,
-                                     std::negation<std::is_same<E, Error>>>>,
-                int> = 0>
-  constexpr result(V&& val)
+  template <
+      class V,
+      class S = typename V::success_type,
+      class E = typename V::error_type,
+      std::enable_if_t<
+          std::conjunction_v<
+              std::is_convertible<S, success_type>,
+              std::is_convertible<E, error_type>,
+              std::disjunction<std::negation<std::is_same<S, success_type>>,
+                               std::negation<std::is_same<E, error_type>>>>,
+          int> = 0>
+  constexpr explicit result(V&& val)
       : _value(std::forward<V>(val).either(
             [](auto&& success) -> variant_type {
               return variant_type{std::in_place_type<success_type>,
@@ -79,11 +85,11 @@ class result {
  public:
   template <class F,
             class G,
-            class R = std::common_type_t<std::invoke_result_t<F, Success&>,
-                                         std::invoke_result_t<G, Error&>>>
+            class R = std::common_type_t<std::invoke_result_t<F, success_type&>,
+                                         std::invoke_result_t<G, error_type&>>>
   constexpr inline R either(F&& on_success, G&& on_error) & noexcept(
-      noexcept_call<F, Success&>&& noexcept_call<G, Error&>) {
-    if (Success* ptr = std::get_if<success_index>(&_value)) {
+      noexcept_call<F, success_type&>&& noexcept_call<G, error_type&>) {
+    if (success_type* ptr = std::get_if<success_index>(&_value)) {
       return std::forward<F>(on_success)(*ptr);
     }
     return std::forward<G>(on_error)(error());
@@ -92,91 +98,95 @@ class result {
   template <
       class F,
       class G,
-      class R = std::common_type_t<std::invoke_result_t<F, const Success&>,
-                                   std::invoke_result_t<G, const Error&>>>
+      class R = std::common_type_t<std::invoke_result_t<F, const success_type&>,
+                                   std::invoke_result_t<G, const error_type&>>>
   constexpr inline R either(F&& on_success, G&& on_error) const& noexcept(
-      noexcept_call<F, const Success&>&& noexcept_call<G, const Error&>) {
-    if (const Success* ptr = std::get_if<success_index>(&_value)) {
+      noexcept_call<F, const success_type&>&&
+          noexcept_call<G, const error_type&>) {
+    if (const success_type* ptr = std::get_if<success_index>(&_value)) {
       return std::forward<F>(on_success)(*ptr);
+    }
+    return std::forward<G>(on_error)(error());
+  }
+
+  template <
+      class F,
+      class G,
+      class R = std::common_type_t<std::invoke_result_t<F, success_type&&>,
+                                   std::invoke_result_t<G, error_type&&>>>
+  constexpr inline R either(F&& on_success, G&& on_error) && noexcept(
+      noexcept_call<F, success_type&&>&& noexcept_call<G, error_type&&>) {
+    if (success_type* ptr = std::get_if<success_index>(&_value)) {
+      return std::forward<F>(on_success)(std::move(*ptr));
     }
     return std::forward<G>(on_error)(error());
   }
 
   template <class F,
             class G,
-            class R = std::common_type_t<std::invoke_result_t<F, Success&&>,
-                                         std::invoke_result_t<G, Error&&>>>
-  constexpr inline R either(F&& on_success, G&& on_error) && noexcept(
-      noexcept_call<F, Success&&>&& noexcept_call<G, Error&&>) {
-    if (Success* ptr = std::get_if<success_index>(&_value)) {
-      return std::forward<F>(on_success)(std::move(*ptr));
-    }
-    return std::forward<G>(on_error)(error());
-  }
-
-  template <
-      class F,
-      class G,
-      class R = std::common_type_t<std::invoke_result_t<F, const Success&&>,
-                                   std::invoke_result_t<G, const Error&&>>>
+            class R = std::common_type_t<
+                std::invoke_result_t<F, const success_type&&>,
+                std::invoke_result_t<G, const error_type&&>>>
   constexpr inline R either(F&& on_success, G&& on_error) const&& noexcept(
-      noexcept_call<F, const Success&&>&& noexcept_call<G, const Error&&>) {
-    if (const Success* ptr = std::get_if<success_index>(&_value)) {
+      noexcept_call<F, const success_type&&>&&
+          noexcept_call<G, const error_type&&>) {
+    if (const success_type* ptr = std::get_if<success_index>(&_value)) {
       return std::forward<F>(on_success)(std::move(*ptr));
     }
     return std::forward<G>(on_error)(error());
   }
 
-  [[nodiscard]] constexpr inline const Success& value() const& {
-    if (const Success* ptr = std::get_if<success_index>(&_value)) {
+  [[nodiscard]] constexpr inline const success_type& value() const& {
+    if (const success_type* ptr = std::get_if<success_index>(&_value)) {
       return *ptr;
     }
     throw error();
   }
 
-  [[nodiscard]] constexpr inline Success& value() & {
-    if (Success* ptr = std::get_if<success_index>(&_value)) {
+  [[nodiscard]] constexpr inline success_type& value() & {
+    if (success_type* ptr = std::get_if<success_index>(&_value)) {
       return *ptr;
     }
     throw error();
   }
 
-  [[nodiscard]] constexpr inline const Success&& value() const&& {
-    if (const Success* ptr = std::get_if<success_index>(&_value)) {
+  [[nodiscard]] constexpr inline const success_type&& value() const&& {
+    if (const success_type* ptr = std::get_if<success_index>(&_value)) {
       return std::move(*ptr);
     }
     throw error();
   }
 
-  [[nodiscard]] constexpr inline Success&& value() && {
-    if (Success* ptr = std::get_if<success_index>(&_value)) {
+  [[nodiscard]] constexpr inline success_type&& value() && {
+    if (success_type* ptr = std::get_if<success_index>(&_value)) {
       return std::move(*ptr);
     }
     throw std::get<error_index>(std::move(_value));
   }
 
-  template <class T = Success,
-            std::enable_if_t<std::is_convertible_v<T, Success>>>
-  [[nodiscard]] constexpr inline Success value_or(T default_) const& noexcept {
-    if (const Success* ptr = std::get_if<success_index>(&_value)) {
+  template <class T = success_type,
+            std::enable_if_t<std::is_convertible_v<T, success_type>>>
+  [[nodiscard]] constexpr inline success_type value_or(
+      T default_) const& noexcept {
+    if (const success_type* ptr = std::get_if<success_index>(&_value)) {
       return *ptr;
     }
-    return static_cast<Success>(default_);
+    return static_cast<success_type>(default_);
   }
 
-  [[nodiscard]] constexpr Error& error() & noexcept {
+  [[nodiscard]] constexpr error_type& error() & noexcept {
     return std::get<error_index>(_value);
   }
 
-  [[nodiscard]] constexpr const Error& error() const& noexcept {
+  [[nodiscard]] constexpr const error_type& error() const& noexcept {
     return std::get<error_index>(_value);
   }
 
-  [[nodiscard]] constexpr Error&& error() && noexcept {
+  [[nodiscard]] constexpr error_type&& error() && noexcept {
     return std::get<error_index>(std::move(_value));
   }
 
-  [[nodiscard]] constexpr const Error&& error() const&& noexcept {
+  [[nodiscard]] constexpr const error_type&& error() const&& noexcept {
     return std::get<error_index>(std::move(_value));
   }
 
