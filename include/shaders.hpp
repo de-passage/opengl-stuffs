@@ -4,6 +4,7 @@
 #include "opengl.hpp"
 
 #include "c_str_wrapper.hpp"
+#include "common.hpp"
 #include "result.hpp"
 
 #include <optional>
@@ -38,6 +39,48 @@ class shader_error : public gl_error {
   }
 };
 
+template <gl::shader_type Tag, class T>
+class shader_source {
+  T _value;
+
+ public:
+  template <
+      class I,
+      std::enable_if_t<std::is_convertible_v<std::decay_t<I>, T>, int> = 0>
+  constexpr explicit shader_source(I&& v) noexcept
+      : _value(std::forward<T>(v)){};
+  const auto* c_str() const noexcept { return ::dpsg::c_str(_value); }
+};
+
+template <class T>
+struct fs_source : shader_source<gl::shader_type::fragment, T> {
+  template <class I>
+  constexpr explicit fs_source(I&& v) noexcept
+      : shader_source<gl::shader_type::fragment, T>{std::forward<I>(v)} {}
+
+  // NOLINTNEXTLINE
+  operator const shader_source<gl::shader_type::fragment, T> &()
+      const noexcept {
+    return *this;
+  }
+};
+template <class T>
+fs_source(T) -> fs_source<std::decay_t<T>>;
+
+template <class T>
+struct vs_source : shader_source<gl::shader_type::vertex, T> {
+  template <class I>
+  constexpr explicit vs_source(I&& v) noexcept
+      : shader_source<gl::shader_type::vertex, T>(std::forward<I>(v)) {}
+
+  // NOLINTNEXTLINE
+  operator const shader_source<gl::shader_type::vertex, T> &() const noexcept {
+    return *this;
+  }
+};
+template <class T>
+vs_source(T) -> vs_source<std::decay_t<T>>;
+
 template <gl::shader_type Type>
 class shader {
  public:
@@ -53,10 +96,11 @@ class shader {
   }
   ~shader() noexcept { gl::delete_shader(_id); }
 
+  template <class Str>
   [[nodiscard]] static result<shader, shader_error> create(
-      const char* source) noexcept {
+      shader_source<Type, Str> source) noexcept {
     auto shader_id = gl::create_shader<Type>();
-    gl::shader_source(shader_id, source);
+    gl::shader_source(shader_id, c_str(source));
     gl::compile_shader(shader_id);
     int success = 0;
     glGetShaderiv(shader_id.value, GL_COMPILE_STATUS, &success);

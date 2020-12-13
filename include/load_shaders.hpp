@@ -13,14 +13,11 @@
 
 namespace dpsg {
 
-DPSG_LAZY_STR_WRAPPER_IMPL(vs_source)  // NOLINT
-DPSG_LAZY_STR_WRAPPER_IMPL(fs_source)  // NOLINT
-
 template <class T, class U>
 program create_program(const vs_source<T>& vshader_source,
                        const fs_source<U>& fshader_source) {
-  auto vshader = vertex_shader::create(c_str(vshader_source)).value();
-  auto fshader = fragment_shader::create(c_str(fshader_source)).value();
+  auto vshader = vertex_shader::create(vshader_source).value();
+  auto fshader = fragment_shader::create(fshader_source).value();
   auto prog = program::create(vshader, fshader).value();
   return prog;
 }

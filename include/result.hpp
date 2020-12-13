@@ -246,7 +246,7 @@ class result {
             class S = typename R::success_type,
             class E = typename R::error_type,
             std::enable_if_t<std::is_convertible_v<error_type, E>, int> = 0>
-  [[nodiscard]] constexpr R then(F&& f) const&& noexcept(
+  [[nodiscard]] constexpr R then(F&& f) && noexcept(
       noexcept_call<F, success_type&&>) {
     if (has_value()) {
       return std::forward<F>(f)(std::get<success_index>(std::move(_value)));
