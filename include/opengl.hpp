@@ -20,6 +20,9 @@ using ushort_t = GLushort;
 using uint_t = GLuint;
 using size_t = GLsizei;
 using bool_t = GLboolean;
+using char_t = GLchar;
+using uint64_t = GLuint64;
+using int64_t = GLint64;
 
 namespace detail {
 template <class T, class = void>
