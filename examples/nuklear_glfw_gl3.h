@@ -108,9 +108,9 @@ NK_API void nk_glfw3_device_create(struct nk_glfw* glfw) {
   GLint status;
   static const GLchar* vertex_shader = NK_SHADER_VERSION
       "uniform mat4 ProjMtx;\n"
-      "in vec2 Position;\n"
-      "in vec2 TexCoord;\n"
-      "in vec4 Color;\n"
+      "layout(location = 0) in vec2 Position;\n"
+      "layout(location = 1) in vec2 TexCoord;\n"
+      "layout(location = 2) in vec4 Color;\n"
       "out vec2 Frag_UV;\n"
       "out vec4 Frag_Color;\n"
       "void main() {\n"

@@ -1523,6 +1523,18 @@ inline void viewport(x x, y y, width w, height h) noexcept {
   glViewport(x.value, y.value, w.value, h.value);
 }
 
+struct attrib_location {
+  int_t value;
+  [[nodiscard]] constexpr bool has_value() const noexcept {
+    return value == -1;
+  }
+};
+
+inline attrib_location get_attrib_location(program_id id,
+                                           const char_t* name) noexcept {
+  return attrib_location{glGetAttribLocation(id.value, name)};
+}
+
 }  // namespace dpsg::gl
 
 #endif

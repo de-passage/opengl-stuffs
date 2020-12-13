@@ -233,17 +233,25 @@ class program {
 
    public:
     using base::bind;
-    [[nodiscard]] gl::uniform_location id() const { return _id; }
+    [[nodiscard]] gl::uniform_location id() const noexcept { return _id; }
   };
 
   template <class S>
   [[nodiscard]] std::optional<uniform<S>> uniform_location(
-      const char* c) const {
-    auto i = gl::get_uniform_location(id, c);
+      const char* name) const noexcept {
+    auto i = gl::get_uniform_location(id, name);
     if (!i.has_value()) {
       return {};
     }
     return {uniform<S>{i}};
+  }
+
+  [[nodiscard]] std::optional<gl::attrib_location> attrib_location(
+      const char* name) const noexcept {
+    if (auto i = gl::get_attrib_location(id, name); i.has_value()) {
+      return {i};
+    }
+    return {};
   }
 
  private:

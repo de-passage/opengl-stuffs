@@ -13,15 +13,15 @@ public:
   buffer_array_impl() noexcept { gl::gen_buffers(values); }
   buffer_array_impl(const buffer_array_impl &) = delete;
   buffer_array_impl(buffer_array_impl &&a) noexcept {
-    for (std::size_t i; i < N; ++i) {
-      values[i] = std::exchange(a.values[i], 0);
+    for (std::size_t i = 0; i < N; ++i) {
+      values[i] = std::exchange(a.values[i], gl::generic_buffer_id{0});
     }
   }
 
   buffer_array_impl &operator=(buffer_array_impl &&a) noexcept {
 
-    for (std::size_t i; i < N; ++i) {
-      values[i] = std::exchange(a.values[i], 0);
+    for (std::size_t i = 0; i < N; ++i) {
+      values[i] = std::exchange(a.values[i], gl::generic_buffer_id{0});
     }
     return *this;
   }
@@ -91,15 +91,15 @@ public:
   vertex_array_impl() noexcept { gl::gen_vertex_arrays(values); }
   vertex_array_impl(const vertex_array_impl &) = delete;
   vertex_array_impl(vertex_array_impl &&a) noexcept {
-    for (std::size_t i; i < N; ++i) {
-      values[i] = std::exchange(a.values[i], 0);
+    for (std::size_t i = 0; i < N; ++i) {
+      values[i] = std::exchange(a.values[i], gl::vertex_array_id{0});
     }
   }
 
   vertex_array_impl &operator=(vertex_array_impl &&a) noexcept {
 
-    for (std::size_t i; i < N; ++i) {
-      values[i] = std::exchange(a.values[i], 0);
+    for (std::size_t i = 0; i < N; ++i) {
+      values[i] = std::exchange(a.values[i], gL::vertex_array_id{0});
     }
 
     return *this;

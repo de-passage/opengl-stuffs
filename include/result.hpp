@@ -35,7 +35,8 @@ class result {
       [[maybe_unused]] in_place_success_t success,
       Args&&... args) noexcept(std::is_nothrow_constructible_v<success_type,
                                                                Args...>)
-      : _value(std::in_place_type<Success>, std::forward<Args>(args)...) {}
+      : _value(std::in_place_index<success_index>,
+               std::forward<Args>(args)...) {}
 
   template <class... Args>
   constexpr explicit result(
