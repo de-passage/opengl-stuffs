@@ -10,16 +10,16 @@
 
 #include "window.hpp"
 
-#include "shaders.hpp"
-#include "program.hpp"
 #include "buffers.hpp"
 #include "layout.hpp"
 #include "opengl.hpp"
+#include "program.hpp"
+#include "shaders.hpp"
 
 namespace dpsg {
 class nk_gl3_backend {
  public:
-  nk_gl3_backend() : _prog{_generate().value()} { _init_nk(); }
+  nk_gl3_backend() : _prog{_generate().value()}, _texture{0} { _init_nk(); }
   nk_gl3_backend(const nk_gl3_backend&) = delete;
   nk_gl3_backend(nk_gl3_backend&&) noexcept = default;
   nk_gl3_backend& operator=(const nk_gl3_backend&) = delete;
@@ -27,39 +27,46 @@ class nk_gl3_backend {
 
   ~nk_gl3_backend() noexcept { nk_buffer_free(&_cmds); }
 
-  // NOLINTNEXTLINE(bugprone-exception-escape) spurious
-  static result<nk_gl3_backend, gl_error> create() noexcept {
-    return _generate().map([](program&& prog) noexcept {
-      return nk_gl3_backend(std::move(prog));
-    });
+  template <class T>
+  inline void upload_atlas(const T* image, gl::width w, gl::height h) {
+    gl::gen_texture(_texture);
+    gl::bind_texture(gl::texture_target::_2d, _texture);
+    gl::tex_parameter(gl::texture_target::_2d, gl::min_filter::linear);
+    gl::tex_parameter(gl::texture_target::_2d, gl::mag_filter::linear);
+    gl::tex_image_2D(
+        gl::texture_image_target::_2d, w, h, gl::image_format::rgba, image);
   }
 
  private:
   explicit nk_gl3_backend(program prog) noexcept : _prog{std::move(prog)} {
     _init_nk();
-    vao.bind();
-    vbo.bind();
-    ebo.bind();
-    gl::vertex_attrib_pointer<float>(gl::index{0},
-                                     gl::element_count{2},
-                                     gl::stride{sizeof(vertex)},
-                                     gl::offset{offsetof(vertex, position)});
+    _vao.bind();
+    _vbo.bind();
+    _ebo.bind();
+    gl::vertex_attrib_pointer<float>(
+        gl::index{0},
+        gl::element_count{2},
+        gl::byte_stride{sizeof(vertex)},
+        gl::byte_offset{offsetof(vertex, position)});
     gl::vertex_attrib_pointer<float>(gl::index{1},
                                      gl::element_count{2},
-                                     gl::stride{sizeof(vertex)},
-                                     gl::offset{offsetof(vertex, uv)});
-    gl::vertex_attrib_pointer<nk_byte>(gl::index{2},
-                                     gl::element_count{4},
-                                     gl::stride{sizeof(vertex)},
-                                     gl::offset{offsetof(vertex, color)});
+                                     gl::byte_stride{sizeof(vertex)},
+                                     gl::byte_offset{offsetof(vertex, uv)});
+    gl::vertex_attrib_pointer<nk_byte>(
+        gl::index{2},
+        gl::element_count{4},
+        gl::normalized::yes,
+        gl::byte_stride{sizeof(vertex)},
+        gl::byte_offset{offsetof(vertex, color)});
   }
 
   program _prog;
   nk_buffer _cmds;
   nk_draw_null_texture _null;
-  vertex_array vao;
-  element_buffer ebo;
-  vertex_buffer vbo;
+  vertex_array _vao;
+  element_buffer _ebo;
+  vertex_buffer _vbo;
+  gl::texture_id _texture;
 
   static constexpr inline vs_source vertex_shader_source{
       "#version 330 core"
@@ -107,6 +114,14 @@ class nk_gl3_backend {
   }
 
   void _init_nk() noexcept { nk_buffer_init_default(&_cmds); }
+
+ public:
+  // NOLINTNEXTLINE(bugprone-exception-escape) spurious
+  inline static result<nk_gl3_backend, gl_error> create() noexcept {
+    return _generate().map([](program&& prog) noexcept {
+      return nk_gl3_backend{std::move(prog)};
+    });
+  }
 };  // namespace dpsg
 
 }  // namespace dpsg

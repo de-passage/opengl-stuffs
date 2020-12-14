@@ -469,9 +469,54 @@ inline void vertex_attrib_pointer(index idx,
   glVertexAttribPointer(idx.value,
                         element_count.value,
                         detail::deduce_gl_enum_v<T>,
-                        static_cast<int>(n),
+                        static_cast<int_t>(n),
                         s.value * sizeof(T),
                         reinterpret_cast<void*>(o.value * sizeof(T)));
+}
+
+struct byte_stride {
+  unsigned int value;
+};
+
+struct byte_offset {
+  unsigned int value;
+};
+
+template <typename T,
+          class U,
+          std::enable_if_t<detail::is_vec_dimension_type_v<U>, int> = 0,
+          std::enable_if_t<std::is_integral_v<T>, int> = 0>
+inline void vertex_attrib_pointer(index idx,
+                                  U element_count,
+                                  normalized n,
+                                  byte_stride s = byte_stride{0},
+                                  byte_offset o = byte_offset{0}) noexcept {
+  static_assert(detail::is_valid_gl_type_v<T>,
+                "The selected type is not supported by OpenGL");
+  glVertexAttribPointer(idx.value,
+                        element_count.value,
+                        detail::deduce_gl_enum_v<T>,
+                        static_cast<int_t>(n),
+                        s.value,
+                        reinterpret_cast<void*>(o.value));
+}
+
+template <typename T,
+          class U,
+          std::enable_if_t<detail::is_vec_dimension_type_v<U>, int> = 0,
+          std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
+inline void vertex_attrib_pointer(index idx,
+                                  U element_count,
+                                  byte_stride s = byte_stride{0},
+                                  byte_offset o = byte_offset{0}) noexcept {
+  static_assert(detail::is_valid_gl_type_v<T>,
+                "The selected type is not supported by OpenGL");
+  glVertexAttribPointer(idx.value,
+                        element_count.value,
+                        detail::deduce_gl_enum_v<T>,
+                        GL_FALSE,
+                        s.value,
+                        reinterpret_cast<void*>(o.value));
 }
 
 namespace detail {
