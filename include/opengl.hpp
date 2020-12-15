@@ -294,7 +294,7 @@ inline void clear_color(Args&&... colors) noexcept {
                detail::get<a>(colors..., 1.F));
 }
 
-struct memory_size {
+struct byte_size {
   size_t value;
 };
 
@@ -356,12 +356,22 @@ constexpr static inline bool is_valid_gl_type_v = is_valid_gl_type<T>::value;
 
 template <class T>
 inline void buffer_data(buffer_type type,
-                        memory_size size,
+                        byte_size size,
                         T* ptr,
                         data_hint dmode) noexcept {
   static_assert(detail::is_valid_gl_type_v<T>,
                 "Input pointer type is incompatible with the OpenGL API");
-  glBufferData(static_cast<int>(type), size, ptr, static_cast<int>(dmode));
+  glBufferData(
+      static_cast<enum_t>(type), size.value, ptr, static_cast<enum_t>(dmode));
+}
+
+inline void buffer_data(buffer_type type,
+                        byte_size size,
+                        data_hint mode) noexcept {
+  glBufferData(static_cast<enum_t>(type),
+               size.value,
+               nullptr,
+               static_cast<enum_t>(mode));
 }
 
 template <class T>
@@ -371,10 +381,10 @@ inline void buffer_data(buffer_type type,
                         data_hint dmode) noexcept {
   static_assert(detail::is_valid_gl_type_v<T>,
                 "Input pointer type is incompatible with the OpenGL API");
-  glBufferData(static_cast<int>(type),
+  glBufferData(static_cast<enum_t>(type),
                count.value * sizeof(T),
                ptr,
-               static_cast<int>(dmode));
+               static_cast<enum_t>(dmode));
 }
 
 template <class T, std::size_t N>
@@ -383,8 +393,10 @@ inline void buffer_data(buffer_type type,
                         data_hint dmode) noexcept {
   static_assert(detail::is_valid_gl_type_v<T>,
                 "Input pointer type is incompatible with the OpenGL API");
-  glBufferData(
-      static_cast<int>(type), N * sizeof(T), ptr, static_cast<int>(dmode));
+  glBufferData(static_cast<enum_t>(type),
+               N * sizeof(T),
+               ptr,
+               static_cast<enum_t>(dmode));
 }
 
 template <std::size_t N, typename T>
@@ -1578,6 +1590,79 @@ struct attrib_location {
 inline attrib_location get_attrib_location(program_id id,
                                            const char_t* name) noexcept {
   return attrib_location{glGetAttribLocation(id.value, name)};
+}
+
+enum class blend_mode : enum_t {
+  add = GL_FUNC_ADD,
+  subtract = GL_FUNC_SUBTRACT,
+  reverse_subtract = GL_FUNC_REVERSE_SUBTRACT,
+  min = GL_MIN,
+  max = GL_MAX,
+};
+
+inline void blend_equation(blend_mode eq) noexcept {
+  glBlendEquation(static_cast<enum_t>(eq));
+}
+
+#ifdef GL_VERSION_4_0
+inline void blend_equation(index buf, blend_mode eq) noexcept {
+  glBlendEquationi(buf.value, static_cast<enum_t>(eq));
+}
+#endif
+
+enum class blend_factor : enum_t {
+  zero = GL_ZERO,
+  one = GL_ONE,
+  src_color = GL_SRC_COLOR,
+  one_minus_src_color = GL_ONE_MINUS_SRC_COLOR,
+  dst_color = GL_DST_COLOR,
+  one_minus_dst_color = GL_ONE_MINUS_DST_COLOR,
+  src_alpha = GL_SRC_ALPHA,
+  one_minus_src_alpha = GL_ONE_MINUS_SRC_ALPHA,
+  dst_alpha = GL_DST_ALPHA,
+  one_minus_dst_alpha = GL_ONE_MINUS_DST_ALPHA,
+  constant_color = GL_CONSTANT_COLOR,
+  one_minus_constant_color = GL_ONE_MINUS_CONSTANT_COLOR,
+  constant_alpha = GL_CONSTANT_ALPHA,
+  one_minus_constant_alpha = GL_ONE_MINUS_CONSTANT_ALPHA
+};
+
+inline void blend_func(blend_factor sf, blend_factor df) noexcept {
+  glBlendFunc(static_cast<enum_t>(sf), static_cast<enum_t>(df));
+}
+
+#ifdef GL_VERSION_4_0
+inline void blend_func(index idx, blend_factor sf, blend_factor df) noexcept {
+  glBlendFunci(idx.value, static_cast<enum_t>(sf), static_cast<enum_t>(df));
+}
+#endif
+
+enum class access : enum_t {
+  read_only = GL_READ_ONLY,
+  write_only = GL_WRITE_ONLY,
+  read_write = GL_READ_WRITE
+};
+
+inline void* map_buffer(buffer_type type, access mode) noexcept {
+  return glMapBuffer(static_cast<enum_t>(type), static_cast<enum_t>(mode));
+}
+
+inline void unmap_buffer(buffer_type type) noexcept {
+  glUnmapBuffer(static_cast<enum_t>(type));
+}
+
+#ifdef GL_VERSION_4_5
+inline void* map_buffer(generic_buffer_id id, access mode) noexcept {
+  return glMapNamedBuffer(id.value, static_cast<enum_t>(mode));
+}
+
+inline void unmap_buffer(generic_buffer_id id) noexcept {
+  glUnmapNamedBuffer(id.value);
+}
+#endif
+
+inline void scissor(x x, y y, width w, height h) noexcept {
+  glScissor(x.value, y.value, w.value, h.value);
 }
 
 }  // namespace dpsg::gl

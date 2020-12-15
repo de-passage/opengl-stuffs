@@ -1,32 +1,41 @@
 #ifndef GUARD_DPSG_PROGRAM_HEADER
 #define GUARD_DPSG_PROGRAM_HEADER
 
+#include "opengl.hpp"
 #include "shaders.hpp"
 
 namespace dpsg {
 namespace detail {
 
-  template <template<class...> class B, template <class> class U, typename T>
-  struct make_bind_impl {
-    using type = B<U<T>, T>;
-  };
+template <template <class...> class B, template <class> class U, typename T>
+struct make_bind_impl {
+  using type = B<U<T>, T>;
+};
 
-  template <template<class...> class Bi, class B, std::size_t N, typename T, typename... Ts>
-  struct repeat_param {
-    using type = typename repeat_param<Bi, B, N - 1, T, T, Ts...>::type;
-  };
+template <template <class...> class Bi,
+          class B,
+          std::size_t N,
+          typename T,
+          typename... Ts>
+struct repeat_param {
+  using type = typename repeat_param<Bi, B, N - 1, T, T, Ts...>::type;
+};
 
-  template <template<class...>class Bi, class B, typename T, typename... Ts>
-  struct repeat_param<Bi, B, 0, T, Ts...> {
-    using type = Bi<B, T, Ts...>;
-  };
+template <template <class...> class Bi, class B, typename T, typename... Ts>
+struct repeat_param<Bi, B, 0, T, Ts...> {
+  using type = Bi<B, T, Ts...>;
+};
 
-  template <template<class...> class B, template <class> class U, std::size_t N, typename T>
-  struct make_bind_impl<B, U, gl::vec_t<N, T>> {
-    using type = typename repeat_param<B, U<gl::vec_t<N, T>>, N - 1, T>::type;
-  };
+template <template <class...> class B,
+          template <class>
+          class U,
+          std::size_t N,
+          typename T>
+struct make_bind_impl<B, U, gl::vec_t<N, T>> {
+  using type = typename repeat_param<B, U<gl::vec_t<N, T>>, N - 1, T>::type;
+};
 
-} // namespace detail
+}  // namespace detail
 
 class program_error : public gl_error {
  public:
@@ -42,38 +51,39 @@ class program_error : public gl_error {
 
 class program {
  public:
-  explicit program(gl::program_id i) noexcept : id{i} {}
+  explicit program(gl::program_id i) noexcept : _id{i} {}
 
   program(const program&) = delete;
-  program(program&& s) noexcept : id(std::exchange(s.id, gl::program_id{0})) {}
+  program(program&& s) noexcept
+      : _id(std::exchange(s._id, gl::program_id{0})) {}
   program& operator=(const program&) = delete;
   program& operator=(program&& s) noexcept {
-    id = std::exchange(s.id, gl::program_id{0});
+    _id = std::exchange(s._id, gl::program_id{0});
     return *this;
   }
-  ~program() noexcept { gl::delete_program(id); }
+  ~program() noexcept { gl::delete_program(_id); }
 
   template <class... Args>
   [[nodiscard]] static result<program, program_error> create(
       Args&&... shaders) noexcept {
     static_assert(std::conjunction_v<is_shader<std::decay_t<Args>>...>,
                   "create expects a list of shaders");
-    auto id = gl::create_program();
-    (gl::attach_shader(id, std::forward<Args>(shaders).id()), ...);
-    gl::link_program(id);
+    auto _id = gl::create_program();
+    (gl::attach_shader(_id, std::forward<Args>(shaders).id()), ...);
+    gl::link_program(_id);
     int success{};
-    glGetProgramiv(id.value, GL_LINK_STATUS, &success);
+    glGetProgramiv(_id.value, GL_LINK_STATUS, &success);
 
     if (success != GL_TRUE) {
-      return result<program, program_error>{in_place_error, id};
+      return result<program, program_error>{in_place_error, _id};
     }
 
-    return result<program, program_error>{in_place_success, id};
+    return result<program, program_error>{in_place_success, _id};
   }
 
-  void use() const noexcept { gl::use_program(id); }
+  void use() const noexcept { gl::use_program(_id); }
 
-private:
+ private:
   template <class B, class... Ts>
   struct bind_impl {
     template <
@@ -101,8 +111,8 @@ private:
                       static_cast<gl::int_t>(gl::texture_name::_0));
     }
   };
-  public:
 
+ public:
   template <class T>
   class uniform : detail::make_bind_impl<bind_impl, uniform, T>::type {
     using base = typename detail::make_bind_impl<bind_impl, uniform, T>::type;
@@ -118,7 +128,7 @@ private:
   template <class S>
   [[nodiscard]] std::optional<uniform<S>> uniform_location(
       const char* name) const noexcept {
-    auto i = gl::get_uniform_location(id, name);
+    auto i = gl::get_uniform_location(_id, name);
     if (!i.has_value()) {
       return {};
     }
@@ -127,15 +137,17 @@ private:
 
   [[nodiscard]] std::optional<gl::attrib_location> attrib_location(
       const char* name) const noexcept {
-    if (auto i = gl::get_attrib_location(id, name); i.has_value()) {
+    if (auto i = gl::get_attrib_location(_id, name); i.has_value()) {
       return {i};
     }
     return {};
   }
 
+  [[nodiscard]] constexpr gl::program_id id() const { return _id; }
+
  private:
-  gl::program_id id;
+  gl::program_id _id;
 };
-} // namespace dpsg
+}  // namespace dpsg
 
 #endif  // GUARD_DPSG_PROGRAM_HEADER
