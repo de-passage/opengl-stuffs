@@ -302,6 +302,13 @@ namespace detail {
 
 template <class T, class = void>
 struct deduce_gl_enum;
+
+template <class T>
+struct deduce_gl_enum<
+    T,
+    std::void_t<decltype(std::enable_if_t<std::is_const_v<T>, int>{})>>
+    : deduce_gl_enum<std::remove_const_t<T>> {};
+
 template <>
 struct deduce_gl_enum<float_t> {
   constexpr static inline enum_t value = GL_FLOAT;

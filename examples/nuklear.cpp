@@ -45,6 +45,31 @@ class nk_gl3_backend {
         gl::texture_image_target::_2d, w, h, gl::image_format::rgba, image);
   }
 
+  void load_font(nk_context* ctx,
+                 const char* filepath,
+                 float height,
+                 const struct nk_font_config* cfg = nullptr) {
+    nk_font_atlas atlas{};
+    nk_font_atlas_init_default(&atlas);
+    nk_font_atlas_begin(&atlas);
+    auto* val = nk_font_atlas_add_from_file(&atlas, filepath, height, cfg);
+
+    const void* image{};
+    int w{};
+    int h{};
+    image = nk_font_atlas_bake(&atlas, &w, &h, NK_FONT_ATLAS_RGBA32);
+    upload_atlas(static_cast<const gl::ubyte_t*>(image),
+                 gl::width{static_cast<gl::uint_t>(w)},
+                 gl::height{static_cast<gl::uint_t>(h)});
+    nk_font_atlas_end(
+        &atlas, nk_handle_id(static_cast<int>(_texture.value)), &_null);
+    if (atlas.default_font != nullptr)
+      nk_style_set_font(ctx, &atlas.default_font->handle);
+
+    nk_style_load_all_cursors(ctx, static_cast<nk_cursor*>(atlas.cursors));
+    nk_style_set_font(ctx, &val->handle);
+  }
+
   void render(nk_context* ctx,
               gl::width window_width,
               gl::height window_height,
