@@ -11,6 +11,7 @@
 #include "buffers.hpp"
 #include "glfw_context.hpp"
 #include "layout.hpp"
+#include "meta/mixin.hpp"
 #include "opengl.hpp"
 #include "program.hpp"
 #include "shaders.hpp"
@@ -39,69 +40,201 @@ class user_font {
 
 namespace detail {
 
-template <class CRTP>
-class self_interface {
- protected:
-  using crtp_type = CRTP;
-  using crtp_const_type = const CRTP;
-  using crtp_ptr = crtp_type*;
-  using crtp_cptr = crtp_const_type*;
-  using vec2_t = struct nk_vec2;
+struct self_interface {
+  template <class B>
+  struct type : B {
+   protected:
+    using crtp_type = dpsg::real_type_t<B>;
+    using crtp_const_type = std::add_const_t<dpsg::real_type_t<B>>;
+    using crtp_ptr = crtp_type*;
+    using crtp_cptr = crtp_const_type*;
+    using vec2_t = struct nk_vec2;
+    using rect_t = struct nk_rect;
 
-  [[nodiscard]] constexpr crtp_ptr self() noexcept {
-    return static_cast<crtp_ptr>(this);
-  }
+    [[nodiscard]] constexpr crtp_ptr self() noexcept {
+      return static_cast<crtp_ptr>(this);
+    }
 
-  [[nodiscard]] constexpr crtp_cptr self() const noexcept {
-    return static_cast<crtp_ptr>(this);
-  }
+    [[nodiscard]] constexpr crtp_cptr self() const noexcept {
+      return static_cast<crtp_ptr>(this);
+    }
 
-  [[nodiscard]] constexpr auto* ctx() const noexcept { return &self()->ctx(); }
+    [[nodiscard]] constexpr auto* ctx() const noexcept {
+      return &self()->ctx();
+    }
 
-  [[nodiscard]] constexpr auto* ctx() noexcept { return &self()->ctx(); }
+    [[nodiscard]] constexpr auto* ctx() noexcept { return &self()->ctx(); }
+  };
 };
 
-template <class CRTP>
-class window_interface : public self_interface<CRTP> {
-  using base = self_interface<CRTP>;
+struct window_interface {
+  struct scroll_t {
+    unsigned int x;
+    unsigned int y;
+  };
 
- public:
+  template <class B>
+  class type : public B {
+    using base = B;
+
+   public:
+    using panel_t = struct nk_panel*;
+    using command_buffer_t = struct nk_command_buffer*;
+    using vec2_t = typename B::vec2_t;
+    using rect_t = typename B::rect_t;
+
+    [[nodiscard]] inline panel_t panel() noexcept {
+      return nk_window_get_panel(base::ctx());
+    }
+
+    [[nodiscard]] inline rect_t content_region() noexcept {
+      return nk_window_get_content_region(base::ctx());
+    }
+
+    [[nodiscard]] inline vec2_t content_region_min() noexcept {
+      return nk_window_get_content_region_min(base::ctx());
+    }
+
+    [[nodiscard]] inline vec2_t content_region_max() noexcept {
+      return nk_window_get_content_region_max(base::ctx());
+    }
+
+    [[nodiscard]] inline vec2_t content_region_size() noexcept {
+      return nk_window_get_content_region_size(base::ctx());
+    }
+
+    [[nodiscard]] inline command_buffer_t canvas() noexcept {
+      return nk_window_get_canvas(base::ctx());
+    }
+
+    [[nodiscard]] inline scroll_t scroll() noexcept {
+      scroll_t s{};
+      nk_window_get_scroll(base::ctx(), &s.x, &s.y);
+      return s;
+    }
+
+    [[nodiscard]] inline unsigned int x_scroll() noexcept {
+      unsigned int x{};
+      nk_window_get_scroll(base::ctx(), &x, nullptr);
+      return x;
+    }
+
+    [[nodiscard]] inline unsigned int y_scroll() noexcept {
+      unsigned int y{};
+      nk_window_get_scroll(base::ctx(), nullptr, &y);
+      return y;
+    }
+
+    [[nodiscard]] inline bool has_focus() noexcept {
+      return nk_window_has_focus(base::ctx()) == nk_true;
+    }
+
+    [[nodiscard]] inline bool is_hovered() noexcept {
+      return nk_window_is_hovered(base::ctx()) == nk_true;
+    }
+
+    inline void set_scroll(unsigned int x, unsigned int y) noexcept {
+      nk_window_set_scroll(base::ctx(), x, y);
+    }
+  };
 };
 
-template <class CRTP>
-class input_interface : public self_interface<CRTP> {
-  using base = self_interface<CRTP>;
+struct input_interface {
+  template <class B>
+  class type : public B {
+    using base = B;
 
- public:
-  using vec2_t = typename base::vec2_t;
+   public:
+    using vec2_t = typename base::vec2_t;
 
-  inline void motion(int x, int y) noexcept {
-    nk_input_motion(base::ctx(), x, y);
-  }
+    inline void motion(int x, int y) noexcept {
+      nk_input_motion(base::ctx(), x, y);
+    }
 
-  inline void key(nk_keys key, bool down) noexcept {
-    nk_input_key(base::ctx(), key, down ? nk_true : nk_false);
-  }
+    inline void key(nk_keys key, bool down) noexcept {
+      nk_input_key(base::ctx(), key, down ? nk_true : nk_false);
+    }
 
-  inline void button(nk_buttons button, int x, int y, bool down) noexcept {
-    nk_input_button(base::ctx(), button, x, y, down ? nk_true : nk_false);
-  }
+    inline void button(nk_buttons button, int x, int y, bool down) noexcept {
+      nk_input_button(base::ctx(), button, x, y, down ? nk_true : nk_false);
+    }
 
-  inline void scroll(vec2_t val) noexcept { nk_input_scroll(base::ctx(), val); }
+    inline void scroll(vec2_t val) noexcept {
+      nk_input_scroll(base::ctx(), val);
+    }
 
-  inline void character(char c) noexcept { nk_input_char(base::ctx(), c); }
+    inline void character(char c) noexcept { nk_input_char(base::ctx(), c); }
 
-  inline void glyph(const nk_glyph glyph) noexcept {
-    nk_input_glyph(base::ctx(), glyph);
-  }
+    inline void glyph(const nk_glyph glyph) noexcept {
+      nk_input_glyph(base::ctx(), glyph);
+    }
 
-  inline void unicode(nk_rune rune) noexcept {
-    nk_input_unicode(base::ctx(), rune);
-  }
+    inline void unicode(nk_rune rune) noexcept {
+      nk_input_unicode(base::ctx(), rune);
+    }
+  };
 };
-};  // namespace detail
 
-class input_handler : public detail::input_interface<input_handler> {
+struct window_query_interface {
+  template <class B>
+  class type : public B {
+    using base = B;
+
+   public:
+    using vec2_t = typename base::vec2_t;
+    using rect_t = typename base::rect_t;
+
+    [[nodiscard]] inline bool is_collapsed(const char* id) noexcept {
+      return nk_window_is_collapsed(base::ctx(), id) == nk_true;
+    }
+
+    [[nodiscard]] inline bool is_closed(const char* id) noexcept {
+      return nk_window_is_closed(base::ctx(), id) == nk_true;
+    }
+
+    [[nodiscard]] inline bool is_hidden(const char* id) noexcept {
+      return nk_window_is_hidden(base::ctx(), id) == nk_true;
+    }
+
+    [[nodiscard]] inline bool is_active(const char* id) noexcept {
+      return nk_window_is_active(base::ctx(), id) == nk_true;
+    }
+
+    [[nodiscard]] inline bool is_any_hovered() noexcept {
+      return nk_window_is_any_hovered(base::ctx()) == nk_true;
+    }
+
+    [[nodiscard]] inline bool is_any_active() noexcept {
+      return nk_item_is_any_active(base::ctx()) == nk_true;
+    }
+
+    inline void set_bounds(const char* id, rect_t rect) noexcept {
+      nk_window_set_bounds(base::ctx(), id, rect);
+    }
+
+    inline void set_position(const char* id, vec2_t pos) noexcept {
+      nk_window_set_position(base::ctx(), id, pos);
+    }
+
+    inline void set_size(const char* id, vec2_t size) noexcept {
+      nk_window_set_size(base::ctx(), id, size);
+    }
+
+    inline void set_focus(const char* id) noexcept {
+      nk_window_set_focus(base::ctx(), id);
+    }
+  };
+};
+}  // namespace detail
+
+namespace detail {
+template <class T>
+using input_mixin =
+    dpsg::mixin<T, input_interface, window_query_interface, self_interface>;
+}  // namespace detail
+
+// NOLINTNEXTLINE(fuchsia-multiple-inheritance) implementation detail
+class input_handler : public detail::input_mixin<input_handler> {
  public:
   [[nodiscard]] constexpr nk_context& ctx() const { return *_ctx; }
 
@@ -111,9 +244,51 @@ class input_handler : public detail::input_interface<input_handler> {
   nk_context* _ctx;
 };
 
-// NOLINTNEXTLINE(fuchsia-multiple-inheritance) private empty base classes
-class context : public detail::window_interface<context>,
-                public detail::input_interface<context> {
+namespace detail {
+template <class T>
+using window_mixin =
+    dpsg::mixin<T, window_interface, window_query_interface, self_interface>;
+}  // namespace detail
+
+class window : public detail::window_mixin<window> {
+ public:
+  [[nodiscard]] constexpr nk_context& ctx() const { return *_ctx; }
+
+ private:
+  friend class context;
+  constexpr explicit window(nk_context* ctx) noexcept : _ctx{ctx} {}
+  nk_context* _ctx;
+};
+
+enum class panel_flags : nk_flags {
+  none = 0,
+  border = NK_WINDOW_BORDER,
+  movable = NK_WINDOW_MOVABLE,
+  scalable = NK_WINDOW_SCALABLE,
+  closable = NK_WINDOW_CLOSABLE,
+  minimizable = NK_WINDOW_MINIMIZABLE,
+  no_scrollbar = NK_WINDOW_NO_SCROLLBAR,
+  title = NK_WINDOW_TITLE,
+  scroll_auto_hide = NK_WINDOW_SCROLL_AUTO_HIDE,
+  background = NK_WINDOW_BACKGROUND,
+  scale_left = NK_WINDOW_SCALE_LEFT,
+  no_input = NK_WINDOW_NO_INPUT,
+};
+
+[[nodiscard]] constexpr inline panel_flags operator|(panel_flags lhs,
+                                                     panel_flags rhs) {
+  return static_cast<panel_flags>(static_cast<nk_flags>(lhs) |
+                                  static_cast<nk_flags>(rhs));
+}
+
+namespace detail {
+template <class T>
+using context_mixin =
+    dpsg::mixin<T, input_interface, window_query_interface, self_interface>;
+}  // namespace detail
+
+// NOLINTNEXTLINE(fuchsia-multiple-inheritance) implementation detail
+class context : public detail::context_mixin<context> {
  public:
   using rect_t = struct nk_rect;
   using type = nk_context;
@@ -226,13 +401,14 @@ class context : public detail::window_interface<context>,
   inline void end_window() noexcept { nk_end(&_ctx); }
 
   template <class F>
-  inline bool with_window(const char* title,
-                          rect_t bounds,
-                          nk_flags flags,
-                          F&& f) noexcept(noexcept(std::forward<F>(f)())) {
-    if (begin_window(title, bounds, flags)) {
+  inline bool with_window(
+      const char* title,
+      rect_t bounds,
+      panel_flags flags,
+      F&& f) noexcept(noexcept(std::forward<F>(f)(std::declval<window>()))) {
+    if (begin_window(title, bounds, static_cast<nk_flags>(flags))) {
       try {
-        std::forward<F>(f)();
+        std::forward<F>(f)(window{&_ctx});
       }
       catch (...) {
         end_window();
@@ -245,14 +421,15 @@ class context : public detail::window_interface<context>,
   }
 
   template <class F>
-  inline bool with_window(const char* identifier,
-                          const char* title,
-                          rect_t bounds,
-                          nk_flags flags,
-                          F&& f) noexcept(noexcept(std::forward<F>(f)())) {
-    if (begin_window(identifier, title, bounds, flags)) {
+  inline bool with_window(
+      const char* identifier,
+      const char* title,
+      rect_t bounds,
+      panel_flags flags,
+      F&& f) noexcept(noexcept(std::forward<F>(f)(std::declval<window>()))) {
+    if (begin_window(identifier, title, bounds, static_cast<nk_flags>(flags))) {
       try {
-        std::forward<F>(f)();
+        std::forward<F>(f)(window{&_ctx});
       }
       catch (...) {
         end_window();
@@ -529,6 +706,29 @@ class nuklear_context : Backend {
 int main() {
   dpsg::within_glfw_context([] {
     nk::context ctx;
+    ctx.with_window("title",
+                    nk_rect(0, 0, 10, 10),
+                    nk::panel_flags::border,
+                    [](nk::window window) {
+                      auto p = window.panel();
+                      auto c1 = window.content_region_min();
+                      auto c2 = window.content_region();
+                      auto c3 = window.content_region_max();
+                      auto c4 = window.canvas();
+                      auto s = window.scroll();
+                      auto sx = window.x_scroll();
+                      auto sy = window.y_scroll();
+                      auto b = window.has_focus() || window.is_any_hovered();
+                      auto b2 = window.is_collapsed("const char *id") ||
+                                window.is_closed("const char *id") ||
+                                window.is_hidden("const char *id") ||
+                                window.is_active("") || window.is_any_active();
+                      window.set_position("", nk_vec2(1, 2));
+                      window.set_size("", nk_vec2(1, 2));
+                      window.set_bounds("", nk_rect(1, 2, 1, 2));
+                      window.set_focus("const char *id");
+                      window.set_scroll(1, 2);
+                    });
     ctx.handle_input([](nk::input_handler input) { input.motion(1, 1); });
   });
 
