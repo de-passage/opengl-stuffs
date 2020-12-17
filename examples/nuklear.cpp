@@ -8,13 +8,118 @@
 #define NK_KEYSTATE_BASED_INPUT
 #include "nuklear/nuklear.h"
 
-#include "window.hpp"
-
 #include "buffers.hpp"
 #include "layout.hpp"
 #include "opengl.hpp"
 #include "program.hpp"
 #include "shaders.hpp"
+#include "window.hpp"
+
+#include <cstddef>
+#include <iterator>
+
+namespace nk {
+
+class user_font {
+ public:
+  using type = nk_user_font;
+  using reference = type&;
+  using const_reference = const type&;
+
+  [[nodiscard]] constexpr const_reference font() const noexcept {
+    return _font;
+  }
+
+  [[nodiscard]] constexpr reference font() noexcept { return _font; }
+
+ private:
+  struct nk_user_font _font;
+};
+
+class context {
+ public:
+  using type = nk_context;
+  using reference = nk_context&;
+  using const_reference = const nk_context&;
+
+  inline explicit context(const nk_user_font* font = nullptr) noexcept {
+    nk_init_default(&_ctx, font);
+  }
+
+  inline ~context() noexcept { nk_free(&_ctx); }
+
+  [[nodiscard]] inline constexpr const_reference ctx() const noexcept {
+    return _ctx;
+  }
+
+  [[nodiscard]] inline constexpr reference ctx() noexcept { return _ctx; }
+
+  inline void clear() noexcept { nk_clear(&_ctx); }
+
+  inline void input_begin() noexcept { nk_input_begin(&_ctx); }
+
+  inline void input_motion(int x, int y) noexcept {
+    nk_input_motion(&_ctx, x, y);
+  }
+
+  inline void input_key(nk_keys key, bool down) noexcept {
+    nk_input_key(&_ctx, key, down ? nk_true : nk_false);
+  }
+
+  inline void input_button(nk_buttons button,
+                           int x,
+                           int y,
+                           bool down) noexcept {
+    nk_input_button(&_ctx, button, x, y, down ? nk_true : nk_false);
+  }
+
+  inline void input_scroll(struct nk_vec2 val) noexcept {
+    nk_input_scroll(&_ctx, val);
+  }
+
+  inline void input_char(char c) noexcept { nk_input_char(&_ctx, c); }
+
+  inline void input_glyph(const nk_glyph glyph) noexcept {
+    nk_input_glyph(&_ctx, glyph);
+  }
+
+  inline void input_unicode(nk_rune rune) noexcept {
+    nk_input_unicode(&_ctx, rune);
+  }
+
+  inline void input_end() noexcept { nk_input_end(&_ctx); }
+
+  class const_iterator {
+    using difference_type = std::ptrdiff_t;
+    using value_type = const nk_command;
+    using pointer = value_type*;
+    using reference = value_type&;
+    using iterator_category = std::forward_iterator_tag;
+
+    const_iterator& operator++() noexcept {
+      _cmd = nk__next(_ctx, _cmd);
+      return *this;
+    }
+
+   private:
+    inline constexpr const_iterator(nk_context* ctx, pointer cmd) noexcept
+        : _ctx(ctx), _cmd{cmd} {}
+
+    nk_context* _ctx;
+    pointer _cmd;
+    friend class context;
+  };
+
+  inline const_iterator begin() noexcept {
+    const nk_command* cmd = nk__begin(&_ctx);
+    return const_iterator{&_ctx, cmd};
+  }
+
+ private:
+  type _ctx{};
+};
+
+}  // namespace nk
 
 namespace dpsg {
 class nk_gl3_backend {
