@@ -223,6 +223,66 @@ struct window_query_interface {
     inline void set_focus(const char* id) noexcept {
       nk_window_set_focus(base::ctx(), id);
     }
+
+    inline void close(const char* id) noexcept {
+      nk_window_close(base::ctx(), id);
+    }
+
+    inline void collapse(const char* id, nk_collapse_states states) noexcept {
+      nk_window_collapse(base::ctx(), id, states);
+    }
+
+    inline void collapse_if(const char* id,
+                            nk_collapse_states states,
+                            int cond) noexcept {
+      nk_window_collapse_if(base::ctx(), id, states, cond);
+    }
+
+    inline void show(const char* id, nk_show_states states) noexcept {
+      nk_window_show(base::ctx(), id, states);
+    }
+
+    inline void show_if(const char* id,
+                        nk_show_states states,
+                        int cond) noexcept {
+      nk_window_show_if(base::ctx(), id, states, cond);
+    }
+  };
+};
+}  // namespace detail
+
+namespace detail {
+struct layout_interface {
+  template <class B>
+  class type : public B {
+   protected:
+    using base = B;
+    using rect_t = typename base::rect_t;
+
+   public:
+    inline void set_min_row_height(float height) noexcept {
+      nk_layout_set_min_row_height(base::ctx(), height);
+    }
+
+    inline void reset_min_row_height() noexcept {
+      nk_layout_reset_min_row_height(base::ctx());
+    }
+
+    [[nodiscard]] inline rect_t widget_bounds() noexcept {
+      return nk_layout_widget_bounds(base::ctx());
+    }
+
+    [[nodiscard]] inline float ratio_from_pixel(float pixel_width) noexcept {
+      return nk_layout_ratio_from_pixel(base::ctx(), pixel_width);
+    }
+
+    inline void row_dynamic(float height, int cols) noexcept {
+      nk_layout_row_dynamic(base::ctx(), height, cols);
+    }
+
+    inline void row_static(float height, int item_width, int cols) noexcept {
+      nk_layout_row_static(base::ctx(), height, item_width, cols);
+    }
   };
 };
 }  // namespace detail
@@ -246,8 +306,11 @@ class input_handler : public detail::input_mixin<input_handler> {
 
 namespace detail {
 template <class T>
-using window_mixin =
-    dpsg::mixin<T, window_interface, window_query_interface, self_interface>;
+using window_mixin = dpsg::mixin<T,
+                                 window_interface,
+                                 window_query_interface,
+                                 layout_interface,
+                                 self_interface>;
 }  // namespace detail
 
 class window : public detail::window_mixin<window> {
@@ -728,6 +791,17 @@ int main() {
                       window.set_bounds("", nk_rect(1, 2, 1, 2));
                       window.set_focus("const char *id");
                       window.set_scroll(1, 2);
+                      window.close("");
+                      window.collapse("", NK_MAXIMIZED);
+                      window.collapse_if("", NK_MAXIMIZED, 0);
+                      window.show("", nk_show_states::NK_SHOWN);
+                      window.show_if("", nk_show_states::NK_SHOWN, 0);
+                      window.set_min_row_height(0.F);
+                      window.reset_min_row_height();
+                      auto bounds = window.widget_bounds();
+                      float pf = window.ratio_from_pixel(1);
+                      window.row_dynamic(0, 0);
+                      window.row_static();
                     });
     ctx.handle_input([](nk::input_handler input) { input.motion(1, 1); });
   });
