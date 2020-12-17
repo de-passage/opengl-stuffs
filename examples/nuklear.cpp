@@ -9,6 +9,7 @@
 #include "nuklear/nuklear.h"
 
 #include "buffers.hpp"
+#include "glfw_context.hpp"
 #include "layout.hpp"
 #include "opengl.hpp"
 #include "program.hpp"
@@ -17,9 +18,9 @@
 
 #include <cstddef>
 #include <iterator>
+#include <utility>
 
 namespace nk {
-
 class user_font {
  public:
   using type = nk_user_font;
@@ -36,14 +37,105 @@ class user_font {
   struct nk_user_font _font;
 };
 
-class context {
+namespace detail {
+
+template <class CRTP>
+class self_interface {
+ protected:
+  using crtp_type = CRTP;
+  using crtp_const_type = const CRTP;
+  using crtp_ptr = crtp_type*;
+  using crtp_cptr = crtp_const_type*;
+  using vec2_t = struct nk_vec2;
+
+  [[nodiscard]] constexpr crtp_ptr self() noexcept {
+    return static_cast<crtp_ptr>(this);
+  }
+
+  [[nodiscard]] constexpr crtp_cptr self() const noexcept {
+    return static_cast<crtp_ptr>(this);
+  }
+
+  [[nodiscard]] constexpr auto* ctx() const noexcept { return &self()->ctx(); }
+
+  [[nodiscard]] constexpr auto* ctx() noexcept { return &self()->ctx(); }
+};
+
+template <class CRTP>
+class window_interface : public self_interface<CRTP> {
+  using base = self_interface<CRTP>;
+
  public:
+};
+
+template <class CRTP>
+class input_interface : public self_interface<CRTP> {
+  using base = self_interface<CRTP>;
+
+ public:
+  using vec2_t = typename base::vec2_t;
+
+  inline void motion(int x, int y) noexcept {
+    nk_input_motion(base::ctx(), x, y);
+  }
+
+  inline void key(nk_keys key, bool down) noexcept {
+    nk_input_key(base::ctx(), key, down ? nk_true : nk_false);
+  }
+
+  inline void button(nk_buttons button, int x, int y, bool down) noexcept {
+    nk_input_button(base::ctx(), button, x, y, down ? nk_true : nk_false);
+  }
+
+  inline void scroll(vec2_t val) noexcept { nk_input_scroll(base::ctx(), val); }
+
+  inline void character(char c) noexcept { nk_input_char(base::ctx(), c); }
+
+  inline void glyph(const nk_glyph glyph) noexcept {
+    nk_input_glyph(base::ctx(), glyph);
+  }
+
+  inline void unicode(nk_rune rune) noexcept {
+    nk_input_unicode(base::ctx(), rune);
+  }
+};
+};  // namespace detail
+
+class input_handler : public detail::input_interface<input_handler> {
+ public:
+  [[nodiscard]] constexpr nk_context& ctx() const { return *_ctx; }
+
+ private:
+  friend class context;
+  constexpr explicit input_handler(nk_context* ctx) noexcept : _ctx{ctx} {}
+  nk_context* _ctx;
+};
+
+// NOLINTNEXTLINE(fuchsia-multiple-inheritance) private empty base classes
+class context : public detail::window_interface<context>,
+                public detail::input_interface<context> {
+ public:
+  using rect_t = struct nk_rect;
   using type = nk_context;
   using reference = nk_context&;
   using const_reference = const nk_context&;
 
   inline explicit context(const nk_user_font* font = nullptr) noexcept {
     nk_init_default(&_ctx, font);
+  }
+
+  context(const context&) = delete;
+  context& operator=(const context&) = delete;
+
+  inline context(context&& ctx) noexcept : _ctx(std::exchange(ctx._ctx, {})) {}
+  inline context& operator=(context&& ctx) noexcept {
+    context(std::move(ctx)).swap(*this);
+    return *this;
+  }
+
+  inline void swap(context& ctx) {
+    using std::swap;
+    swap(_ctx, ctx._ctx);
   }
 
   inline ~context() noexcept { nk_free(&_ctx); }
@@ -58,36 +150,21 @@ class context {
 
   inline void input_begin() noexcept { nk_input_begin(&_ctx); }
 
-  inline void input_motion(int x, int y) noexcept {
-    nk_input_motion(&_ctx, x, y);
-  }
-
-  inline void input_key(nk_keys key, bool down) noexcept {
-    nk_input_key(&_ctx, key, down ? nk_true : nk_false);
-  }
-
-  inline void input_button(nk_buttons button,
-                           int x,
-                           int y,
-                           bool down) noexcept {
-    nk_input_button(&_ctx, button, x, y, down ? nk_true : nk_false);
-  }
-
-  inline void input_scroll(struct nk_vec2 val) noexcept {
-    nk_input_scroll(&_ctx, val);
-  }
-
-  inline void input_char(char c) noexcept { nk_input_char(&_ctx, c); }
-
-  inline void input_glyph(const nk_glyph glyph) noexcept {
-    nk_input_glyph(&_ctx, glyph);
-  }
-
-  inline void input_unicode(nk_rune rune) noexcept {
-    nk_input_unicode(&_ctx, rune);
-  }
-
   inline void input_end() noexcept { nk_input_end(&_ctx); }
+
+  template <class F>
+  inline void handle_input(F&& f) noexcept(
+      noexcept(std::forward<F>(f)(std::declval<input_handler>()))) {
+    input_begin();
+    try {
+      std::forward<F>(f)(input_handler{&_ctx});
+    }
+    catch (...) {
+      input_end();
+      throw;
+    }
+    input_end();
+  }
 
   class const_iterator {
     using difference_type = std::ptrdiff_t;
@@ -101,6 +178,20 @@ class context {
       return *this;
     }
 
+    [[nodiscard]] constexpr inline bool operator==(
+        const const_iterator& iter) const noexcept {
+      return _cmd == iter._cmd;
+    }
+
+    [[nodiscard]] constexpr inline bool operator!=(
+        const const_iterator& iter) const noexcept {
+      return (*this == iter);
+    }
+
+    reference operator*() const noexcept { return *_cmd; }
+
+    pointer operator->() const noexcept { return _cmd; }
+
    private:
     inline constexpr const_iterator(nk_context* ctx, pointer cmd) noexcept
         : _ctx(ctx), _cmd{cmd} {}
@@ -113,6 +204,68 @@ class context {
   inline const_iterator begin() noexcept {
     const nk_command* cmd = nk__begin(&_ctx);
     return const_iterator{&_ctx, cmd};
+  }
+
+  static inline const_iterator end() noexcept {
+    return const_iterator{nullptr, nullptr};
+  }
+
+  inline bool begin_window(const char* title,
+                           rect_t bounds,
+                           nk_flags flags) noexcept {
+    return nk_begin(&_ctx, title, bounds, flags) == nk_true;
+  }
+
+  inline bool begin_window(const char* identifier,
+                           const char* title,
+                           rect_t bounds,
+                           nk_flags flags) noexcept {
+    return nk_begin_titled(&_ctx, identifier, title, bounds, flags) == nk_true;
+  }
+
+  inline void end_window() noexcept { nk_end(&_ctx); }
+
+  template <class F>
+  inline bool with_window(const char* title,
+                          rect_t bounds,
+                          nk_flags flags,
+                          F&& f) noexcept(noexcept(std::forward<F>(f)())) {
+    if (begin_window(title, bounds, flags)) {
+      try {
+        std::forward<F>(f)();
+      }
+      catch (...) {
+        end_window();
+        throw;
+      }
+      end_window();
+      return true;
+    }
+    return false;
+  }
+
+  template <class F>
+  inline bool with_window(const char* identifier,
+                          const char* title,
+                          rect_t bounds,
+                          nk_flags flags,
+                          F&& f) noexcept(noexcept(std::forward<F>(f)())) {
+    if (begin_window(identifier, title, bounds, flags)) {
+      try {
+        std::forward<F>(f)();
+      }
+      catch (...) {
+        end_window();
+        throw;
+      }
+      end_window();
+      return true;
+    }
+    return false;
+  }
+
+  inline nk_window* find_window(const char* identifier) {
+    return nk_window_find(&_ctx, identifier);
   }
 
  private:
@@ -252,10 +405,9 @@ class nk_gl3_backend {
           gl::texture_id{static_cast<gl::uint_t>(cmd->texture.id)});
       gl::scissor(
           gl::x{static_cast<gl::int_t>(cmd->clip_rect.x * fb_scale.x)},
-          gl::y{static_cast<gl::int_t>(
-              (static_cast<gl::int_t>(window_height.value) -
-               static_cast<gl::int_t>(cmd->clip_rect.y + cmd->clip_rect.h)) *
-              fb_scale.y)},
+          gl::y{(static_cast<gl::int_t>(window_height.value) -
+                 static_cast<gl::int_t>(cmd->clip_rect.y + cmd->clip_rect.h)) *
+                static_cast<gl::int_t>(fb_scale.y)},
           gl::width{static_cast<gl::uint_t>(cmd->clip_rect.w * fb_scale.x)},
           gl::height{static_cast<gl::uint_t>(cmd->clip_rect.h * fb_scale.y)});
       gl::draw_elements<gl::ushort_t>(
@@ -375,5 +527,10 @@ class nuklear_context : Backend {
 }  // namespace nk
 
 int main() {
+  dpsg::within_glfw_context([] {
+    nk::context ctx;
+    ctx.handle_input([](nk::input_handler input) { input.motion(1, 1); });
+  });
+
   return 0;
 }
