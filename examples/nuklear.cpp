@@ -252,6 +252,7 @@ struct window_query_interface {
 }  // namespace detail
 
 class row;
+class space;
 
 namespace detail {
 struct layout_interface {
@@ -305,9 +306,45 @@ struct layout_interface {
                     const float* ratio) noexcept {
       nk_layout_row(base::ctx(), fmt, height, cols, ratio);
     }
+
+    inline void row_template_begin(float row_height) noexcept {
+      nk_layout_row_template_begin(base::ctx(), row_height);
+    }
+
+    inline void row_template_end() noexcept {
+      nk_layout_row_template_end(base::ctx());
+    }
+
+    inline void row_template_push_variable(float min_width) noexcept {
+      nk_layout_row_template_push_variable(base::ctx(), min_width);
+    }
+
+    inline void row_template_push_static(float width) noexcept {
+      nk_layout_row_template_push_static(base::ctx(), width);
+    }
+
+    inline void row_template_push_dynamic() noexcept {
+      nk_layout_row_template_push_dynamic(base::ctx());
+    }
+
+    inline void space_begin(nk_layout_format fmt,
+                            float height,
+                            int widget_count) noexcept {
+      nk_layout_space_begin(base::ctx(), fmt, height, widget_count);
+    }
+
+    inline void space_end() noexcept { nk_layout_space_end(base::ctx()); }
+
+    template <class F>
+    inline void with_space(
+        nk_layout_format fmt,
+        float height,
+        int widget_count,
+        F&& f) noexcept(noexcept(std::
+                                     forward<F>(f)(
+                                         std::declval<class space>())));
   };
 };
-
 struct row_interface {
   template <class T>
   class type : public T {
@@ -316,6 +353,39 @@ struct row_interface {
    public:
     inline void push(float value) noexcept {
       nk_layout_row_push(base::ctx(), value);
+    }
+  };
+};
+
+struct space_interface {
+  template <class B>
+  struct type : B {
+    using base = B;
+    using rect_t = typename B::rect_t;
+    using vec2_t = typename B::vec2_t;
+
+    inline void push(rect_t rect) noexcept {
+      nk_layout_space_push(base::ctx(), rect);
+    }
+
+    inline rect_t bounds() noexcept {
+      return nk_layout_space_bounds(base::ctx());
+    }
+
+    inline vec2_t space_to_screen(vec2_t vec) noexcept {
+      return nk_layout_space_to_screen(base::ctx(), vec);
+    }
+
+    inline vec2_t space_to_local(vec2_t vec) noexcept {
+      return nk_layout_space_to_local(base::ctx(), vec);
+    }
+
+    inline rect_t space_to_screen(rect_t vec) noexcept {
+      return nk_layout_space_rect_to_screen(base::ctx(), vec);
+    }
+
+    inline rect_t space_to_local(rect_t vec) noexcept {
+      return nk_layout_space_rect_to_local(base::ctx(), vec);
     }
   };
 };
@@ -339,13 +409,19 @@ class input_handler : public detail::input_mixin<input_handler> {
 };
 
 namespace detail {
-template <class T>
-using row_mixin = dpsg::mixin<T,
+
+template <class T, class S>
+using sub_mixin = dpsg::mixin<T,
                               window_query_interface,
                               window_interface,
                               layout_interface,
-                              row_interface,
+                              S,
                               self_interface>;
+template <class T>
+using row_mixin = sub_mixin<T, row_interface>;
+
+template <class T>
+using space_mixin = sub_mixin<T, space_interface>;
 }  // namespace detail
 
 class row : public detail::row_mixin<row> {
@@ -357,6 +433,18 @@ class row : public detail::row_mixin<row> {
   template <class B>
   friend struct detail::self_interface::type;
   constexpr explicit row(nk_context* ctx) noexcept : _ctx{ctx} {}
+  nk_context* _ctx;
+};
+
+class space : public detail::space_mixin<row> {
+  [[nodiscard]] constexpr nk_context& ctx() const { return *_ctx; }
+
+ private:
+  template <class B>
+  friend class detail::layout_interface::type;
+  template <class B>
+  friend struct detail::self_interface::type;
+  constexpr explicit space(nk_context* ctx) noexcept : _ctx{ctx} {}
   nk_context* _ctx;
 };
 
@@ -378,6 +466,25 @@ void layout_interface::type<B>::with_row(
     throw;
   }
   row_end();
+}
+
+template <class B>
+template <class F>
+void layout_interface::type<B>::with_space(
+    nk_layout_format fmt,
+    float height,
+    int widget_count,
+    F&& f) noexcept(noexcept(std::forward<F>(f)(std::declval<class space>()))) {
+  space_begin(fmt, height, widget_count);
+  try {
+    using s = class space;
+    std::forward<F>(f)(s{base::ctx()});
+  }
+  catch (...) {
+    space_end();
+    throw;
+  }
+  space_end();
 }
 }  // namespace detail
 
@@ -846,44 +953,61 @@ class nuklear_context : Backend {
 int main() {
   dpsg::within_glfw_context([] {
     nk::context ctx;
-    ctx.with_window("title",
-                    nk_rect(0, 0, 10, 10),
-                    nk::panel_flags::border,
-                    [](nk::window window) {
-                      auto p = window.panel();
-                      auto c1 = window.content_region_min();
-                      auto c2 = window.content_region();
-                      auto c3 = window.content_region_max();
-                      auto c4 = window.canvas();
-                      auto s = window.scroll();
-                      auto sx = window.x_scroll();
-                      auto sy = window.y_scroll();
-                      auto b = window.has_focus() || window.is_any_hovered();
-                      auto b2 = window.is_collapsed("const char *id") ||
-                                window.is_closed("const char *id") ||
-                                window.is_hidden("const char *id") ||
-                                window.is_active("") || window.is_any_active();
-                      window.set_position("", nk_vec2(1, 2));
-                      window.set_size("", nk_vec2(1, 2));
-                      window.set_bounds("", nk_rect(1, 2, 1, 2));
-                      window.set_focus("const char *id");
-                      window.set_scroll(1, 2);
-                      window.close("");
-                      window.collapse("", NK_MAXIMIZED);
-                      window.collapse_if("", NK_MAXIMIZED, 0);
-                      window.show("", nk_show_states::NK_SHOWN);
-                      window.show_if("", nk_show_states::NK_SHOWN, 0);
-                      window.set_min_row_height(0.F);
-                      window.reset_min_row_height();
-                      auto bounds = window.widget_bounds();
-                      float pf = window.ratio_from_pixel(1);
-                      window.row_dynamic(0, 0);
-                      window.row_static(0.F, 0, 0);
-                      window.with_row(nk_layout_format::NK_DYNAMIC,
-                                      0.F,
-                                      0,
-                                      [](nk::row row) { row.push(0.F); });
-                    });
+    ctx.with_window(
+        "title",
+        nk_rect(0, 0, 10, 10),
+        nk::panel_flags::border,
+        [](nk::window window) {
+          auto p = window.panel();
+          auto c1 = window.content_region_min();
+          auto c2 = window.content_region();
+          auto c3 = window.content_region_max();
+          auto c4 = window.canvas();
+          auto s = window.scroll();
+          auto sx = window.x_scroll();
+          auto sy = window.y_scroll();
+          auto b = window.has_focus() || window.is_any_hovered();
+          auto b2 = window.is_collapsed("const char *id") ||
+                    window.is_closed("const char *id") ||
+                    window.is_hidden("const char *id") ||
+                    window.is_active("") || window.is_any_active();
+          window.set_position("", nk_vec2(1, 2));
+          window.set_size("", nk_vec2(1, 2));
+          window.set_bounds("", nk_rect(1, 2, 1, 2));
+          window.set_focus("const char *id");
+          window.set_scroll(1, 2);
+          window.close("");
+          window.collapse("", NK_MAXIMIZED);
+          window.collapse_if("", NK_MAXIMIZED, 0);
+          window.show("", nk_show_states::NK_SHOWN);
+          window.show_if("", nk_show_states::NK_SHOWN, 0);
+          window.set_min_row_height(0.F);
+          window.reset_min_row_height();
+          auto bounds = window.widget_bounds();
+          float pf = window.ratio_from_pixel(1);
+          window.row_dynamic(pf, 0);
+          window.row_static(0.F, 0, 0);
+          window.with_row(
+              nk_layout_format::NK_DYNAMIC, 0.F, 0, [](nk::row row) {
+                row.push(0.F);
+              });
+          window.row_template_begin(0.F);
+          window.row_template_end();
+          window.row_template_push_static(bounds.x);
+          window.row_template_push_variable(c1.x);
+          window.row_template_push_static(0.F);
+          window.with_space(
+              nk_layout_format::NK_DYNAMIC,
+              c1.y,
+              *p->offset_x,
+              [&](nk::space sp) {
+                sp.push(c4->clip);
+                struct nk_rect r =
+                    sp.space_to_screen(sp.space_to_local(nk_rect(0, 0, 0, 0)));
+                struct nk_vec2 v =
+                    sp.space_to_screen(sp.space_to_local(nk_vec2(0, 0)));
+              });
+        });
     ctx.handle_input([](nk::input_handler input) { input.motion(1, 1); });
   });
 
