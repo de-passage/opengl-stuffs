@@ -251,6 +251,8 @@ struct window_query_interface {
 };
 }  // namespace detail
 
+class row;
+
 namespace detail {
 struct layout_interface {
   template <class B>
@@ -283,6 +285,38 @@ struct layout_interface {
     inline void row_static(float height, int item_width, int cols) noexcept {
       nk_layout_row_static(base::ctx(), height, item_width, cols);
     }
+
+    inline void row_begin(nk_layout_format format,
+                          float row_height,
+                          int cols) noexcept {
+      nk_layout_row_static(base::ctx(), format, row_height, cols);
+    }
+
+    inline void row_end() noexcept { nk_layout_row_end(base::ctx()); }
+
+    template <class F>
+    void
+    with_row(nk_layout_format fmt, float row_height, int cols, F&& f) noexcept(
+        noexcept(std::forward<F>(f)(std::declval<class row>())));
+
+    inline void row(nk_layout_format fmt,
+                    float height,
+                    int cols,
+                    const float* ratio) noexcept {
+      nk_layout_row(base::ctx(), fmt, height, cols, ratio);
+    }
+  };
+};
+
+struct row_interface {
+  template <class T>
+  class type : public T {
+    using base = T;
+
+   public:
+    inline void push(float value) noexcept {
+      nk_layout_row_push(base::ctx(), value);
+    }
   };
 };
 }  // namespace detail
@@ -303,6 +337,49 @@ class input_handler : public detail::input_mixin<input_handler> {
   constexpr explicit input_handler(nk_context* ctx) noexcept : _ctx{ctx} {}
   nk_context* _ctx;
 };
+
+namespace detail {
+template <class T>
+using row_mixin = dpsg::mixin<T,
+                              window_query_interface,
+                              window_interface,
+                              layout_interface,
+                              row_interface,
+                              self_interface>;
+}  // namespace detail
+
+class row : public detail::row_mixin<row> {
+  [[nodiscard]] constexpr nk_context& ctx() const { return *_ctx; }
+
+ private:
+  template <class B>
+  friend class detail::layout_interface::type;
+  template <class B>
+  friend struct detail::self_interface::type;
+  constexpr explicit row(nk_context* ctx) noexcept : _ctx{ctx} {}
+  nk_context* _ctx;
+};
+
+namespace detail {
+template <class B>
+template <class F>
+void layout_interface::type<B>::with_row(
+    nk_layout_format fmt,
+    float row_height,
+    int cols,
+    F&& f) noexcept(noexcept(std::forward<F>(f)(std::declval<class row>()))) {
+  row_begin(fmt, row_height, cols);
+  try {
+    using r = class row;
+    std::forward<F>(f)(r{base::ctx()});
+  }
+  catch (...) {
+    row_end();
+    throw;
+  }
+  row_end();
+}
+}  // namespace detail
 
 namespace detail {
 template <class T>
@@ -801,7 +878,11 @@ int main() {
                       auto bounds = window.widget_bounds();
                       float pf = window.ratio_from_pixel(1);
                       window.row_dynamic(0, 0);
-                      window.row_static();
+                      window.row_static(0.F, 0, 0);
+                      window.with_row(nk_layout_format::NK_DYNAMIC,
+                                      0.F,
+                                      0,
+                                      [](nk::row row) { row.push(0.F); });
                     });
     ctx.handle_input([](nk::input_handler input) { input.motion(1, 1); });
   });
