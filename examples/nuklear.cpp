@@ -38,6 +38,11 @@ class user_font {
   struct nk_user_font _font;
 };
 
+struct scroll_t {
+  unsigned int x;
+  unsigned int y;
+};
+
 namespace detail {
 
 struct self_interface {
@@ -68,11 +73,6 @@ struct self_interface {
 };
 
 struct window_interface {
-  struct scroll_t {
-    unsigned int x;
-    unsigned int y;
-  };
-
   template <class B>
   class type : public B {
     using base = B;
@@ -247,12 +247,31 @@ struct window_query_interface {
                         int cond) noexcept {
       nk_window_show_if(base::ctx(), id, states, cond);
     }
+
+    inline scroll_t get_group_scroll(const char* id) {
+      scroll_t scr{};
+      nk_group_get_scroll(base::ctx(), id, &scr.x, &scr.y);
+      return scr;
+    }
+
+    inline unsigned int get_group_x_scroll() {
+      unsigned int i{};
+      nk_group_get_scroll(base::ctx(), id, &i, nullptr);
+      return i;
+    }
+
+    inline unsigned int get_group_y_scroll() {
+      unsigned int i{};
+      nk_group_get_scroll(base::ctx(), id, nullptr, &i);
+      return i;
+    }
   };
 };
 }  // namespace detail
 
 class row;
 class space;
+class group;
 
 namespace detail {
 struct layout_interface {
@@ -343,6 +362,115 @@ struct layout_interface {
         F&& f) noexcept(noexcept(std::
                                      forward<F>(f)(
                                          std::declval<class space>())));
+
+    inline void group_begin(const char* title, nk_flags flags) noexcept {
+      nk_group_begin(base::ctx(), title, flags);
+    }
+
+    inline void group_begin(const char* id,
+                            const char* title,
+                            nk_flags flags) noexcept {
+      nk_group_begin_titled(base::ctx(), id, title, flags);
+    }
+
+    inline void group_scrolled_begin(nk_uint* x_offset,
+                                     nk_uint* y_offset,
+                                     const char* title,
+                                     nk_flags flags) noexcept {
+      nk_group_scrolled_offset_begin(
+          base::ctx(), x_offset, y_offset, title, flags);
+    }
+
+    inline void group_scrolled_begin(nk_scroll* offset,
+                                     const char* title,
+                                     nk_flags flags) noexcept {
+      nk_group_scrolled_begin(base::ctx(), offset, title, flags);
+    }
+
+    inline void group_end() noexcept { nk_group_end(base::ctx()); }
+    inline void group_scrolled_end() noexcept {
+      nk_group_scrolled_end(base::ctx());
+    }
+
+   private:
+    template <class F>
+    constexpr static inline bool noexcept_begin_group = noexcept(
+        std::forward<F>(std::declval<F>())(std::declval<class group>()));
+
+    template <class F>
+    void instanciate_group(F&& f) noexcept(
+        noexcept(std::forward<F>(f)(std::declval<class group>())));
+
+    template <class F,
+              class... Args,
+              class G = void (type::*)(std::decay_t<Args>...)>
+    void begin_group_impl(F&& f,
+                          G g,
+                          void (type::*h)(),
+                          Args&&... args) noexcept(noexcept_begin_group<F>) {
+      (this->*g)(std::forward<Args>(args)...);
+      try {
+        instanciate_group(std::forward<F>(f));
+      }
+      catch (...) {
+        (this->*h)();
+        throw;
+      }
+      group_end();
+    }
+
+   public:
+    template <class F>
+    inline void with_group(const char* title,
+                           nk_flags flags,
+                           F&& f) noexcept(noexcept(noexcept_begin_group<F>)) {
+      begin_group_impl(std::forward<F>(f),
+                       &type::group_begin,
+                       &type::group_end,
+                       title,
+                       flags);
+    }
+
+    template <class F>
+    inline void with_group(nk_uint* x_offset,
+                           nk_uint* y_offset,
+                           const char* title,
+                           nk_flags flags,
+                           F&& f) noexcept(noexcept(noexcept_begin_group<F>)) {
+      begin_group_impl(std::forward<F>(f),
+                       &type::group_scrolled_begin,
+                       &type::group_scrolled_end,
+                       x_offset,
+                       y_offset,
+                       title,
+                       flags);
+    }
+
+    template <class F>
+    inline void with_group(const char* id,
+                           const char* title,
+                           nk_flags flags,
+                           F&& f) noexcept(noexcept_begin_group<F>) {
+      begin_group_impl(std::forward<F>(f),
+                       &type::group_begin,
+                       &type::group_end,
+                       id,
+                       title,
+                       flags);
+    }
+
+    template <class F>
+    inline void with_group(nk_scroll* scroll,
+                           const char* title,
+                           nk_flags flags,
+                           F&& f) noexcept(noexcept(noexcept_begin_group<F>)) {
+      begin_group_impl(std::forward<F>(f),
+                       &type::group_scrolled_begin,
+                       &type::group_scrolled_end,
+                       scroll,
+                       title,
+                       flags);
+    }
   };
 };
 struct row_interface {
@@ -389,6 +517,13 @@ struct space_interface {
     }
   };
 };
+
+struct group_interface {
+  template <class B>
+  struct type : B {
+    using base = B;
+  };
+};
 }  // namespace detail
 
 namespace detail {
@@ -422,6 +557,9 @@ using row_mixin = sub_mixin<T, row_interface>;
 
 template <class T>
 using space_mixin = sub_mixin<T, space_interface>;
+
+template <class T>
+using group_mixin = sub_mixin<T, group_interface>;
 }  // namespace detail
 
 class row : public detail::row_mixin<row> {
@@ -445,6 +583,18 @@ class space : public detail::space_mixin<row> {
   template <class B>
   friend struct detail::self_interface::type;
   constexpr explicit space(nk_context* ctx) noexcept : _ctx{ctx} {}
+  nk_context* _ctx;
+};
+
+class group : public detail::group_mixin<group> {
+  [[nodiscard]] constexpr nk_context& ctx() const { return *_ctx; }
+
+ private:
+  template <class B>
+  friend class detail::layout_interface::type;
+  template <class B>
+  friend struct detail::self_interface::type;
+  constexpr explicit group(nk_context* ctx) noexcept : _ctx{ctx} {}
   nk_context* _ctx;
 };
 
@@ -485,6 +635,14 @@ void layout_interface::type<B>::with_space(
     throw;
   }
   space_end();
+}
+
+template <class B>
+template <class F>
+void layout_interface::type<B>::instanciate_group(F&& f) noexcept(
+    noexcept(std::forward<F>(f)(std::declval<class group>()))) {
+  using g = class group;
+  std::forward<F>(f)(g{base::ctx()});
 }
 }  // namespace detail
 
@@ -1007,6 +1165,12 @@ int main() {
                 struct nk_vec2 v =
                     sp.space_to_screen(sp.space_to_local(nk_vec2(0, 0)));
               });
+          window.with_group("", "", NK_MAXIMIZED, [](nk::group) {});
+          window.with_group("", NK_MAXIMIZED, [](nk::group) {});
+          unsigned int i{};
+          nk_scroll scr{};
+          window.with_group(&i, &i, "", NK_MAXIMIZED, [](nk::group) {});
+          window.with_group(&scr, "", NK_MAXIMIZED, [](nk::group) {});
         });
     ctx.handle_input([](nk::input_handler input) { input.motion(1, 1); });
   });
