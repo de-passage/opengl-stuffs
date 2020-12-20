@@ -148,7 +148,7 @@ class nk_gl3_backend {
 
     const nk_draw_command* cmd{nullptr};
     gl::offset offset{0};
-    nk_draw_foreach(cmd, &ctx.ctx(), _cmds.buf()) {
+    nk_draw_foreach(cmd, &ctx.ctx(), &_cmds.buf()) {
       if (cmd->elem_count == 0) {
         continue;
       }
