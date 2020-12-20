@@ -1,5 +1,6 @@
 
 #include "nuklear/buffer.hpp"
+#include "nuklear/font_atlas.hpp"
 #include "nuklear/nuklear++.hpp"
 
 #include "buffers.hpp"
@@ -47,6 +48,20 @@ class nk_gl3_backend {
 
   ~nk_gl3_backend() noexcept { gl::delete_texture(_texture); }
 
+  void load_font(nk::context& ctx,
+                 const char* filepath,
+                 float height) noexcept {
+    _load_font_impl(ctx, filepath, height, nullptr);
+  }
+
+  void load_font(nk::context& ctx,
+                 const char* filepath,
+                 float height,
+                 const struct nk_font_config& cfg) noexcept {
+    _load_font_impl(ctx, filepath, height, &cfg);
+  }
+
+ private:
   template <class T>
   inline void upload_atlas(const T* image, gl::width w, gl::height h) {
     gl::gen_texture(_texture);
@@ -57,31 +72,32 @@ class nk_gl3_backend {
         gl::texture_image_target::_2d, w, h, gl::image_format::rgba, image);
   }
 
-  void load_font(nk_context* ctx,
-                 const char* filepath,
-                 float height,
-                 const struct nk_font_config* cfg = nullptr) {
-    nk_font_atlas atlas{};
-    nk_font_atlas_init_default(&atlas);
-    nk_font_atlas_begin(&atlas);
-    auto* val = nk_font_atlas_add_from_file(&atlas, filepath, height, cfg);
+  void _load_font_impl(nk::context& ctx,
+                       const char* filepath,
+                       float height,
+                       const struct nk_font_config* cfg) noexcept {
+    nk_font* val = nullptr;
+    _atlas.with_atlas(_null, [&](nk::atlas_interface atlas) {
+      val = atlas.add_from_file(filepath, height, cfg);
 
-    const void* image{};
-    int w{};
-    int h{};
-    image = nk_font_atlas_bake(&atlas, &w, &h, NK_FONT_ATLAS_RGBA32);
-    upload_atlas(static_cast<const gl::ubyte_t*>(image),
-                 gl::width{static_cast<gl::uint_t>(w)},
-                 gl::height{static_cast<gl::uint_t>(h)});
-    nk_font_atlas_end(
-        &atlas, nk_handle_id(static_cast<int>(_texture.value)), &_null);
-    if (atlas.default_font != nullptr)
-      nk_style_set_font(ctx, &atlas.default_font->handle);
+      const void* image{};
+      int w{};
+      int h{};
+      image = atlas.bake(w, h, NK_FONT_ATLAS_RGBA32);
+      upload_atlas(static_cast<const gl::ubyte_t*>(image),
+                   gl::width{static_cast<gl::uint_t>(w)},
+                   gl::height{static_cast<gl::uint_t>(h)});
+      return static_cast<int>(_texture.value);
+    });
+    if (_atlas.default_font() != nullptr) {
+      ctx.set_font(_atlas.default_font()->handle);
+    }
 
-    nk_style_load_all_cursors(ctx, static_cast<nk_cursor*>(atlas.cursors));
-    nk_style_set_font(ctx, &val->handle);
+    ctx.load_all_cursors(_atlas.cursors());
+    ctx.set_font(val->handle);
   }
 
+ public:
   void render(nk::context& ctx,
               gl::width window_width,
               gl::height window_height,
@@ -195,8 +211,9 @@ class nk_gl3_backend {
   }
 
   program _prog;
-  nk::dynamic_buffer _cmds;
-  nk_draw_null_texture _null;
+  nk::dynamic_buffer _cmds{};
+  nk_draw_null_texture _null{};
+  nk::font_atlas _atlas;
   vertex_array _vao;
   element_buffer _ebo;
   vertex_buffer _vbo;
@@ -276,70 +293,17 @@ class nuklear_context : Backend {
 }  // namespace nk
 
 int main() {
-  dpsg::within_glfw_context([] {
-    nk::context ctx;
-    ctx.with_window(
-        "title",
-        nk_rect(0, 0, 10, 10),
-        nk::panel_flags::border,
-        [](nk::window window) {
-          auto p = window.panel();
-          auto c1 = window.content_region_min();
-          auto c2 = window.content_region();
-          auto c3 = window.content_region_max();
-          auto c4 = window.canvas();
-          auto s = window.scroll();
-          auto sx = window.x_scroll();
-          auto sy = window.y_scroll();
-          auto b = window.has_focus() || window.is_any_hovered();
-          auto b2 = window.is_collapsed("const char *id") ||
-                    window.is_closed("const char *id") ||
-                    window.is_hidden("const char *id") ||
-                    window.is_active("") || window.is_any_active();
-          window.set_position("", nk_vec2(1, 2));
-          window.set_size("", nk_vec2(1, 2));
-          window.set_bounds("", nk_rect(1, 2, 1, 2));
-          window.set_focus("const char *id");
-          window.set_scroll(1, 2);
-          window.close("");
-          window.collapse("", NK_MAXIMIZED);
-          window.collapse_if("", NK_MAXIMIZED, 0);
-          window.show("", nk_show_states::NK_SHOWN);
-          window.show_if("", nk_show_states::NK_SHOWN, 0);
-          window.set_min_row_height(0.F);
-          window.reset_min_row_height();
-          auto bounds = window.widget_bounds();
-          float pf = window.ratio_from_pixel(1);
-          window.row_dynamic(pf, 0);
-          window.row_static(0.F, 0, 0);
-          window.with_row(
-              nk_layout_format::NK_DYNAMIC, 0.F, 0, [](nk::row row) {
-                row.push(0.F);
-              });
-          window.row_template_begin(0.F);
-          window.row_template_end();
-          window.row_template_push_static(bounds.x);
-          window.row_template_push_variable(c1.x);
-          window.row_template_push_static(0.F);
-          window.with_space(
-              nk_layout_format::NK_DYNAMIC,
-              c1.y,
-              *p->offset_x,
-              [&](nk::space sp) {
-                sp.push(c4->clip);
-                struct nk_rect r =
-                    sp.space_to_screen(sp.space_to_local(nk_rect(0, 0, 0, 0)));
-                struct nk_vec2 v =
-                    sp.space_to_screen(sp.space_to_local(nk_vec2(0, 0)));
-              });
-          window.with_group("", "", NK_MAXIMIZED, [](nk::group) {});
-          window.with_group("", NK_MAXIMIZED, [](nk::group) {});
-          unsigned int i{};
-          nk_scroll scr{};
-          window.with_group(&i, &i, "", NK_MAXIMIZED, [](nk::group) {});
-          window.with_group(&scr, "", NK_MAXIMIZED, [](nk::group) {});
+  using namespace dpsg;
+  within_glfw_context([] {
+    with_window(
+        window_hint::context_version(3, 3),
+        window_hint::opengl_profile(profile::core),
+        [](window& wdw) {
+          nk::context ctx;
+          nk_gl3_backend backend;
+          backend.load_font(ctx, "./assets/fonts/DroidSans.ttf", 14);
+          ctx.handle_input([](nk::input_handler input) { input.motion(1, 1); });
         });
-    ctx.handle_input([](nk::input_handler input) { input.motion(1, 1); });
   });
 
   return 0;
