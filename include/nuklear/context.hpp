@@ -6,6 +6,7 @@
 #include "./buffer.hpp"
 #include "./enums.hpp"
 #include "./interfaces.hpp"
+#include "./style.hpp"
 #include "meta/mixin.hpp"
 
 #include <iterator>
@@ -15,8 +16,11 @@ namespace nk {
 
 namespace detail {
 template <class T>
-using context_mixin =
-    dpsg::mixin<T, input_interface, window_query_interface, self_interface>;
+using context_mixin = dpsg::mixin<T,
+                                  input_interface,
+                                  window_query_interface,
+                                  style_interface,
+                                  self_interface>;
 }  // namespace detail
 
 class context : public detail::context_mixin<context> {
@@ -71,7 +75,7 @@ class context : public detail::context_mixin<context> {
                       buffer<A3>& elements,
                       nk_convert_config* convert_config) noexcept {
     nk_convert(
-        &_ctx, cmds.buf(), vertices.buf(), elements.buf(), convert_config);
+        &_ctx, &cmds.buf(), &vertices.buf(), &elements.buf(), convert_config);
   }
 
   template <class F>
