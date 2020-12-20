@@ -3,6 +3,7 @@
 
 #include "./config.hpp"
 
+#include "./buffer.hpp"
 #include "./enums.hpp"
 #include "./interfaces.hpp"
 #include "meta/mixin.hpp"
@@ -62,6 +63,15 @@ class context : public detail::context_mixin<context> {
                       nk_buffer* elements,
                       nk_convert_config* convert_config) noexcept {
     nk_convert(&_ctx, cmds, vertices, elements, convert_config);
+  }
+
+  template <class A1, class A2, class A3>
+  inline void convert(buffer<A1>& cmds,
+                      buffer<A2>& vertices,
+                      buffer<A3>& elements,
+                      nk_convert_config* convert_config) noexcept {
+    nk_convert(
+        &_ctx, cmds.buf(), vertices.buf(), elements.buf(), convert_config);
   }
 
   template <class F>

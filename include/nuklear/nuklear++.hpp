@@ -3,6 +3,7 @@
 
 #include "./config.hpp"
 
+#include "./buffer.hpp"
 #include "./context.hpp"
 #include "./enums.hpp"
 #include "./interfaces.hpp"

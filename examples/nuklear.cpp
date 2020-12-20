@@ -1,4 +1,5 @@
 
+#include "nuklear/buffer.hpp"
 #include "nuklear/nuklear++.hpp"
 
 #include "buffers.hpp"
@@ -38,18 +39,13 @@ class nk_gl3_backend {
   nk_gl3_backend()
       : _prog{_generate().value()},
         _texture_unif{gl::get_uniform_location(_prog.id(), "Texture")},
-        _projection_unif(gl::get_uniform_location(_prog.id(), "ProjMtx")) {
-    _init_nk();
-  }
+        _projection_unif(gl::get_uniform_location(_prog.id(), "ProjMtx")) {}
   nk_gl3_backend(const nk_gl3_backend&) = delete;
   nk_gl3_backend(nk_gl3_backend&&) noexcept = default;
   nk_gl3_backend& operator=(const nk_gl3_backend&) = delete;
   nk_gl3_backend& operator=(nk_gl3_backend&&) noexcept = default;
 
-  ~nk_gl3_backend() noexcept {
-    nk_buffer_free(&_cmds);
-    gl::delete_texture(_texture);
-  }
+  ~nk_gl3_backend() noexcept { gl::delete_texture(_texture); }
 
   template <class T>
   inline void upload_atlas(const T* image, gl::width w, gl::height h) {
@@ -86,7 +82,7 @@ class nk_gl3_backend {
     nk_style_set_font(ctx, &val->handle);
   }
 
-  void render(nk_context* ctx,
+  void render(nk::context& ctx,
               gl::width window_width,
               gl::height window_height,
               gl::byte_size max_vertex_buffer,
@@ -143,18 +139,16 @@ class nk_gl3_backend {
     config.shape_AA = anti_aliasing;
     config.line_AA = anti_aliasing;
 
-    nk_buffer vbuf;
-    nk_buffer ebuf;
-    nk_buffer_init_fixed(&vbuf, vertices, max_vertex_buffer.value);
-    nk_buffer_init_fixed(&ebuf, elements, max_element_buffer.value);
-    nk_convert(ctx, &_cmds, &vbuf, &ebuf, &config);
+    nk::buffer vbuf(vertices, max_vertex_buffer.value);
+    nk::buffer ebuf(elements, max_vertex_buffer.value);
+    ctx.convert(_cmds, vbuf, ebuf, &config);
 
     gl::unmap_buffer(gl::buffer_type::array);
     gl::unmap_buffer(gl::buffer_type::element_array);
 
     const nk_draw_command* cmd{nullptr};
     gl::offset offset{0};
-    nk_draw_foreach(cmd, ctx, &_cmds) {
+    nk_draw_foreach(cmd, &ctx.ctx(), _cmds.buf()) {
       if (cmd->elem_count == 0) {
         continue;
       }
@@ -174,13 +168,12 @@ class nk_gl3_backend {
           offset);
       offset.value += cmd->elem_count;
     }
-    nk_clear(ctx);
-    nk_buffer_clear(&_cmds);
+    ctx.clear();
+    _cmds.clear();
   }
 
  private:
   explicit nk_gl3_backend(program prog) noexcept : _prog{std::move(prog)} {
-    _init_nk();
     _vao.bind();
     _vbo.bind();
     _ebo.bind();
@@ -202,7 +195,7 @@ class nk_gl3_backend {
   }
 
   program _prog;
-  nk_buffer _cmds;
+  nk::dynamic_buffer _cmds;
   nk_draw_null_texture _null;
   vertex_array _vao;
   element_buffer _ebo;
@@ -261,8 +254,6 @@ class nk_gl3_backend {
               });
         });
   }
-
-  void _init_nk() noexcept { nk_buffer_init_default(&_cmds); }
 
  public:
   // NOLINTNEXTLINE(bugprone-exception-escape) spurious
