@@ -1,4 +1,5 @@
 
+#include <stdlib.h>
 #include "nuklear/buffer.hpp"
 #include "nuklear/font_atlas.hpp"
 #include "nuklear/nuklear++.hpp"
@@ -9,10 +10,14 @@
 #include "opengl.hpp"
 #include "program.hpp"
 #include "shaders.hpp"
+#include "utility.hpp"
 #include "window.hpp"
 
 #include <cstddef>
+#include <exception>
+#include <iostream>
 #include <iterator>
+#include <stdexcept>
 #include <utility>
 
 namespace nk {
@@ -222,7 +227,7 @@ class nk_gl3_backend {
   gl::uniform_location _projection_unif{-1};
 
   static constexpr inline vs_source vertex_shader_source{
-      "#version 330 core"
+      "#version 330 core\n"
       "uniform mat4 ProjMtx;\n"
       "layout(location = 0) in vec2 Position;\n"
       "layout(location = 1) in vec2 TexCoord;\n"
@@ -235,7 +240,7 @@ class nk_gl3_backend {
       "   gl_Position = ProjMtx * vec4(Position.xy, 0, 1);\n"
       "}\n"};
   static constexpr inline fs_source fragment_shader_source{
-      "#version 330 core"
+      "#version 330 core\n"
       "precision mediump float;\n"
       "uniform sampler2D Texture;\n"
       "in vec2 Frag_UV;\n"
@@ -294,17 +299,36 @@ class nuklear_context : Backend {
 
 int main() {
   using namespace dpsg;
-  within_glfw_context([] {
-    with_window(
-        window_hint::context_version(3, 3),
-        window_hint::opengl_profile(profile::core),
-        [](window& wdw) {
-          nk::context ctx;
-          nk_gl3_backend backend;
-          backend.load_font(ctx, "./assets/fonts/DroidSans.ttf", 14);
-          ctx.handle_input([](nk::input_handler input) { input.motion(1, 1); });
-        });
-  });
+  try {
+    within_glfw_context([] {
+      with_window(
+          window_hint::context_version(3, 3),
+          window_hint::opengl_profile(profile::core),
+          width{800},
+          height{600},
+          title{"Nuklear"},
+          [](window& wdw) {
+            wdw.make_context_current();
 
-  return 0;
+            if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(  // NOLINT
+                    glfwGetProcAddress))) {
+              throw std::runtime_error("Failed to initialize GLAD");
+            }
+
+            nk::context ctx;
+            nk_gl3_backend backend;
+            backend.load_font(ctx, "./assets/fonts/DroidSans.ttf", 14);
+
+            wdw.render_loop([&] {
+              ctx.handle_input(
+                  [](nk::input_handler input) { input.motion(1, 1); });
+            });
+          });
+    });
+  }
+  catch (std::exception& e) {
+    std::cerr << "Exception caught at top level:\n" << e.what() << std::endl;
+    return EXIT_FAILURE;
+  }
+  return EXIT_SUCCESS;
 }
