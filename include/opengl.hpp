@@ -434,11 +434,18 @@ struct offset {
   unsigned int value;
 };
 
+struct attrib_location {
+  int_t value;
+  [[nodiscard]] constexpr bool has_value() const noexcept {
+    return value == -1;
+  }
+};
+
 template <typename T,
           class U,
           std::enable_if_t<detail::is_vec_dimension_type_v<U>, int> = 0,
           std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-inline void vertex_attrib_pointer(index idx,
+inline void vertex_attrib_pointer(attrib_location idx,
                                   U element_count,
                                   stride s = stride{0},
                                   offset o = offset{0}) noexcept {
@@ -456,7 +463,7 @@ template <typename T,
           class U,
           std::enable_if_t<detail::is_vec_dimension_type_v<U>, int> = 0,
           std::enable_if_t<std::is_integral_v<T>, int> = 0>
-inline void vertex_attrib_pointer(index idx,
+inline void vertex_attrib_pointer(attrib_location idx,
                                   U element_count,
                                   stride s = stride{0},
                                   offset o = offset{0}) noexcept {
@@ -478,7 +485,7 @@ template <typename T,
           class U,
           std::enable_if_t<detail::is_vec_dimension_type_v<U>, int> = 0,
           std::enable_if_t<std::is_integral_v<T>, int> = 0>
-inline void vertex_attrib_pointer(index idx,
+inline void vertex_attrib_pointer(attrib_location idx,
                                   U element_count,
                                   normalized n,
                                   stride s = stride{0},
@@ -505,7 +512,7 @@ template <typename T,
           class U,
           std::enable_if_t<detail::is_vec_dimension_type_v<U>, int> = 0,
           std::enable_if_t<std::is_integral_v<T>, int> = 0>
-inline void vertex_attrib_pointer(index idx,
+inline void vertex_attrib_pointer(attrib_location idx,
                                   U element_count,
                                   normalized n,
                                   byte_stride s = byte_stride{0},
@@ -524,7 +531,7 @@ template <typename T,
           class U,
           std::enable_if_t<detail::is_vec_dimension_type_v<U>, int> = 0,
           std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-inline void vertex_attrib_pointer(index idx,
+inline void vertex_attrib_pointer(attrib_location idx,
                                   U element_count,
                                   byte_stride s = byte_stride{0},
                                   byte_offset o = byte_offset{0}) noexcept {
@@ -540,9 +547,9 @@ inline void vertex_attrib_pointer(index idx,
 
 namespace detail {
 template <typename... Args>
-using acceptable_index_types =
-    std::conjunction<std::disjunction<std::is_same<std::decay_t<Args>, index>,
-                                      std::is_convertible<Args, uint_t>>...>;
+using acceptable_index_types = std::conjunction<
+    std::disjunction<std::is_same<std::decay_t<Args>, attrib_location>,
+                     std::is_convertible<Args, uint_t>>...>;
 }  // namespace detail
 
 template <class... Args>
@@ -580,7 +587,7 @@ inline void draw_elements_base_vertex(drawing_mode mode,
   glDrawElementsBaseVertex(static_cast<int>(mode),
                            count.value,
                            gl_type,
-                           reinterpret_cast<void*>(o.value * sizeof(T)),
+                           reinterpret_cast<void*>(o.value),
                            base_vertex.value);
 }
 
@@ -1587,13 +1594,6 @@ inline void viewport(x x, y y, width w, height h) noexcept {
   glViewport(x.value, y.value, w.value, h.value);
 }
 
-struct attrib_location {
-  int_t value;
-  [[nodiscard]] constexpr bool has_value() const noexcept {
-    return value == -1;
-  }
-};
-
 inline attrib_location get_attrib_location(program_id id,
                                            const char_t* name) noexcept {
   return attrib_location{glGetAttribLocation(id.value, name)};
@@ -1670,6 +1670,57 @@ inline void unmap_buffer(generic_buffer_id id) noexcept {
 
 inline void scissor(x x, y y, width w, height h) noexcept {
   glScissor(x.value, y.value, w.value, h.value);
+}
+
+enum class error_code : enum_t {
+  none = GL_NO_ERROR,
+  invalid_enum = GL_INVALID_ENUM,
+  invalid_value = GL_INVALID_VALUE,
+  invalid_operation = GL_INVALID_OPERATION,
+  invalid_framebuffer_operation = GL_INVALID_FRAMEBUFFER_OPERATION,
+  out_of_memory = GL_OUT_OF_MEMORY,
+};
+
+struct error {
+  using error_t = enum error_code;
+
+  // NOLINTNEXTLINE
+  constexpr error(error_t code) : _error{code} {}
+
+  [[nodiscard]] constexpr error_t code() const { return _error; }
+  [[nodiscard]] constexpr const char* to_string() const {
+    switch (_error) {
+      case error_code::invalid_enum:
+        return "invalid enum";
+      case error_code::invalid_framebuffer_operation:
+        return "invalid framebuffer operation";
+      case error_code::invalid_operation:
+        return "invalid operation";
+      case error_code::invalid_value:
+        return "invalid value";
+      case error_code::out_of_memory:
+        return "out of memory";
+      case error_code::none:
+      default:
+        return "no error";
+    }
+  }
+
+  // NOLINTNEXTLINE
+  [[nodiscard]] constexpr operator bool() const {
+    return _error != error_code::none;
+  }
+
+  [[nodiscard]] constexpr bool is_error() const {
+    return _error != error_code::none;
+  }
+
+ private:
+  error_t _error;
+};
+
+inline error get_error() noexcept {
+  return error{static_cast<error_code>(glGetError())};
 }
 
 }  // namespace dpsg::gl

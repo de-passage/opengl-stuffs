@@ -74,7 +74,7 @@ struct layout<T, packed<group<Args>...>> {
       [maybe_unused]] std::index_sequence<Is...> indices) {
     // NOLINTNEXTLINE
     (gl::vertex_attrib_pointer<value_type>(
-         gl::index{Is},
+         gl::attrib_location{Is},
          gl::element_count{detail::at_v<Is, Args...>},
          gl::stride{count.value},
          gl::offset{detail::sum_to_v<Is, Args...>}),
@@ -118,7 +118,7 @@ struct layout<T, sequenced<group<Args>...>> {
       [maybe_unused]] std::index_sequence<Is...> indices) {
     // NOLINTNEXTLINE
     (gl::vertex_attrib_pointer<value_type>(
-         gl::index{Is},
+         gl::attrib_location{Is},
          gl::element_count{detail::at_v<Is, Args...>},
          gl::stride{0},
          gl::offset{detail::sum_to_v<Is, Args...> * (N / count.value)}),

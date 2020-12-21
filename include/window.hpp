@@ -38,6 +38,14 @@ enum class cursor_mode : int {
   disabled = GLFW_CURSOR_DISABLED,
 };
 
+struct rect {
+  width width;
+  height height;
+};
+
+struct framebuffer_dimension : rect {};
+struct window_dimension : rect {};
+
 struct window_impl {
   template <class T>
   class type : public T {
@@ -106,8 +114,28 @@ struct window_impl {
           _window, static_cast<int>(mode), enabled ? GLFW_TRUE : GLFW_FALSE);
     }
 
-    inline cursor_mode get_cursor_mode() const {
+    [[nodiscard]] inline cursor_mode get_cursor_mode() const {
       return static_cast<cursor_mode>(glfwGetInputMode(_window, GLFW_CURSOR));
+    }
+
+    inline void framebuffer_size(width& w, height& h) const {
+      glfwGetFramebufferSize(_window, &w.value, &h.value);
+    }
+
+    [[nodiscard]] framebuffer_dimension framebuffer_size() const {
+      framebuffer_dimension fd;
+      framebuffer_size(fd.width, fd.height);
+      return fd;
+    }
+
+    inline void window_size(width& w, height& h) const {
+      glfwGetWindowSize(_window, &w.value, &h.value);
+    }
+
+    [[nodiscard]] window_dimension window_size() const {
+      window_dimension wd;
+      window_size(wd.width, wd.height);
+      return wd;
     }
 
    private:

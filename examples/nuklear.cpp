@@ -1,6 +1,7 @@
 
 #include <stdlib.h>
 #include "nuklear/buffer.hpp"
+#include "nuklear/enums.hpp"
 #include "nuklear/font_atlas.hpp"
 #include "nuklear/nuklear++.hpp"
 
@@ -19,6 +20,13 @@
 #include <iterator>
 #include <stdexcept>
 #include <utility>
+
+void error_check(std::string pos) {
+  if (auto e = dpsg::gl::get_error()) {
+    throw std::runtime_error(std::string{"gl error ("} + std::move(pos) +
+                             "): " + e.to_string());
+  }
+}
 
 namespace nk {
 class user_font {
@@ -42,10 +50,7 @@ class user_font {
 namespace dpsg {
 class nk_gl3_backend {
  public:
-  nk_gl3_backend()
-      : _prog{_generate().value()},
-        _texture_unif{gl::get_uniform_location(_prog.id(), "Texture")},
-        _projection_unif(gl::get_uniform_location(_prog.id(), "ProjMtx")) {}
+  nk_gl3_backend() : nk_gl3_backend{_generate().value()} {}
   nk_gl3_backend(const nk_gl3_backend&) = delete;
   nk_gl3_backend(nk_gl3_backend&&) noexcept = default;
   nk_gl3_backend& operator=(const nk_gl3_backend&) = delete;
@@ -130,23 +135,31 @@ class nk_gl3_backend {
     gl::disable(gl::capability::cull_face);
     gl::disable(gl::capability::depth_test);
     gl::enable(gl::capability::scissor_test);
+    error_check("after capability enabling");
     gl::active_texture(gl::texture_name::_0);
+    error_check("after texture activation");
     _prog.use();
-    gl::uniform(_texture_unif, 0U);
+    error_check("after program use");
+    gl::uniform(_texture_unif, 0);
+    error_check("after texture uniform binding");
     gl::uniform(_projection_unif, ortho);
+    error_check("after projection uniform binding");
 
     _vao.bind();
     _vbo.bind();
     _ebo.bind();
+    error_check("after buffer binding");
     gl::buffer_data(
         gl::buffer_type::array, max_vertex_buffer, gl::data_hint::stream_draw);
     gl::buffer_data(gl::buffer_type::element_array,
                     max_element_buffer,
                     gl::data_hint::stream_draw);
+    error_check("after buffer data definition");
     void* vertices =
         gl::map_buffer(gl::buffer_type::array, gl::access::write_only);
     void* elements =
         gl::map_buffer(gl::buffer_type::element_array, gl::access::write_only);
+    error_check("after buffer mapping");
     nk_convert_config config{};
     config.vertex_layout =
         static_cast<const nk_draw_vertex_layout_element*>(vertex_layout);
@@ -163,9 +176,11 @@ class nk_gl3_backend {
     nk::buffer vbuf(vertices, max_vertex_buffer.value);
     nk::buffer ebuf(elements, max_vertex_buffer.value);
     ctx.convert(_cmds, vbuf, ebuf, &config);
+    error_check("after command conversion");
 
     gl::unmap_buffer(gl::buffer_type::array);
     gl::unmap_buffer(gl::buffer_type::element_array);
+    error_check("after buffer unmapping");
 
     const nk_draw_command* cmd{nullptr};
     gl::offset offset{0};
@@ -176,6 +191,7 @@ class nk_gl3_backend {
       gl::bind_texture(
           gl::texture_target::_2d,
           gl::texture_id{static_cast<gl::uint_t>(cmd->texture.id)});
+      error_check("after texture binding");
       gl::scissor(
           gl::x{static_cast<gl::int_t>(cmd->clip_rect.x * fb_scale.x)},
           gl::y{(static_cast<gl::int_t>(window_height.value) -
@@ -183,10 +199,12 @@ class nk_gl3_backend {
                 static_cast<gl::int_t>(fb_scale.y)},
           gl::width{static_cast<gl::uint_t>(cmd->clip_rect.w * fb_scale.x)},
           gl::height{static_cast<gl::uint_t>(cmd->clip_rect.h * fb_scale.y)});
+      error_check("after scissor");
       gl::draw_elements<gl::ushort_t>(
           gl::drawing_mode::triangles,
           gl::element_count{static_cast<gl::int_t>(cmd->elem_count)},
           offset);
+      error_check("after drawing");
       offset.value += cmd->elem_count;
     }
     ctx.clear();
@@ -194,25 +212,30 @@ class nk_gl3_backend {
   }
 
  private:
-  explicit nk_gl3_backend(program prog) noexcept : _prog{std::move(prog)} {
+  explicit nk_gl3_backend(program prog) noexcept
+      : _prog{std::move(prog)},
+        _texture_unif{gl::get_uniform_location(_prog.id(), "Texture")},
+        _projection_unif{gl::get_uniform_location(_prog.id(), "ProjMtx")} {
     _vao.bind();
     _vbo.bind();
     _ebo.bind();
     gl::vertex_attrib_pointer<float>(
-        gl::index{0},
+        gl::attrib_location{0},
         gl::element_count{2},
         gl::byte_stride{sizeof(vertex)},
         gl::byte_offset{offsetof(vertex, position)});
-    gl::vertex_attrib_pointer<float>(gl::index{1},
+    gl::vertex_attrib_pointer<float>(gl::attrib_location{1},
                                      gl::element_count{2},
                                      gl::byte_stride{sizeof(vertex)},
                                      gl::byte_offset{offsetof(vertex, uv)});
     gl::vertex_attrib_pointer<nk_byte>(
-        gl::index{2},
+        gl::attrib_location{2},
         gl::element_count{4},
         gl::normalized::yes,
         gl::byte_stride{sizeof(vertex)},
         gl::byte_offset{offsetof(vertex, color)});
+
+    gl::enable_vertex_attrib_array(0, 1, 2);
   }
 
   program _prog;
@@ -297,6 +320,9 @@ class nuklear_context : Backend {
 
 }  // namespace nk
 
+constexpr static dpsg::gl::byte_size MAX_VERTEX_MEMORY{512 * 1024};
+constexpr static dpsg::gl::byte_size MAX_ELEMENT_MEMORY{128 * 1024};
+
 int main() {
   using namespace dpsg;
   try {
@@ -315,13 +341,54 @@ int main() {
               throw std::runtime_error("Failed to initialize GLAD");
             }
 
+            error_check("glad loaded");
+
             nk::context ctx;
+            error_check("after context construction");
             nk_gl3_backend backend;
+            error_check("after backend construction");
             backend.load_font(ctx, "./assets/fonts/DroidSans.ttf", 14);
+            error_check("after font loading");
 
             wdw.render_loop([&] {
-              ctx.handle_input(
-                  [](nk::input_handler input) { input.motion(1, 1); });
+              auto window_succeeded = ctx.with_window(
+                  "some title",
+                  nk_rect(50, 50, 220, 220),
+                  nk::panel_flags::title | nk::panel_flags::border |
+                      nk::panel_flags::closable,
+                  [&](nk::window w) {
+                    w.row_static(30, 120, 1);
+                    if (nk_button_label(&w.ctx(), "Button")) {
+                      std::cout << "Button pressed" << std::endl;
+                    }
+                  });
+
+              if (!window_succeeded) {
+                throw std::runtime_error("nk window failure");
+              }
+
+              auto dims = wdw.framebuffer_size();
+              gl::width w{static_cast<gl::uint_t>(dims.width.value)};
+              gl::height h{static_cast<gl::uint_t>(dims.height.value)};
+              auto window_size = wdw.window_size();
+              struct nk_vec2 scale;
+              scale.x = static_cast<float>(w.value) /
+                        static_cast<float>(window_size.width.value);
+              scale.y = static_cast<float>(h.value) /
+                        static_cast<float>(window_size.height.value);
+              gl::viewport(w, h);
+              error_check("after viewport");
+              backend.render(ctx,
+                             w,
+                             h,
+                             MAX_VERTEX_MEMORY,
+                             MAX_ELEMENT_MEMORY,
+                             nk_anti_aliasing::NK_ANTI_ALIASING_ON,
+                             scale);
+              error_check("after backend render");
+              ctx.clear();
+
+              error_check("after context clear");
             });
           });
     });
