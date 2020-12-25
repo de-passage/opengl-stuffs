@@ -31,7 +31,7 @@ struct self_interface {
     }
 
     [[nodiscard]] constexpr crtp_cptr self() const noexcept {
-      return static_cast<crtp_ptr>(this);
+      return static_cast<crtp_cptr>(this);
     }
 
     [[nodiscard]] constexpr auto* ctx() const noexcept {
@@ -39,6 +39,12 @@ struct self_interface {
     }
 
     [[nodiscard]] constexpr auto* ctx() noexcept { return &self()->ctx(); }
+
+    [[nodiscard]] constexpr auto& style() noexcept { return &ctx()->style; }
+
+    [[nodiscard]] constexpr const auto& style() const noexcept {
+      return &ctx()->style;
+    }
   };  // struct type
 };    // struct self_interface
 
@@ -234,6 +240,10 @@ struct window_query_interface {
       unsigned int i{};
       nk_group_get_scroll(base::ctx(), id, nullptr, &i);
       return i;
+    }
+
+    inline nk_window* find_window(const char* identifier) {
+      return nk_window_find(&_ctx, identifier);
     }
   };  // struct type
 };    // struct window_query_interface

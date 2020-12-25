@@ -78,13 +78,18 @@ enum class drawing_mode : enum_t {
   line_strip = GL_LINE_STRIP,
   line_loop = GL_LINE_LOOP,
   lines = GL_LINES,
-  line_strip_adjacency = GL_LINE_STRIP_ADJACENCY,
-  lines_adjacency = GL_LINES_ADJACENCY,
-  triangle_strip = GL_TRIANGLE_STRIP,
-  triangle_fan = GL_TRIANGLE_FAN,
   triangles = GL_TRIANGLES,
-  triangle_strip_adjacency = GL_TRIANGLE_STRIP_ADJACENCY,
+  triangle_fan = GL_TRIANGLE_FAN,
+  triangle_strip = GL_TRIANGLE_STRIP,
+#ifdef GL_VERSION_3_2
+  lines_adjacency = GL_LINES_ADJACENCY,
+  line_strip_adjacency = GL_LINE_STRIP_ADJACENCY,
   triangles_adjacency = GL_TRIANGLES_ADJACENCY,
+  triangle_strip_adjacency = GL_TRIANGLE_STRIP_ADJACENCY,
+#endif
+#ifdef GL_VERSION_4_0
+  patches = GL_PATCHES,
+#endif
 };
 
 enum class capability : enum_t {

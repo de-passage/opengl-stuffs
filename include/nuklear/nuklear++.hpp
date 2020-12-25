@@ -9,5 +9,4 @@
 #include "./font_atlas.hpp"
 #include "./interfaces.hpp"
 
-
 #endif  // GUARD_NK_NUKLEARPP_HEADER

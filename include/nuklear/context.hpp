@@ -192,10 +192,6 @@ class context : public detail::context_mixin<context> {
     return false;
   }
 
-  inline nk_window* find_window(const char* identifier) {
-    return nk_window_find(&_ctx, identifier);
-  }
-
  private:
   type _ctx{};
 };
