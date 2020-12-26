@@ -6,7 +6,7 @@
 #include "glfw_context.hpp"
 #include "key_mapper.hpp"
 #include "utils.hpp"
-#include "window.hpp"
+#include "with_window.hpp"
 
 #include <iostream>
 #include <type_traits>
@@ -17,20 +17,21 @@ constexpr static inline dpsg::height SCR_HEIGHT{600};
 namespace detail {
 template <class T>
 constexpr static inline bool uses_kmap =
-    std::is_invocable_v<T, dpsg::window &, key_mapper &>;
-} // namespace detail
+    std::is_invocable_v<T, dpsg::window&, key_mapper&>;
+}  // namespace detail
 
 template <class F, std::enable_if_t<detail::uses_kmap<F>, int> = 0>
-void invoke(F &&f, dpsg::window &window, key_mapper &kmap) {
+void invoke(F&& f, dpsg::window& window, key_mapper& kmap) {
   std::forward<F>(f)(window, kmap);
 }
 
 template <class F, std::enable_if_t<!detail::uses_kmap<F>, int> = 0>
-void invoke(F &&f, dpsg::window &window, [[maybe_unused]] key_mapper &unused) {
+void invoke(F&& f, dpsg::window& window, [[maybe_unused]] key_mapper& unused) {
   std::forward<F>(f)(window);
 }
 
-template <class F> dpsg::ExecutionStatus make_window(F &&f) {
+template <class F>
+dpsg::ExecutionStatus make_window(F&& f) {
   using namespace dpsg;
   using namespace dpsg::input;
 
@@ -40,12 +41,15 @@ template <class F> dpsg::ExecutionStatus make_window(F &&f) {
         glfwSwapInterval(1);
 
         return with_window(
-            wh::context_version(3, 3), wh::opengl_profile(profile::core),
+            wh::context_version(3, 3),
+            wh::opengl_profile(profile::core),
 #ifdef __APPLE__
             wh::opengl_forward_compat(true),
 #endif
-            SCR_WIDTH, SCR_HEIGHT, title{"OpenGL example"},
-            [f](window &wdw) -> ExecutionStatus {
+            SCR_WIDTH,
+            SCR_HEIGHT,
+            title{"OpenGL example"},
+            [f](window& wdw) -> ExecutionStatus {
               // glfw window creation
               // --------------------
               wdw.make_context_current();
@@ -53,7 +57,7 @@ template <class F> dpsg::ExecutionStatus make_window(F &&f) {
 
               // glad: load all OpenGL function pointers
               // ---------------------------------------
-              if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>( // NOLINT
+              if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(  // NOLINT
                       glfwGetProcAddress))) {
                 std::cout << "Failed to initialize GLAD" << std::endl;
                 return dpsg::ExecutionStatus::Failure;
@@ -68,21 +72,23 @@ template <class F> dpsg::ExecutionStatus make_window(F &&f) {
       });
 }
 
-template <class F> int windowed(F &&func) noexcept {
+template <class F>
+int windowed(F&& func) noexcept {
   using namespace dpsg;
 
   ExecutionStatus r = ExecutionStatus::Failure;
 
   try {
     r = make_window(std::forward<F>(func));
-
-  } catch (std::exception &e) {
+  }
+  catch (std::exception& e) {
     std::cerr << "Exception in main: " << e.what() << std::endl;
-  } catch (...) {
+  }
+  catch (...) {
     std::cerr << "Unhandled error occured" << std::endl;
   }
 
   return static_cast<int>(r);
 }
 
-#endif // GUARD_MAKE_WINDOW_HEADER
+#endif  // GUARD_MAKE_WINDOW_HEADER

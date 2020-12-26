@@ -18,6 +18,7 @@
 #include "shaders.hpp"
 #include "utility.hpp"
 #include "window.hpp"
+#include "with_window.hpp"
 
 #include <cstddef>
 #include <exception>
