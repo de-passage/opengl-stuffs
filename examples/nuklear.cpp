@@ -6,6 +6,7 @@
 
 #include "meta/mixin.hpp"
 #include "nuklear/buffer.hpp"
+#include "nuklear/context.hpp"
 #include "nuklear/enums.hpp"
 #include "nuklear/font_atlas.hpp"
 #include "nuklear/interfaces.hpp"
@@ -112,7 +113,9 @@ struct mouse_button_callback {
     }
 
    protected:
-    explicit type(GLFWwindow* win) noexcept : B(win) {
+    explicit type(GLFWwindow* win) noexcept(
+        std::is_nothrow_constructible_v<B, GLFWwindow*>)
+        : B(win) {
       glfwSetMouseButtonCallback(win, &type::callback);
     }
 
@@ -131,7 +134,9 @@ struct char_callback_s {
     char text[text_max_len]{0};
     std::size_t text_len{0};
 
-    explicit type(GLFWwindow* win) noexcept : B(win) {
+    explicit type(GLFWwindow* win) noexcept(
+        std::is_nothrow_constructible_v<B, GLFWwindow*>)
+        : B(win) {
       glfwSetCharCallback(win, &type::callback);
     }
 
@@ -154,7 +159,9 @@ struct scroll_callback {
   template <class B>
   struct type : B {
    protected:
-    explicit type(GLFWwindow* win) noexcept : B(win) {
+    explicit type(GLFWwindow* win) noexcept(
+        std::is_nothrow_constructible_v<B, GLFWwindow*>)
+        : B(win) {
       glfwSetScrollCallback(win, &type::callback);
     }
 
@@ -179,7 +186,9 @@ struct context_bridge {
   template <class B>
   struct type : B {
    protected:
-    explicit type(GLFWwindow* win) noexcept : B(win) {}
+    explicit type(GLFWwindow* win) noexcept(
+        std::is_nothrow_constructible_v<B, GLFWwindow*>)
+        : B(win) {}
 
    public:
     void handle_input(nk::context& ctx) noexcept {
@@ -284,7 +293,78 @@ struct context_bridge {
   };
 };
 
-using window = dpsg::base_window<context_bridge,
+struct embedded_context {
+  template <class B>
+  class type : public B {
+   protected:
+    template <class... Args>
+    explicit type(Args&&... args) noexcept(
+        std::is_nothrow_constructible_v<B, Args...>)
+        : B(std::forward<Args>(args)...) {}
+
+   private:
+    using real_t = dpsg::real_type_t<B>;
+    nk::context ctx;
+    dpsg::nk_gl3_backend backend;
+
+   public:
+    template <class F>
+    void render_loop(F f) noexcept(noexcept(f(ctx))) {
+      B::render_loop([f = std::move(f), this] {
+        using namespace dpsg;
+        this->handle_input(ctx);
+        f(ctx);
+
+        auto dims = this->framebuffer_size();
+        gl::width w{static_cast<gl::uint_t>(dims.width.value)};
+        gl::height h{static_cast<gl::uint_t>(dims.height.value)};
+        auto window_size = this->window_size();
+        struct nk_vec2 scale;
+        scale.x = static_cast<float>(w.value) /
+                  static_cast<float>(window_size.width.value);
+        scale.y = static_cast<float>(h.value) /
+                  static_cast<float>(window_size.height.value);
+        gl::viewport(w, h);
+        backend.render(ctx,
+                       w,
+                       h,
+                       MAX_VERTEX_MEMORY,
+                       MAX_ELEMENT_MEMORY,
+                       nk_anti_aliasing::NK_ANTI_ALIASING_ON,
+                       scale);
+        ctx.clear();
+      });
+    }
+
+    template <class... Args>
+    void load_font(const char* path, float height, Args&&... args) noexcept {
+      backend.load_font(ctx, path, height, std::forward<Args>(args)...);
+    }
+  };
+};
+
+struct glad_loader {
+  template <class B>
+  struct type : B {
+    template <class... Args>
+    explicit type(Args&&... args) : B(std::forward<Args>(args)...) {
+      this->make_context_current();
+
+      static bool already_initialized = false;
+      if (!already_initialized) {
+        if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(  // NOLINT
+                glfwGetProcAddress))) {
+          throw std::runtime_error("Failed to initialize GLAD");
+        }
+        already_initialized = true;
+      }
+    }
+  };
+};
+
+using window = dpsg::base_window<embedded_context,
+                                 glad_loader,
+                                 context_bridge,
                                  scroll_callback,
                                  char_callback,
                                  mouse_button_callback>;
@@ -302,21 +382,11 @@ int main() {
           height{600},
           title{"Nuklear"},
           [](nk_glfw::window& wdw) {
-            wdw.make_context_current();
+            wdw.load_font("./assets/fonts/DroidSans.ttf", 14);
+            wdw.set_input_mode(cursor_mode::hidden);
 
-            if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(  // NOLINT
-                    glfwGetProcAddress))) {
-              throw std::runtime_error("Failed to initialize GLAD");
-            }
-
-            nk::context ctx;
-            nk_gl3_backend backend;
-            backend.load_font(ctx, "./assets/fonts/DroidSans.ttf", 14);
-
-            wdw.render_loop([&] {
+            wdw.render_loop([&](nk::context& ctx) {
               gl::clear(gl::buffer_bit::color);
-
-              wdw.handle_input(ctx);
 
               auto window_succeeded = ctx.with_window(
                   "some title",
@@ -334,25 +404,6 @@ int main() {
               if (!window_succeeded) {
                 wdw.should_close(true);
               }
-
-              auto dims = wdw.framebuffer_size();
-              gl::width w{static_cast<gl::uint_t>(dims.width.value)};
-              gl::height h{static_cast<gl::uint_t>(dims.height.value)};
-              auto window_size = wdw.window_size();
-              struct nk_vec2 scale;
-              scale.x = static_cast<float>(w.value) /
-                        static_cast<float>(window_size.width.value);
-              scale.y = static_cast<float>(h.value) /
-                        static_cast<float>(window_size.height.value);
-              gl::viewport(w, h);
-              backend.render(ctx,
-                             w,
-                             h,
-                             MAX_VERTEX_MEMORY,
-                             MAX_ELEMENT_MEMORY,
-                             nk_anti_aliasing::NK_ANTI_ALIASING_ON,
-                             scale);
-              ctx.clear();
             });
           });
     });
