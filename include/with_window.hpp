@@ -5,6 +5,10 @@
 #include "window/mixins.hpp"
 
 namespace dpsg {
+
+template <class Window, class... Args>
+using window_mixin = mixin<Window, Args..., window_impl>;
+
 namespace detail {
 template <class Window>
 using window_mixin = mixin<Window,
@@ -15,6 +19,14 @@ using window_mixin = mixin<Window,
                            window_impl>;
 }  // namespace detail
 
+template <class... Mixins>
+class base_window : public window_mixin<base_window<Mixins...>, Mixins...> {
+  using base = window_mixin<base_window, Mixins...>;
+
+ public:
+  explicit base_window(GLFWwindow* w) : base(w) {}
+};
+
 class window : public detail::window_mixin<window> {
   using base = detail::window_mixin<window>;
 
@@ -22,18 +34,18 @@ class window : public detail::window_mixin<window> {
   explicit window(GLFWwindow* w) : base(w) {}
 };
 
-template <class T, class W = window, class... Args>
+template <class W = window, class T, class... Args>
 decltype(auto) with_window(window_hint::value<T> hint, Args&&... args) {
   hint();
-  return with_window(std::forward<Args>(args)...);
+  return with_window<W>(std::forward<Args>(args)...);
 }
 
-template <class F,
+template <class W = window,
+          class F,
           class T,
-          class W = window,
-          std::enable_if_t<!std::is_same_v<std::invoke_result_t<F&&, window&>,
-                                           ExecutionStatus>,
-                           int> = 0>
+          std::enable_if_t<
+              !std::is_same_v<std::invoke_result_t<F&&, W&>, ExecutionStatus>,
+              int> = 0>
 ExecutionStatus with_window(width w, height h, title<T> ttle, F&& f) {
   GLFWwindow* wptr =
       glfwCreateWindow(w.value, h.value, c_str(ttle), NULL, NULL);
@@ -45,12 +57,12 @@ ExecutionStatus with_window(width w, height h, title<T> ttle, F&& f) {
   return ExecutionStatus::Success;
 }
 
-template <class F,
+template <class W = window,
+          class F,
           class T,
-          class W = window,
-          std::enable_if_t<std::is_same_v<std::invoke_result_t<F&&, window&>,
-                                          ExecutionStatus>,
-                           int> = 0>
+          std::enable_if_t<
+              std::is_same_v<std::invoke_result_t<F&&, W&>, ExecutionStatus>,
+              int> = 0>
 ExecutionStatus with_window(width w, height h, title<T> ttle, F&& f) {
   GLFWwindow* wptr =
       glfwCreateWindow(w.value, h.value, ttle.c_str(), NULL, NULL);

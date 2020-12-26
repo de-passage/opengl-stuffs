@@ -5,6 +5,7 @@
 
 #include "common.hpp"
 #include "input/keys.hpp"
+#include "input/mouse.hpp"
 #include "meta/mixin.hpp"
 #include "utility.hpp"
 #include "window/hints.hpp"
@@ -36,6 +37,19 @@ struct rect {
   height height;
 };
 
+struct x {
+  double value;
+};
+
+struct y {
+  double value;
+};
+
+struct position {
+  x x;
+  y y;
+};
+
 struct framebuffer_dimension : rect {};
 struct window_dimension : rect {};
 
@@ -43,7 +57,7 @@ struct window_impl {
   template <class T>
   class type : public T {
    public:
-    explicit type(GLFWwindow* w) : _window(w) {
+    explicit type(GLFWwindow* w) noexcept : _window(w) {
       glfwSetWindowUserPointer(w, static_cast<void*>(this));
     }
 
@@ -66,7 +80,9 @@ struct window_impl {
       return std::exchange(_window, nullptr);
     }
 
-    void make_context_current() const { glfwMakeContextCurrent(_window); }
+    void make_context_current() const noexcept {
+      glfwMakeContextCurrent(_window);
+    }
 
     [[nodiscard]] bool should_close() const noexcept {
       return glfwWindowShouldClose(_window) == GLFW_TRUE;
@@ -79,6 +95,12 @@ struct window_impl {
     [[nodiscard]] input::status get_key(input::key k) const noexcept {
       return static_cast<input::status>(
           glfwGetKey(_window, static_cast<int>(k)));
+    }
+
+    [[nodiscard]] input::status get_mouse_button(
+        input::mouse m) const noexcept {
+      return static_cast<input::status>(
+          glfwGetMouseButton(_window, static_cast<int>(m)));
     }
 
     void swap_buffers() const noexcept { glfwSwapBuffers(_window); }
@@ -98,16 +120,16 @@ struct window_impl {
       }
     }
 
-    inline void set_input_mode(cursor_mode mode) const {
+    inline void set_input_mode(cursor_mode mode) const noexcept {
       glfwSetInputMode(_window, GLFW_CURSOR, static_cast<int>(mode));
     }
 
-    inline void set_input_mode(input_mode mode, bool enabled) const {
+    inline void set_input_mode(input_mode mode, bool enabled) const noexcept {
       glfwSetInputMode(
           _window, static_cast<int>(mode), enabled ? GLFW_TRUE : GLFW_FALSE);
     }
 
-    [[nodiscard]] inline cursor_mode get_cursor_mode() const {
+    [[nodiscard]] inline cursor_mode get_cursor_mode() const noexcept {
       return static_cast<cursor_mode>(glfwGetInputMode(_window, GLFW_CURSOR));
     }
 
@@ -115,20 +137,30 @@ struct window_impl {
       glfwGetFramebufferSize(_window, &w.value, &h.value);
     }
 
-    [[nodiscard]] framebuffer_dimension framebuffer_size() const {
+    [[nodiscard]] framebuffer_dimension framebuffer_size() const noexcept {
       framebuffer_dimension fd;
       framebuffer_size(fd.width, fd.height);
       return fd;
     }
 
-    inline void window_size(width& w, height& h) const {
+    inline void window_size(width& w, height& h) const noexcept {
       glfwGetWindowSize(_window, &w.value, &h.value);
     }
 
-    [[nodiscard]] window_dimension window_size() const {
+    [[nodiscard]] window_dimension window_size() const noexcept {
       window_dimension wd;
       window_size(wd.width, wd.height);
       return wd;
+    }
+
+    [[nodiscard]] position cursor_position() const noexcept {
+      position pos;
+      glfwGetCursorPos(_window, &pos.x.value, &pos.y.value);
+      return pos;
+    }
+
+    void set_cursor_position(x x, y y) const noexcept {
+      glfwSetCursorPos(_window, x.value, y.value);
     }
 
    private:

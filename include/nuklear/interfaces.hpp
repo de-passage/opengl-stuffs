@@ -148,6 +148,14 @@ struct input_interface {
     inline void unicode(nk_rune rune) noexcept {
       nk_input_unicode(base::ctx(), rune);
     }
+
+    [[nodiscard]] inline nk_mouse& mouse() noexcept {
+      return base::ctx()->input.mouse;
+    }
+
+    [[nodiscard]] inline const nk_mouse& mouse() const noexcept {
+      return base::ctx()->input.mouse;
+    }
   };  // struct type
 };    // struct window_interface
 

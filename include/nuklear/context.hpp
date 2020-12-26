@@ -14,16 +14,14 @@
 
 namespace nk {
 
-namespace detail {
 template <class T>
 using context_mixin = dpsg::mixin<T,
                                   input_interface,
                                   window_query_interface,
                                   style_interface,
                                   self_interface>;
-}  // namespace detail
 
-class context : public detail::context_mixin<context> {
+class context : public context_mixin<context> {
  public:
   using rect_t = struct nk_rect;
   using type = nk_context;

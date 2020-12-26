@@ -5,7 +5,6 @@
 #include "input/keys.hpp"
 #include "meta/mixin.hpp"
 
-
 #include <functional>
 
 namespace dpsg {
