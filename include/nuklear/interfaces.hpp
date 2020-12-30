@@ -291,7 +291,7 @@ struct layout_interface {
     inline void row_begin(nk_layout_format format,
                           float row_height,
                           int cols) noexcept {
-      nk_layout_row_static(base::ctx(), format, row_height, cols);
+      nk_layout_row_begin(base::ctx(), format, row_height, cols);
     }
 
     inline void row_end() noexcept { nk_layout_row_end(base::ctx()); }
@@ -549,6 +549,7 @@ class input_handler : public detail::input_mixin<input_handler> {
 };  // class input_handler
 
 class row : public detail::row_mixin<row> {
+ public:
   [[nodiscard]] constexpr nk_context& ctx() const { return *_ctx; }
 
  private:
@@ -561,6 +562,7 @@ class row : public detail::row_mixin<row> {
 };  // class row
 
 class space : public detail::space_mixin<row> {
+ public:
   [[nodiscard]] constexpr nk_context& ctx() const { return *_ctx; }
 
  private:
@@ -573,6 +575,7 @@ class space : public detail::space_mixin<row> {
 };  // class space
 
 class group : public detail::group_mixin<group> {
+ public:
   [[nodiscard]] constexpr nk_context& ctx() const { return *_ctx; }
 
  private:

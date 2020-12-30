@@ -1,13 +1,12 @@
 #ifndef GUARD_NK_GLFW_HEADER
 #define GUARD_NK_GLFW_HEADER
 
-#include "GLFW/glfw3.h"
-
 #include "common.hpp"
 #include "make_window.hpp"
 #include "meta/mixin.hpp"
 #include "nk_gl3_backend.hpp"
 
+#include "GLFW/glfw3.h"
 
 #include <chrono>
 
