@@ -8,7 +8,6 @@
 #include "c_str.hpp"
 #include "opengl.hpp"
 
-
 namespace dpsg {
 struct width {
   int value;
@@ -19,6 +18,19 @@ struct height {
 
 struct aspect_ratio {
   float value;
+};
+
+struct x {
+  double value;
+};
+
+struct y {
+  double value;
+};
+
+struct position {
+  x x;
+  y y;
 };
 
 inline constexpr aspect_ratio operator/(width w, height h) {

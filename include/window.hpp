@@ -37,19 +37,6 @@ struct rect {
   height height;
 };
 
-struct x {
-  double value;
-};
-
-struct y {
-  double value;
-};
-
-struct position {
-  x x;
-  y y;
-};
-
 struct framebuffer_dimension : rect {};
 struct window_dimension : rect {};
 

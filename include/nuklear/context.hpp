@@ -15,11 +15,8 @@
 namespace nk {
 
 template <class T>
-using context_mixin = dpsg::mixin<T,
-                                  input_interface,
-                                  window_query_interface,
-                                  style_interface,
-                                  self_interface>;
+using context_mixin =
+    dpsg::mixin<T, window_query_interface, style_interface, self_interface>;
 
 class context : public context_mixin<context> {
  public:

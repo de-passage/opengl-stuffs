@@ -251,7 +251,7 @@ struct window_query_interface {
     }
 
     inline nk_window* find_window(const char* identifier) {
-      return nk_window_find(&_ctx, identifier);
+      return nk_window_find(base::ctx(), identifier);
     }
   };  // struct type
 };    // struct window_query_interface
