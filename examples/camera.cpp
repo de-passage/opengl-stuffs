@@ -14,66 +14,67 @@
 
 #include <algorithm>
 
-void camera(dpsg::window &wdw, key_mapper &kmap) {
-
+void camera(dpsg::window& wdw, key_mapper& kmap) {
+  // clang-format off
   // NOLINTNEXTLINE
   constexpr float vertices[] = {
-      -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, // NOLINT
-      0.5f,  -0.5f, -0.5f, 1.0f, 0.0f, // NOLINT
-      0.5f,  0.5f,  -0.5f, 1.0f, 1.0f, // NOLINT
-      0.5f,  0.5f,  -0.5f, 1.0f, 1.0f, // NOLINT
-      -0.5f, 0.5f,  -0.5f, 0.0f, 1.0f, // NOLINT
-      -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, // NOLINT
+      -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,  // NOLINT
+      0.5f,  -0.5f, -0.5f, 1.0f, 0.0f,  // NOLINT
+      0.5f,  0.5f,  -0.5f, 1.0f, 1.0f,  // NOLINT
+      0.5f,  0.5f,  -0.5f, 1.0f, 1.0f,  // NOLINT
+      -0.5f, 0.5f,  -0.5f, 0.0f, 1.0f,  // NOLINT
+      -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,  // NOLINT
 
-      -0.5f, -0.5f, 0.5f,  0.0f, 0.0f, // NOLINT
-      0.5f,  -0.5f, 0.5f,  1.0f, 0.0f, // NOLINT
-      0.5f,  0.5f,  0.5f,  1.0f, 1.0f, // NOLINT
-      0.5f,  0.5f,  0.5f,  1.0f, 1.0f, // NOLINT
-      -0.5f, 0.5f,  0.5f,  0.0f, 1.0f, // NOLINT
-      -0.5f, -0.5f, 0.5f,  0.0f, 0.0f, // NOLINT
+      -0.5f, -0.5f, 0.5f,  0.0f, 0.0f,  // NOLINT
+      0.5f,  -0.5f, 0.5f,  1.0f, 0.0f,  // NOLINT
+      0.5f,  0.5f,  0.5f,  1.0f, 1.0f,  // NOLINT
+      0.5f,  0.5f,  0.5f,  1.0f, 1.0f,  // NOLINT
+      -0.5f, 0.5f,  0.5f,  0.0f, 1.0f,  // NOLINT
+      -0.5f, -0.5f, 0.5f,  0.0f, 0.0f,  // NOLINT
 
-      -0.5f, 0.5f,  0.5f,  1.0f, 0.0f, // NOLINT
-      -0.5f, 0.5f,  -0.5f, 1.0f, 1.0f, // NOLINT
-      -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, // NOLINT
-      -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, // NOLINT
-      -0.5f, -0.5f, 0.5f,  0.0f, 0.0f, // NOLINT
-      -0.5f, 0.5f,  0.5f,  1.0f, 0.0f, // NOLINT
+      -0.5f, 0.5f,  0.5f,  1.0f, 0.0f,  // NOLINT
+      -0.5f, 0.5f,  -0.5f, 1.0f, 1.0f,  // NOLINT
+      -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,  // NOLINT
+      -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,  // NOLINT
+      -0.5f, -0.5f, 0.5f,  0.0f, 0.0f,  // NOLINT
+      -0.5f, 0.5f,  0.5f,  1.0f, 0.0f,  // NOLINT
 
-      0.5f,  0.5f,  0.5f,  1.0f, 0.0f, // NOLINT
-      0.5f,  0.5f,  -0.5f, 1.0f, 1.0f, // NOLINT
-      0.5f,  -0.5f, -0.5f, 0.0f, 1.0f, // NOLINT
-      0.5f,  -0.5f, -0.5f, 0.0f, 1.0f, // NOLINT
-      0.5f,  -0.5f, 0.5f,  0.0f, 0.0f, // NOLINT
-      0.5f,  0.5f,  0.5f,  1.0f, 0.0f, // NOLINT
+      0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  // NOLINT
+      0.5f,  0.5f,  -0.5f, 1.0f, 1.0f,  // NOLINT
+      0.5f,  -0.5f, -0.5f, 0.0f, 1.0f,  // NOLINT
+      0.5f,  -0.5f, -0.5f, 0.0f, 1.0f,  // NOLINT
+      0.5f,  -0.5f, 0.5f,  0.0f, 0.0f,  // NOLINT
+      0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  // NOLINT
 
-      -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, // NOLINT
-      0.5f,  -0.5f, -0.5f, 1.0f, 1.0f, // NOLINT
-      0.5f,  -0.5f, 0.5f,  1.0f, 0.0f, // NOLINT
-      0.5f,  -0.5f, 0.5f,  1.0f, 0.0f, // NOLINT
-      -0.5f, -0.5f, 0.5f,  0.0f, 0.0f, // NOLINT
-      -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, // NOLINT
+      -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,  // NOLINT
+      0.5f,  -0.5f, -0.5f, 1.0f, 1.0f,  // NOLINT
+      0.5f,  -0.5f, 0.5f,  1.0f, 0.0f,  // NOLINT
+      0.5f,  -0.5f, 0.5f,  1.0f, 0.0f,  // NOLINT
+      -0.5f, -0.5f, 0.5f,  0.0f, 0.0f,  // NOLINT
+      -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,  // NOLINT
 
-      -0.5f, 0.5f,  -0.5f, 0.0f, 1.0f, // NOLINT
-      0.5f,  0.5f,  -0.5f, 1.0f, 1.0f, // NOLINT
-      0.5f,  0.5f,  0.5f,  1.0f, 0.0f, // NOLINT
-      0.5f,  0.5f,  0.5f,  1.0f, 0.0f, // NOLINT
-      -0.5f, 0.5f,  0.5f,  0.0f, 0.0f, // NOLINT
-      -0.5f, 0.5f,  -0.5f, 0.0f, 1.0f  // NOLINT
+      -0.5f, 0.5f,  -0.5f, 0.0f, 1.0f,  // NOLINT
+      0.5f,  0.5f,  -0.5f, 1.0f, 1.0f,  // NOLINT
+      0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  // NOLINT
+      0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  // NOLINT
+      -0.5f, 0.5f,  0.5f,  0.0f, 0.0f,  // NOLINT
+      -0.5f, 0.5f,  -0.5f, 0.0f, 1.0f   // NOLINT
   };
 
   // NOLINTNEXTLINE
   glm::vec3 cube_positions[] = {
-      glm::vec3(0.0f, 0.0f, 0.0f),     // NOLINT
-      glm::vec3(2.0f, 5.0f, -15.0f),   // NOLINT
-      glm::vec3(-1.5f, -2.2f, -2.5f),  // NOLINT
-      glm::vec3(-3.8f, -2.0f, -12.3f), // NOLINT
-      glm::vec3(2.4f, -0.4f, -3.5f),   // NOLINT
-      glm::vec3(-1.7f, 3.0f, -7.5f),   // NOLINT
-      glm::vec3(1.3f, -2.0f, -2.5f),   // NOLINT
-      glm::vec3(1.5f, 2.0f, -2.5f),    // NOLINT
-      glm::vec3(1.5f, 0.2f, -1.5f),    // NOLINT
-      glm::vec3(-1.3f, 1.0f, -1.5f)    // NOLINT
+      glm::vec3(0.0f, 0.0f, 0.0f),      // NOLINT
+      glm::vec3(2.0f, 5.0f, -15.0f),    // NOLINT
+      glm::vec3(-1.5f, -2.2f, -2.5f),   // NOLINT
+      glm::vec3(-3.8f, -2.0f, -12.3f),  // NOLINT
+      glm::vec3(2.4f, -0.4f, -3.5f),    // NOLINT
+      glm::vec3(-1.7f, 3.0f, -7.5f),    // NOLINT
+      glm::vec3(1.3f, -2.0f, -2.5f),    // NOLINT
+      glm::vec3(1.5f, 2.0f, -2.5f),     // NOLINT
+      glm::vec3(1.5f, 0.2f, -1.5f),     // NOLINT
+      glm::vec3(-1.3f, 1.0f, -1.5f)     // NOLINT
   };
+  // clang-format on
 
   // camera vecs
   constexpr glm::vec3 default_camera_position = glm::vec3(0.0f, 0.0f, 3.0f);
@@ -88,7 +89,8 @@ void camera(dpsg::window &wdw, key_mapper &kmap) {
 
   // Shader program
   auto prog = load(vs_filename("shaders/projected.vs"),
-                   fs_filename("shaders/two_textures_mixed.fs"));
+                   fs_filename("shaders/two_textures_mixed.fs"))
+                  .value();
   prog.use();
 
   auto texture1_u = prog.uniform_location<sampler2D>("texture1").value();
@@ -119,8 +121,8 @@ void camera(dpsg::window &wdw, key_mapper &kmap) {
   constexpr double default_fov{40};
   double fov{default_fov};
   const auto project = [&projection_u, &fov](float aspect_ratio) {
-    glm::mat4 projection{glm::perspective(glm::radians(static_cast<float>(fov)),
-                                          aspect_ratio, 0.1F, 100.F)};
+    glm::mat4 projection{glm::perspective(
+        glm::radians(static_cast<float>(fov)), aspect_ratio, 0.1F, 100.F)};
     projection_u.bind(projection);
   };
   wdw.set_framebuffer_size_callback(ignore([&aspect_ratio](width w, height h) {
@@ -175,7 +177,7 @@ void camera(dpsg::window &wdw, key_mapper &kmap) {
   wdw.set_input_mode(cursor_mode::disabled);
   double last_x{0};
   double last_y{0};
-  wdw.set_cursor_pos_callback([&](window &wdw, double x, double y) {
+  wdw.set_cursor_pos_callback([&](window& wdw, double x, double y) {
     last_x = x;
     last_y = y;
     const auto callback = [&](double x, double y) {
@@ -203,7 +205,7 @@ void camera(dpsg::window &wdw, key_mapper &kmap) {
   }));
 
   // Render loop
-  gl::clear_color({0.2F, 0.3F, 0.3F}); // NOLINT
+  gl::clear_color({0.2F, 0.3F, 0.3F});  // NOLINT
   wdw.render_loop([&] {
     gl::clear(gl::buffer_bit::color | gl::buffer_bit::depth);
     project(aspect_ratio);
@@ -216,7 +218,8 @@ void camera(dpsg::window &wdw, key_mapper &kmap) {
       const float angle{20.F * i};
       const glm::mat4 model{
           glm::rotate(glm::translate(glm::mat4(1.F), cube_positions[i]),
-                      glm::radians(angle), glm::vec3(1.F, 0.3F, 0.5F))};
+                      glm::radians(angle),
+                      glm::vec3(1.F, 0.3F, 0.5F))};
 
       model_u.bind(model);
       buffer.draw();
@@ -226,4 +229,6 @@ void camera(dpsg::window &wdw, key_mapper &kmap) {
   });
 }
 
-int main() { windowed(camera); }
+int main() {
+  windowed(camera);
+}

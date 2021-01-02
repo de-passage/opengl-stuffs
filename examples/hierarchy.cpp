@@ -419,7 +419,8 @@ void hierarchy(dpsg::window& wdw, key_mapper& kmap) {
   matrix_stack<traits::glm> stack;
   camera<traits::glm> camera(SCR_WIDTH / SCR_HEIGHT);
   auto prog = load(vs_filename{"shaders/projected_with_colors.vs"},
-                   fs_filename{"shaders/basic.fs"});
+                   fs_filename{"shaders/basic.fs"})
+                  .value();
   prog.use();
   auto model_u = prog.uniform_location<glm::mat4>("model").value();
   auto projection_u =

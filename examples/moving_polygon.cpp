@@ -5,19 +5,35 @@
 #include "opengl.hpp"
 #include "structured_buffers.hpp"
 
-void moving_polygon(dpsg::window &wdw, key_mapper &kmap) {
+void moving_polygon(dpsg::window& wdw, key_mapper& kmap) {
   using namespace dpsg;
   using namespace dpsg::input;
 
   auto shader = load(vs_filename{"shaders/positionable_triangle.vs"},
-                     fs_filename{"shaders/yellow.fs"});
+                     fs_filename{"shaders/yellow.fs"})
+                    .value();
 
   // NOLINTNEXTLINE
   constexpr float vertices[] = {
       // positions         // colors
-      0.0F,  0.5F,  0.0F, 0.0F, 0.0F, 1.0F, // top
-      -0.5F, -0.5F, 0.0F, 0.0F, 1.0F, 0.0F, // bottom leFt
-      0.5F,  -0.5F, 0.0F, 1.0F, 0.0F, 0.0F, // bottom right
+      0.0F,
+      0.5F,
+      0.0F,
+      0.0F,
+      0.0F,
+      1.0F,  // top
+      -0.5F,
+      -0.5F,
+      0.0F,
+      0.0F,
+      1.0F,
+      0.0F,  // bottom leFt
+      0.5F,
+      -0.5F,
+      0.0F,
+      1.0F,
+      0.0F,
+      0.0F,  // bottom right
   };
   using packed_layout = packed<group<3>, group<3>>;
   fixed_size_structured_buffer b(packed_layout{}, vertices);
@@ -27,7 +43,7 @@ void moving_polygon(dpsg::window &wdw, key_mapper &kmap) {
       shader.uniform_location<gl::vec_t<2, float>>("xyOffset").value();
   float y_offset{0};
   float x_offset{0};
-  const auto move = [&](float &f) {
+  const auto move = [&](float& f) {
     return [&, f = std::ref(f)](float offset) {
       return ignore([&, offset] {
         f += offset;
@@ -49,7 +65,7 @@ void moving_polygon(dpsg::window &wdw, key_mapper &kmap) {
                     interval};
 
   shader.use();
-  gl::clear_color(gl::g{0.3F}, gl::r{0.2F}, gl::b{0.3F}); // NOLINT
+  gl::clear_color(gl::g{0.3F}, gl::r{0.2F}, gl::b{0.3F});  // NOLINT
 
   wdw.render_loop([&] {
     gl::clear(gl::buffer_bit::color);
@@ -59,4 +75,6 @@ void moving_polygon(dpsg::window &wdw, key_mapper &kmap) {
   });
 }
 
-int main() { return windowed(moving_polygon); }
+int main() {
+  return windowed(moving_polygon);
+}

@@ -23,6 +23,10 @@ class gl_error : public std::exception {
     return _what.c_str();
   }
 
+  [[nodiscard]] const c_str_wrapper& error_message() const& { return _what; }
+
+  [[nodiscard]] c_str_wrapper&& error_message() && { return std::move(_what); }
+
  protected:
   c_str_wrapper _what;
 };

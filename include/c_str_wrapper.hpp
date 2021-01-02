@@ -4,10 +4,11 @@
 #include <cstdlib>
 #include <iterator>
 #include <string>
+#include <type_traits>
 
 namespace dpsg {
 
-struct reserve_t {
+struct reserve {
   std::size_t value;
 };
 
@@ -32,15 +33,13 @@ class basic_c_str_wrapper {
   using char_traits = CharTraitT;
   using value_type = CharT;
   using pointer = value_type*;
-  using const_pointer = const value_type*;
+  using const_pointer = std::add_const_t<value_type>*;
   using reference = value_type&;
-  using const_reference = const value_type&;
+  using const_reference = std::add_const_t<value_type>&;
 
   constexpr basic_c_str_wrapper() noexcept = default;
 
-  basic_c_str_wrapper([[maybe_unused]] reserve_t reserve,
-                      std::size_t size) noexcept
-      : _value{_alloc(size)} {
+  explicit basic_c_str_wrapper(reserve size) noexcept : _value{_alloc(size.value)} {
     if (_value != nullptr) {
       _value[0] = '\0';
     }
@@ -130,10 +129,15 @@ class basic_c_str_wrapper {
   bool realloc(std::size_t s) {
     if (s == 0) {
       ::std::free(_value);
+      _value = nullptr;
       return true;
     }
 
-    if ((_value = static_cast<pointer>(::std::realloc(_value, s)))) {
+    // If there's not enough memory, realloc returns nullptr but doesn't free
+    // _value. In that case we need the intermediary 'nvalue' to avoid leaking
+    // the original memory segment.
+    if (auto nvalue = static_cast<pointer>(::std::realloc(_value, s))) {
+      _value = nvalue;
       _value[0] = '\0';
       return true;
     }
@@ -141,12 +145,170 @@ class basic_c_str_wrapper {
     return false;
   }
 
+  [[nodiscard]] constexpr bool empty() const noexcept {
+    return _value != nullptr || _value[0] == 0;
+  }
+
+  [[nodiscard]] constexpr pointer data() noexcept { return _value; }
+
+  [[nodiscard]] constexpr const_pointer data() const noexcept { return _value; }
+
  private:
   pointer _value = nullptr;
 
   static pointer _alloc(std::size_t len) {
     return static_cast<pointer>(::std::malloc(len * sizeof(value_type)));
   }
+
+  struct sentinel {};
+
+  template <class Source>
+  struct iterator_wrapper {
+   private:
+    using traits = std::iterator_traits<Source*>;
+    constexpr explicit iterator_wrapper(Source* source) noexcept
+        : _ptr{source} {}
+
+    Source* _ptr;
+
+    friend class basic_c_str_wrapper;
+
+   public:
+    using difference_type = typename traits::difference_type;
+    using value_type = typename traits::value_type;
+    using pointer = typename traits::pointer;
+    using reference = typename traits::reference;
+    using iterator_category = typename traits::iterator_category;
+
+    inline iterator_wrapper& operator++() noexcept {
+      ++_ptr;
+      return *this;
+    }
+
+    inline iterator_wrapper operator++(int) & noexcept {
+      return iterator_wrapper{_ptr++};
+    }
+
+    inline iterator_wrapper& operator--() noexcept {
+      --_ptr;
+      return *this;
+    }
+
+    inline iterator_wrapper operator--(int) & noexcept {
+      return iterator_wrapper { _ptr-- }
+    }
+
+    inline iterator_wrapper& operator+=(difference_type dt) noexcept {
+      _ptr += dt;
+      return *this;
+    }
+
+    inline iterator_wrapper& operator-=(difference_type dt) noexcept {
+      _ptr -= dt;
+      return *this;
+    }
+
+    [[nodiscard]] friend iterator_wrapper operator+(
+        iterator_wrapper w,
+        difference_type dt) noexcept {
+      return iterator_wrapper{w._ptr + dt};
+    }
+
+    [[nodiscard]] friend iterator_wrapper operator+(
+        difference_type dt,
+        iterator_wrapper w) noexcept {
+      return w + dt;
+    }
+
+    [[nodiscard]] friend iterator_wrapper operator-(
+        iterator_wrapper w,
+        difference_type dt) noexcept {
+      return iterator_wrapper{w._ptr - dt};
+    }
+
+    [[nodiscard]] friend difference_type operator-(
+        iterator_wrapper lhs,
+        iterator_wrapper rhs) noexcept {
+      return lhs._ptr - rhs._ptr;
+    }
+
+    [[nodiscard]] reference operator[](difference_type index) const noexcept {
+      return _ptr[index];
+    }
+
+    [[nodiscard]] friend bool operator<(iterator_wrapper lhs,
+                                        iterator_wrapper rhs) noexcept {
+      return lhs._ptr < rhs._ptr;
+    }
+
+    [[nodiscard]] friend bool operator<=(iterator_wrapper lhs,
+                                         iterator_wrapper rhs) noexcept {
+      return lhs._ptr <= rhs._ptr;
+    }
+
+    [[nodiscard]] friend bool operator>(iterator_wrapper lhs,
+                                        iterator_wrapper rhs) noexcept {
+      return lhs._ptr > rhs._ptr;
+    }
+
+    [[nodiscard]] friend bool operator>=(iterator_wrapper lhs,
+                                         iterator_wrapper rhs) noexcept {
+      return lhs._ptr >= rhs._ptr;
+    }
+
+    [[nodiscard]] reference operator*() const noexcept { return *_ptr; }
+
+    [[nodiscard]] pointer operator->() const noexcept { return _ptr; }
+
+    [[nodiscard]] friend bool operator==(iterator_wrapper lhs,
+                                         iterator_wrapper rhs) noexcept {
+      return lhs._ptr == rhs._ptr;
+    }
+
+    [[nodiscard]] friend bool operator!=(iterator_wrapper lhs,
+                                         iterator_wrapper rhs) noexcept {
+      return !(lhs == rhs);
+    }
+
+    [[nodiscard]] friend bool operator==(
+        iterator_wrapper lhs,
+        [[maybe_unused]] sentinel rhs) noexcept {
+      return !lhs._ptr || *lhs._ptr == 0;
+    }
+
+    [[nodiscard]] friend bool operator==([[maybe_unused]] sentinel rhs,
+                                         iterator_wrapper lhs) noexcept {
+      return rhs == lhs;
+    }
+
+    [[nodiscard]] friend bool operator!=(
+        iterator_wrapper lhs,
+        [[maybe_unused]] sentinel rhs) noexcept {
+      return lhs._ptr && *lhs._ptr != 0;
+    }
+
+    [[nodiscard]] friend bool operator!=([[maybe_unused]] sentinel rhs,
+                                         iterator_wrapper lhs) noexcept {
+      return rhs != lhs;
+    }
+  };
+
+ public:
+  using iterator = iterator_wrapper<value_type>;
+  using const_iterator = iterator_wrapper<std::add_const_t<value_type>>;
+
+  [[nodiscard]] iterator begin() noexcept { return iterator{_value}; }
+
+  [[nodiscard]] const_iterator begin() const noexcept {
+    return const_iterator{_value};
+  }
+
+  [[nodiscard]] const_iterator cbegin() const noexcept {
+    return const_iterator{_value};
+  }
+
+  [[nodiscard]] sentinel end() const noexcept { return {}; }
+  [[nodiscard]] sentinel cend() const noexcept { return {}; }
 };
 
 template <class CharT>

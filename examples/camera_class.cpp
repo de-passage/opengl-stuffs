@@ -91,7 +91,7 @@ void camera_class(dpsg::window& wdw, key_mapper& kmap) {
 
   // Shader program
   auto prog = load(vs_filename("shaders/projected.vs"),
-                   fs_filename("shaders/two_textures_mixed.fs"));
+                   fs_filename("shaders/two_textures_mixed.fs")).value();
   prog.use();
 
   auto texture1_u = prog.uniform_location<sampler2D>("texture1").value();

@@ -8,12 +8,13 @@
 #include "structured_buffers.hpp"
 #include "window.hpp"
 
-void texture_example(dpsg::window &wdw) {
+void texture_example(dpsg::window& wdw) {
   using namespace dpsg;
   using namespace dpsg::input;
 
   auto prog = load(vs_filename{"shaders/textured.vs"},
-                   fs_filename{"shaders/two_textures_mixed.fs"});
+                   fs_filename{"shaders/two_textures_mixed.fs"})
+                  .value();
   auto wallText =
       load<texture_rgb>(texture_filename{"assets/container.jpg"}).value();
   auto smiling_face =
@@ -21,15 +22,19 @@ void texture_example(dpsg::window &wdw) {
 
   constexpr float vertices[] = {
       // positions        // colors         // texture coords
-      0.5F,  0.5F,  0.0F, 1.0F, 0.0F, 0.0F, 1.0F, 1.0F, // top right NOLINT
-      0.5F,  -0.5F, 0.0F, 0.0F, 1.0F, 0.0F, 1.0F, 0.0F, // bottom right NOLINT
-      -0.5F, -0.5F, 0.0F, 0.0F, 0.0F, 1.0F, 0.0F, 0.0F, // bottom left NOLINT
-      -0.5F, 0.5F,  0.0F, 1.0F, 1.0F, 0.0F, 0.0F, 1.0F  // top left NOLINT
+      0.5F,  0.5F,  0.0F, 1.0F, 0.0F, 0.0F, 1.0F, 1.0F,  // top right NOLINT
+      0.5F,  -0.5F, 0.0F, 0.0F, 1.0F, 0.0F, 1.0F, 0.0F,  // bottom right NOLINT
+      -0.5F, -0.5F, 0.0F, 0.0F, 0.0F, 1.0F, 0.0F, 0.0F,  // bottom left NOLINT
+      -0.5F, 0.5F,  0.0F, 1.0F, 1.0F, 0.0F, 0.0F, 1.0F   // top left NOLINT
   };
 
   constexpr unsigned int indices[] = {
-      0, 1, 3, // first triangle
-      1, 2, 3  // second triangle
+      0,
+      1,
+      3,  // first triangle
+      1,
+      2,
+      3  // second triangle
   };
 
   using layout = packed<group<3>, group<3>, group<2>>;
@@ -52,4 +57,6 @@ void texture_example(dpsg::window &wdw) {
   });
 }
 
-int main() { return windowed(texture_example); }
+int main() {
+  return windowed(texture_example);
+}

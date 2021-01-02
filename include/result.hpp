@@ -1,5 +1,7 @@
 #ifndef GUARD_DPSG_RESULT_HEADER
 #define GUARD_DPSG_RESULT_HEADER
+
+#include <tuple>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -208,14 +210,14 @@ class result {
   }
 
   template <class F, class S = std::invoke_result_t<F, const success_type&>>
-  [[nodiscard]] constexpr variant_t<S, error_type> map(F&& f) const& noexcept(
+  [[nodiscard]] constexpr result<S, error_type> map(F&& f) const& noexcept(
       noexcept_call<F, const success_type&>) {
     if (has_value()) {
-      return variant_t<S, error_type>{
+      return result<S, error_type>{
           in_place_success,
           std::forward<F>(f)(std::get<success_index>(_value))};
     }
-    return variant_t<S, error_type>{in_place_error, error()};
+    return result<S, error_type>{in_place_error, error()};
   }
 
   template <class F, class S = std::invoke_result_t<F, success_type&&>>
@@ -226,7 +228,28 @@ class result {
           in_place_success,
           std::forward<F>(f)(std::get<success_index>(std::move(_value)))};
     }
-    return result<S, error_type>{in_place_error, error()};
+    return result<S, error_type>{in_place_error, std::move(error())};
+  }
+
+  template <class F, class E = std::invoke_result_t<F, const error_type&>>
+  [[nodiscard]] constexpr result<success_type, E> map_error(
+      F&& f) const& noexcept(noexcept_call<F, const error_type&>) {
+    if (!has_value()) {
+      return result<success_type, E>{
+          in_place_error, std::forward<F>(f)(std::get<error_index>(_value))};
+    }
+    return result<success_type, E>{in_place_success, value()};
+  }
+
+  template <class F, class E = std::invoke_result_t<F, error_type&&>>
+  [[nodiscard]] constexpr result<success_type, E> map_error(F&& f) && noexcept(
+      noexcept_call<F, error_type&&>) {
+    if (!has_value()) {
+      return result<success_type, E>{
+          in_place_error,
+          std::forward<F>(f)(std::get<error_index>(std::move(_value)))};
+    }
+    return result<success_type, E>{in_place_success, std::move(value())};
   }
 
   template <class F,
@@ -252,9 +275,95 @@ class result {
     if (has_value()) {
       return std::forward<F>(f)(std::get<success_index>(std::move(_value)));
     }
-    return R{in_place_error, error()};
+    return R{in_place_error, std::move(error())};
+  }
+
+ private:
+  template <class From, class To>
+  constexpr static inline bool is_nothrow_convertible =
+      noexcept(static_cast<To>(std::declval<From>()));
+
+ public:
+  template <class S,
+            std::enable_if_t<std::is_constructible_v<S, success_type>, int> = 0>
+  [[nodiscard]] constexpr result<S, error_type> cast() const& noexcept(
+      is_nothrow_convertible<success_type, S>) {
+    return map([](const success_type& s) { return static_cast<S>(s); });
+  }
+  template <class S,
+            std::enable_if_t<std::is_constructible_v<S, success_type>, int> = 0>
+  [[nodiscard]] constexpr result<S, error_type> cast() && noexcept(
+      is_nothrow_convertible<success_type, S>) {
+    return std::move(*this).template map(
+        [](success_type&& s) { return static_cast<S>(std::move(s)); });
   }
 };
+
+template <class... Args>
+struct success {
+  using tuple_t = std::tuple<Args...>;
+
+  template <class... Args2>
+  constexpr explicit success(Args2&&... args) noexcept(
+      std::is_nothrow_constructible_v<tuple_t, Args2...>)
+      : values{std::forward<Args2>(args)...} {
+    static_assert(std::conjunction_v<std::is_convertible<Args2, Args>...>);
+  }
+
+  template <class S, class E>
+  // NOLINTNEXTLINE
+  [[nodiscard]] constexpr operator result<S, E>() && noexcept(
+      std::is_nothrow_constructible_v<S, Args...>) {
+    static_assert(std::is_constructible_v<S, Args...>);
+    return std::move(*this).template build<result<S, E>>(
+        std::index_sequence_for<Args...>{});
+  }
+
+  template <class R, std::size_t... Is>
+  [[nodiscard]] constexpr R
+  build([[maybe_unused]] std::index_sequence<Is...> indices) && noexcept(
+      std::is_nothrow_constructible_v<typename R::success_type, Args...>) {
+    return R{in_place_success, std::get<Is>(std::move(values))...};
+  }
+
+  tuple_t values;
+};
+
+template <class... Args>
+success(Args...) -> success<Args...>;
+
+template <class... Args>
+struct failure {
+  using tuple_t = std::tuple<Args...>;
+
+  template <class... Args2>
+  constexpr explicit failure(Args2&&... args) noexcept(
+      std::is_nothrow_constructible_v<tuple_t, Args2...>)
+      : values{std::forward<Args2>(args)...} {
+    static_assert(std::conjunction_v<std::is_convertible<Args2, Args>...>);
+  }
+
+  template <class S, class E>
+  // NOLINTNEXTLINE
+  [[nodiscard]] constexpr operator result<S, E>() && noexcept(
+      std::is_nothrow_constructible_v<E, Args...>) {
+    static_assert(std::is_constructible_v<E, Args...>);
+    return std::move(*this).template build<result<S, E>>(
+        std::index_sequence_for<Args...>{});
+  }
+
+  template <class R, std::size_t... Is>
+  [[nodiscard]] constexpr R
+  build([[maybe_unused]] std::index_sequence<Is...> indices) && noexcept(
+      std::is_nothrow_constructible_v<typename R::error_type, Args...>) {
+    return R{in_place_error, std::get<Is>(std::move(values))...};
+  }
+
+  tuple_t values;
+};
+
+template <class... Args>
+failure(Args...) -> failure<Args...>;
 }  // namespace dpsg
 
 #endif  // GUARD_DPSG_RESULT_HEADER

@@ -4,111 +4,328 @@
 #include "shaders.hpp"
 #include "structured_buffers.hpp"
 
-void matrices(dpsg::window &window) {
+void matrices(dpsg::window& window) {
   using namespace dpsg;
 
   // NOLINTNEXTLINE
   constexpr float vertex_data[] = {
       // Vertices
-      0.25f, 0.25f, -1.25f, 1.0f,  // NOLINT
-      0.25f, -0.25f, -1.25f, 1.0f, // NOLINT
-      -0.25f, 0.25f, -1.25f, 1.0f, // NOLINT
+      0.25f,
+      0.25f,
+      -1.25f,
+      1.0f,  // NOLINT
+      0.25f,
+      -0.25f,
+      -1.25f,
+      1.0f,  // NOLINT
+      -0.25f,
+      0.25f,
+      -1.25f,
+      1.0f,  // NOLINT
 
-      0.25f, -0.25f, -1.25f, 1.0f,  // NOLINT
-      -0.25f, -0.25f, -1.25f, 1.0f, // NOLINT
-      -0.25f, 0.25f, -1.25f, 1.0f,  // NOLINT
+      0.25f,
+      -0.25f,
+      -1.25f,
+      1.0f,  // NOLINT
+      -0.25f,
+      -0.25f,
+      -1.25f,
+      1.0f,  // NOLINT
+      -0.25f,
+      0.25f,
+      -1.25f,
+      1.0f,  // NOLINT
 
-      0.25f, 0.25f, -2.75f, 1.0f,  // NOLINT
-      -0.25f, 0.25f, -2.75f, 1.0f, // NOLINT
-      0.25f, -0.25f, -2.75f, 1.0f, // NOLINT
+      0.25f,
+      0.25f,
+      -2.75f,
+      1.0f,  // NOLINT
+      -0.25f,
+      0.25f,
+      -2.75f,
+      1.0f,  // NOLINT
+      0.25f,
+      -0.25f,
+      -2.75f,
+      1.0f,  // NOLINT
 
-      0.25f, -0.25f, -2.75f, 1.0f,  // NOLINT
-      -0.25f, 0.25f, -2.75f, 1.0f,  // NOLINT
-      -0.25f, -0.25f, -2.75f, 1.0f, // NOLINT
+      0.25f,
+      -0.25f,
+      -2.75f,
+      1.0f,  // NOLINT
+      -0.25f,
+      0.25f,
+      -2.75f,
+      1.0f,  // NOLINT
+      -0.25f,
+      -0.25f,
+      -2.75f,
+      1.0f,  // NOLINT
 
-      -0.25f, 0.25f, -1.25f, 1.0f,  // NOLINT
-      -0.25f, -0.25f, -1.25f, 1.0f, // NOLINT
-      -0.25f, -0.25f, -2.75f, 1.0f, // NOLINT
+      -0.25f,
+      0.25f,
+      -1.25f,
+      1.0f,  // NOLINT
+      -0.25f,
+      -0.25f,
+      -1.25f,
+      1.0f,  // NOLINT
+      -0.25f,
+      -0.25f,
+      -2.75f,
+      1.0f,  // NOLINT
 
-      -0.25f, 0.25f, -1.25f, 1.0f,  // NOLINT
-      -0.25f, -0.25f, -2.75f, 1.0f, // NOLINT
-      -0.25f, 0.25f, -2.75f, 1.0f,  // NOLINT
+      -0.25f,
+      0.25f,
+      -1.25f,
+      1.0f,  // NOLINT
+      -0.25f,
+      -0.25f,
+      -2.75f,
+      1.0f,  // NOLINT
+      -0.25f,
+      0.25f,
+      -2.75f,
+      1.0f,  // NOLINT
 
-      0.25f, 0.25f, -1.25f, 1.0f,  // NOLINT
-      0.25f, -0.25f, -2.75f, 1.0f, // NOLINT
-      0.25f, -0.25f, -1.25f, 1.0f, // NOLINT
+      0.25f,
+      0.25f,
+      -1.25f,
+      1.0f,  // NOLINT
+      0.25f,
+      -0.25f,
+      -2.75f,
+      1.0f,  // NOLINT
+      0.25f,
+      -0.25f,
+      -1.25f,
+      1.0f,  // NOLINT
 
-      0.25f, 0.25f, -1.25f, 1.0f,  // NOLINT
-      0.25f, 0.25f, -2.75f, 1.0f,  // NOLINT
-      0.25f, -0.25f, -2.75f, 1.0f, // NOLINT
+      0.25f,
+      0.25f,
+      -1.25f,
+      1.0f,  // NOLINT
+      0.25f,
+      0.25f,
+      -2.75f,
+      1.0f,  // NOLINT
+      0.25f,
+      -0.25f,
+      -2.75f,
+      1.0f,  // NOLINT
 
-      0.25f, 0.25f, -2.75f, 1.0f,  // NOLINT
-      0.25f, 0.25f, -1.25f, 1.0f,  // NOLINT
-      -0.25f, 0.25f, -1.25f, 1.0f, // NOLINT
+      0.25f,
+      0.25f,
+      -2.75f,
+      1.0f,  // NOLINT
+      0.25f,
+      0.25f,
+      -1.25f,
+      1.0f,  // NOLINT
+      -0.25f,
+      0.25f,
+      -1.25f,
+      1.0f,  // NOLINT
 
-      0.25f, 0.25f, -2.75f, 1.0f,  // NOLINT
-      -0.25f, 0.25f, -1.25f, 1.0f, // NOLINT
-      -0.25f, 0.25f, -2.75f, 1.0f, // NOLINT
+      0.25f,
+      0.25f,
+      -2.75f,
+      1.0f,  // NOLINT
+      -0.25f,
+      0.25f,
+      -1.25f,
+      1.0f,  // NOLINT
+      -0.25f,
+      0.25f,
+      -2.75f,
+      1.0f,  // NOLINT
 
-      0.25f, -0.25f, -2.75f, 1.0f,  // NOLINT
-      -0.25f, -0.25f, -1.25f, 1.0f, // NOLINT
-      0.25f, -0.25f, -1.25f, 1.0f,  // NOLINT
+      0.25f,
+      -0.25f,
+      -2.75f,
+      1.0f,  // NOLINT
+      -0.25f,
+      -0.25f,
+      -1.25f,
+      1.0f,  // NOLINT
+      0.25f,
+      -0.25f,
+      -1.25f,
+      1.0f,  // NOLINT
 
-      0.25f, -0.25f, -2.75f, 1.0f,  // NOLINT
-      -0.25f, -0.25f, -2.75f, 1.0f, // NOLINT
-      -0.25f, -0.25f, -1.25f, 1.0f, // NOLINT
+      0.25f,
+      -0.25f,
+      -2.75f,
+      1.0f,  // NOLINT
+      -0.25f,
+      -0.25f,
+      -2.75f,
+      1.0f,  // NOLINT
+      -0.25f,
+      -0.25f,
+      -1.25f,
+      1.0f,  // NOLINT
 
       // Colors
-      0.0f, 0.0f, 1.0f, 1.0f, // NOLINT
-      0.0f, 0.0f, 1.0f, 1.0f, // NOLINT
-      0.0f, 0.0f, 1.0f, 1.0f, // NOLINT
+      0.0f,
+      0.0f,
+      1.0f,
+      1.0f,  // NOLINT
+      0.0f,
+      0.0f,
+      1.0f,
+      1.0f,  // NOLINT
+      0.0f,
+      0.0f,
+      1.0f,
+      1.0f,  // NOLINT
 
-      0.0f, 0.0f, 1.0f, 1.0f, // NOLINT
-      0.0f, 0.0f, 1.0f, 1.0f, // NOLINT
-      0.0f, 0.0f, 1.0f, 1.0f, // NOLINT
+      0.0f,
+      0.0f,
+      1.0f,
+      1.0f,  // NOLINT
+      0.0f,
+      0.0f,
+      1.0f,
+      1.0f,  // NOLINT
+      0.0f,
+      0.0f,
+      1.0f,
+      1.0f,  // NOLINT
 
-      0.8f, 0.8f, 0.8f, 1.0f, // NOLINT
-      0.8f, 0.8f, 0.8f, 1.0f, // NOLINT
-      0.8f, 0.8f, 0.8f, 1.0f, // NOLINT
+      0.8f,
+      0.8f,
+      0.8f,
+      1.0f,  // NOLINT
+      0.8f,
+      0.8f,
+      0.8f,
+      1.0f,  // NOLINT
+      0.8f,
+      0.8f,
+      0.8f,
+      1.0f,  // NOLINT
 
-      0.8f, 0.8f, 0.8f, 1.0f, // NOLINT
-      0.8f, 0.8f, 0.8f, 1.0f, // NOLINT
-      0.8f, 0.8f, 0.8f, 1.0f, // NOLINT
+      0.8f,
+      0.8f,
+      0.8f,
+      1.0f,  // NOLINT
+      0.8f,
+      0.8f,
+      0.8f,
+      1.0f,  // NOLINT
+      0.8f,
+      0.8f,
+      0.8f,
+      1.0f,  // NOLINT
 
-      0.0f, 1.0f, 0.0f, 1.0f, // NOLINT
-      0.0f, 1.0f, 0.0f, 1.0f, // NOLINT
-      0.0f, 1.0f, 0.0f, 1.0f, // NOLINT
+      0.0f,
+      1.0f,
+      0.0f,
+      1.0f,  // NOLINT
+      0.0f,
+      1.0f,
+      0.0f,
+      1.0f,  // NOLINT
+      0.0f,
+      1.0f,
+      0.0f,
+      1.0f,  // NOLINT
 
-      0.0f, 1.0f, 0.0f, 1.0f, // NOLINT
-      0.0f, 1.0f, 0.0f, 1.0f, // NOLINT
-      0.0f, 1.0f, 0.0f, 1.0f, // NOLINT
+      0.0f,
+      1.0f,
+      0.0f,
+      1.0f,  // NOLINT
+      0.0f,
+      1.0f,
+      0.0f,
+      1.0f,  // NOLINT
+      0.0f,
+      1.0f,
+      0.0f,
+      1.0f,  // NOLINT
 
-      0.5f, 0.5f, 0.0f, 1.0f, // NOLINT
-      0.5f, 0.5f, 0.0f, 1.0f, // NOLINT
-      0.5f, 0.5f, 0.0f, 1.0f, // NOLINT
+      0.5f,
+      0.5f,
+      0.0f,
+      1.0f,  // NOLINT
+      0.5f,
+      0.5f,
+      0.0f,
+      1.0f,  // NOLINT
+      0.5f,
+      0.5f,
+      0.0f,
+      1.0f,  // NOLINT
 
-      0.5f, 0.5f, 0.0f, 1.0f, // NOLINT
-      0.5f, 0.5f, 0.0f, 1.0f, // NOLINT
-      0.5f, 0.5f, 0.0f, 1.0f, // NOLINT
+      0.5f,
+      0.5f,
+      0.0f,
+      1.0f,  // NOLINT
+      0.5f,
+      0.5f,
+      0.0f,
+      1.0f,  // NOLINT
+      0.5f,
+      0.5f,
+      0.0f,
+      1.0f,  // NOLINT
 
-      1.0f, 0.0f, 0.0f, 1.0f, // NOLINT
-      1.0f, 0.0f, 0.0f, 1.0f, // NOLINT
-      1.0f, 0.0f, 0.0f, 1.0f, // NOLINT
+      1.0f,
+      0.0f,
+      0.0f,
+      1.0f,  // NOLINT
+      1.0f,
+      0.0f,
+      0.0f,
+      1.0f,  // NOLINT
+      1.0f,
+      0.0f,
+      0.0f,
+      1.0f,  // NOLINT
 
-      1.0f, 0.0f, 0.0f, 1.0f, // NOLINT
-      1.0f, 0.0f, 0.0f, 1.0f, // NOLINT
-      1.0f, 0.0f, 0.0f, 1.0f, // NOLINT
+      1.0f,
+      0.0f,
+      0.0f,
+      1.0f,  // NOLINT
+      1.0f,
+      0.0f,
+      0.0f,
+      1.0f,  // NOLINT
+      1.0f,
+      0.0f,
+      0.0f,
+      1.0f,  // NOLINT
 
-      0.0f, 1.0f, 1.0f, 1.0f, // NOLINT
-      0.0f, 1.0f, 1.0f, 1.0f, // NOLINT
-      0.0f, 1.0f, 1.0f, 1.0f, // NOLINT
+      0.0f,
+      1.0f,
+      1.0f,
+      1.0f,  // NOLINT
+      0.0f,
+      1.0f,
+      1.0f,
+      1.0f,  // NOLINT
+      0.0f,
+      1.0f,
+      1.0f,
+      1.0f,  // NOLINT
 
-      0.0f, 1.0f, 1.0f, 1.0f, // NOLINT
-      0.0f, 1.0f, 1.0f, 1.0f, // NOLINT
-      0.0f, 1.0f, 1.0f, 1.0f, // NOLINT
+      0.0f,
+      1.0f,
+      1.0f,
+      1.0f,  // NOLINT
+      0.0f,
+      1.0f,
+      1.0f,
+      1.0f,  // NOLINT
+      0.0f,
+      1.0f,
+      1.0f,
+      1.0f,  // NOLINT
   };
   auto prog = load(vs_filename("shaders/matrix_perspective.vs"),
-                   fs_filename("shaders/basic.fs"));
+                   fs_filename("shaders/basic.fs"))
+                  .value();
 
   gl::enable(gl::capability::cull_face);
   gl::cull_face(gl::cull_mode::back);
@@ -136,7 +353,7 @@ void matrices(dpsg::window &window) {
 
   prog.use();
 
-  offset_u.bind(0.5, 0.5); // NOLINT
+  offset_u.bind(0.5, 0.5);  // NOLINT
   perspective_u.bind(perspective);
 
   const auto reshape =
@@ -153,4 +370,6 @@ void matrices(dpsg::window &window) {
   });
 }
 
-int main() { return windowed(matrices); }
+int main() {
+  return windowed(matrices);
+}

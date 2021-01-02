@@ -8,10 +8,11 @@
 
 #include "opengl.hpp"
 
-void cube(dpsg::window &window, key_mapper &kmap) {
+void cube(dpsg::window& window, key_mapper& kmap) {
   using namespace dpsg;
   using namespace dpsg::input;
 
+  // clang-format off
   // NOLINTNEXTLINE
   constexpr float vertex_data[] = {
       0.25f, 0.25f, -1.25f, 1.0f,  // NOLINT
@@ -111,9 +112,11 @@ void cube(dpsg::window &window, key_mapper &kmap) {
       0.0f, 1.0f, 1.0f, 1.0f, // NOLINT
       0.0f, 1.0f, 1.0f, 1.0f, // NOLINT
   };
+  // clang-format on
 
   auto prog = load(vs_filename{"shaders/ortho_with_offset.vs"},
-                   fs_filename("shaders/basic.fs"));
+                   fs_filename("shaders/basic.fs"))
+                  .value();
 
   gl::enable(gl::capability::cull_face);
   gl::cull_face(gl::cull_mode::back);
@@ -142,7 +145,7 @@ void cube(dpsg::window &window, key_mapper &kmap) {
   float z_far{default_z_far};
   float frustum_scale{default_fscale};
 
-  const auto update = [](float &u, auto &&f) {
+  const auto update = [](float& u, auto&& f) {
     return [&u, f = std::forward<decltype(f)>(f)](auto p) {
       return ignore([&u, f = std::move(f), p] {
         u += p;
@@ -215,4 +218,6 @@ void cube(dpsg::window &window, key_mapper &kmap) {
   });
 }
 
-int main() { return windowed(cube); }
+int main() {
+  return windowed(cube);
+}
