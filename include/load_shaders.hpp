@@ -45,10 +45,11 @@ struct loading_error : std::exception {
     if (_what) {
       using std::begin;
       using std::end;
-      auto it = std::copy(filename, filename + fn_len + 1, begin(_what));
+      auto it = std::copy(filename, filename + fn_len, begin(_what));
       *it++ = ':';
       *it++ = '\n';
-      std::copy(error_message, error_message + em_len, it);
+      it = std::copy(error_message, error_message + em_len, it);
+      *it = '\0';
     }
   }
 
@@ -60,10 +61,14 @@ struct loading_error : std::exception {
 
 namespace detail {
 template <class... Args>
-inline result<std::string, loading_error> load_from_stream(
+inline result<std::string, const char*> load_from_stream(
     std::basic_istream<Args...>& stream) {
   std::stringstream sstream;
   sstream << stream.rdbuf();
+
+  if (stream.bad()) {
+    return failure{std::strerror(errno)};
+  }
 
   return success{sstream.str()};
 }
@@ -73,7 +78,8 @@ inline result<std::string, loading_error> load_from_disk(const char* name) {
   if (!file.is_open()) {
     return failure{name, std::strerror(errno)};
   }
-  return load_from_stream(file);
+  return load_from_stream(file).map_error(
+      [&name](const char* err) { return loading_error(name, err); });
 }
 }  // namespace detail
 
