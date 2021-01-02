@@ -8,5 +8,6 @@
 #include "./enums.hpp"
 #include "./font_atlas.hpp"
 #include "./interfaces.hpp"
+#include "./widgets.hpp"
 
 #endif  // GUARD_NK_NUKLEARPP_HEADER
