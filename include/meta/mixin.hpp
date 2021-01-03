@@ -63,6 +63,25 @@ struct contains_mixin<T, Mixin, std::void_t<decltype(typename T::mixin_t{})>>
 
 template <class T, class Mixin>
 constexpr static inline bool contains_mixin_v = contains_mixin<T, Mixin>::value;
+
+template <class Mixin, class... Args>
+struct append;
+template <template <class...> class Mixin, class... Args1, class... Args2>
+struct append<Mixin<Args1...>, Args2...> {
+  using type = Mixin<Args1..., Args2...>;
+};
+template <class Mixin, class... Args>
+using append_t = typename append<Mixin, Args...>::type;
+
+template <class Mixin, class... Args>
+struct prepend;
+template <template <class...> class Mixin, class... Args1, class... Args2>
+struct prepend<Mixin<Args1...>, Args2...> {
+  using type = Mixin<Args2..., Args1...>;
+};
+template <class Mixin, class... Args>
+using prepend_t = typename prepend<Mixin, Args...>::type;
+
 }  // namespace dpsg
 
 #endif  // GUARD_DPSG_META_MIXIN_HEADER

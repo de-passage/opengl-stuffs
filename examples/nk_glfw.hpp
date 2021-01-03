@@ -283,6 +283,8 @@ using window = dpsg::base_window<embedded_context,
                                  scroll_callback,
                                  char_callback,
                                  mouse_button_callback>;
+
+using key_mapper = basic_key_mapper<window>;
 }  // namespace nk_glfw
 
 #endif  // GUARD_NK_GLFW_HEADER

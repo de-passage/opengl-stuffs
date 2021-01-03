@@ -7,9 +7,11 @@
 #include <tuple>
 #include <unordered_map>
 
-class key_mapper {
+template <class W>
+class basic_key_mapper {
  public:
-  using key_pressed_callback = std::function<void(dpsg::window&)>;
+  using window_type = W;
+  using key_pressed_callback = std::function<void(window_type&)>;
 
  private:
   using tuple_type =
@@ -41,7 +43,7 @@ class key_mapper {
   }
 
  public:
-  void operator()(dpsg::window& w,
+  void operator()(window_type& w,
                   dpsg::input::key k,
                   [[maybe_unused]] int scancode,
                   dpsg::input::status st,
@@ -65,7 +67,7 @@ class key_mapper {
     _maintained_callback(_map[k]) = std::move(cb);
   }
 
-  inline void trigger_pressed_callbacks(dpsg::window& window) const {
+  inline void trigger_pressed_callbacks(window_type& window) const {
     for (auto tuple : _map) {
       if (_is_pressed(tuple.second)) {
         _trigger_maintained(tuple.second, window);
@@ -73,5 +75,7 @@ class key_mapper {
     }
   }
 };
+
+using key_mapper = basic_key_mapper<dpsg::window>;
 
 #endif  // GUARD_KEY_MAPPER_HEADER

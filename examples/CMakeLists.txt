@@ -15,18 +15,17 @@ function(set_compile_options TARGET_NAME)
     target_compile_options(${TARGET_NAME} PRIVATE -Wall -Wextra -pedantic)
   endif(MSVC)
   target_compile_definitions(${TARGET_NAME} PUBLIC -D_CRT_SECURE_NO_WARNINGS)
+  target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_SOURCE_DIR}/include" "${GLM_INCLUDE_DIRS}")
 endfunction(set_compile_options TARGET_NAME)
 
 add_library(external_libs STATIC ${COMMON_SOURCES})
 set_compile_options(external_libs)
-target_include_directories(external_libs PUBLIC "${CMAKE_SOURCE_DIR}/include")
 
 macro(make_example EXAMPLE_NAME)
   add_executable(${EXAMPLE_NAME} WIN32 MACOSX_BUNDLE "${EXAMPLE_NAME}.cpp" ${ARGN})
   set_compile_options(${EXAMPLE_NAME})
 
   target_link_libraries(${EXAMPLE_NAME} ${CMAKE_SOURCE_DIR}/lib/glfw3.lib external_libs)
-  target_include_directories(${EXAMPLE_NAME} PUBLIC "${CMAKE_SOURCE_DIR}/include" "${GLM_INCLUDE_DIRS}")
 endmacro(make_example EXAMPLE_NAME)
 
 make_example(triangle)

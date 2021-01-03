@@ -88,7 +88,7 @@ class camera : Traits {
 
   constexpr value_type aspect_ratio() const { return _aspect_ratio; }
 
-  constexpr void aspect_ratio(width w, height h) { _aspect_ratio = w / h; }
+  constexpr void aspect_ratio(width w, height h) { aspect_ratio(w / h); }
 
   constexpr void aspect_ratio(struct aspect_ratio ar) { _aspect_ratio = ar; }
 
