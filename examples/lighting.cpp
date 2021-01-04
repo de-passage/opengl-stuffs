@@ -1,3 +1,4 @@
+#include <type_traits>
 #define GLM_FORCE_SILENT_WARNINGS
 
 #include "glad/glad.h"
@@ -17,6 +18,7 @@
 #include "nuklear/widgets.hpp"
 #include "opengl.hpp"
 #include "opengl/glm.hpp"
+#include "program.hpp"
 #include "utility.hpp"
 #include "window.hpp"
 #include "window/hints.hpp"
@@ -69,6 +71,91 @@ constexpr float vertices[] = {
 };
 // clang-format on
 
+template <template <class...> class T, class C>
+struct is_template_instance : std::false_type {};
+
+template <template <class...> class T, class... Args>
+struct is_template_instance<T, T<Args...>> : std::true_type {};
+
+template <template <class...> class T, class C>
+constexpr static inline bool is_template_instance_v =
+    is_template_instance<T, C>::value;
+
+struct projection_program {
+  template <
+      class T,
+      std::enable_if_t<is_template_instance_v<dpsg::fs_filename, T>, int> = 0>
+  explicit projection_program(T&& fragment_shader)
+      : _program{load(dpsg::vs_filename{"shaders/basic_projection.vs"},
+                      std::forward<T>(fragment_shader))
+                     .value()},
+        _projected_view{uniform_location<glm::mat4>("projected_view")},
+        _model{uniform_location<glm::mat4>("model")} {}
+
+  void project(const glm::mat4& projected_view) const noexcept {
+    _projected_view.bind(projected_view);
+  }
+
+  void set_model(const glm::mat4& model) const noexcept { _model.bind(model); }
+
+  template <class T>
+  auto uniform_location(const char* name) const {
+    return _program.uniform_location<T>(name).value();
+  }
+
+  template <class T>
+  void use(const dpsg::camera<T>& cam, const glm::mat4& model) const noexcept {
+    _program.use();
+    project(cam.projected_view());
+    set_model(model);
+  }
+
+ private:
+  dpsg::program _program;
+  dpsg::program::uniform<glm::mat4> _projected_view;
+  dpsg::program::uniform<glm::mat4> _model;
+};
+
+struct object_program : projection_program {
+  using projection_program::uniform_location;
+  object_program()
+      : projection_program{dpsg::fs_filename{"shaders/basic_lighting.fs"}} {}
+
+  template <class T>
+  void use(const dpsg::camera<T>& cam,
+           const glm::mat4& model,
+           const glm::vec3& object_color,
+           const glm::vec3& light_color) const noexcept {
+    projection_program::use(cam, model);
+    _object_color_uniform.bind(object_color);
+    _light_color_uniform.bind(light_color);
+  }
+
+ private:
+  dpsg::program::uniform<glm::vec3> _object_color_uniform{
+      uniform_location<glm::vec3>("object_color")};
+  dpsg::program::uniform<glm::vec3> _light_color_uniform{
+      uniform_location<glm::vec3>("light_color")};
+};
+
+struct light_program : projection_program {
+  using projection_program::uniform_location;
+  light_program()
+      : projection_program{dpsg::fs_filename{"shaders/uniform.fs"}} {}
+
+  template <class T>
+  void use(const dpsg::camera<T>& cam,
+           const glm::mat4& model,
+           const glm::vec3& light_color) const noexcept {
+    projection_program::use(cam, model);
+    _light_color_uniform.bind(glm::vec4{light_color, 1.0});
+  }
+
+ private:
+  dpsg::program::uniform<glm::vec4> _light_color_uniform{
+      uniform_location<glm::vec4>("ourColor")};
+};
+
 int main() {
   using namespace dpsg;
   using window_t = append_t<nk_glfw::window,
@@ -103,16 +190,11 @@ int main() {
               }
               b = !b;
             });
+            kmap.on(input::key::escape, close);
 
-            auto object_program =
-                load(vs_filename{"shaders/basic_projection.vs"},
-                     fs_filename{"shaders/basic_lighting.fs"})
-                    .value();
+            object_program object_program;
 
-            auto light_program =
-                load(vs_filename{"shaders/basic_projection.vs"},
-                     fs_filename{"shaders/uniform.fs"})
-                    .value();
+            light_program light_program;
 
             vertex_buffer cube;
             cube.bind();
@@ -133,28 +215,6 @@ int main() {
 
             gl::clear_color(gl::r{0.1}, gl::g{0.1}, gl::b{0.1});
 
-            auto object_color_uniform =
-                object_program.uniform_location<glm::vec3>("object_color")
-                    .value();
-            auto light_color_uniform =
-                object_program.uniform_location<glm::vec3>("light_color")
-                    .value();
-
-            auto light_prog_projection =
-                light_program.uniform_location<glm::mat4>("projected_view")
-                    .value();
-            auto object_prog_projection =
-                object_program.uniform_location<glm::mat4>("projected_view")
-                    .value();
-
-            auto light_model =
-                light_program.uniform_location<glm::mat4>("model").value();
-            auto object_model =
-                object_program.uniform_location<glm::mat4>("model").value();
-
-            auto light_object_color_uniform =
-                light_program.uniform_location<glm::vec4>("ourColor").value();
-
             glm::vec3 light_position{1.2, 1.0, 2.0};
             glm::vec3 object_color{1.0, 0.5, 0.31};
             glm::vec3 light_color{1.0, 1.0, 1.0};
@@ -164,7 +224,6 @@ int main() {
               gl::disable(gl::capability::scissor_test);
               gl::clear(gl::buffer_bit::color | gl::buffer_bit::depth);
 
-              object_program.use();
               ctx.with_window(
                   "Colors",
                   nk_rect(5, 5, 200, 135),
@@ -185,32 +244,25 @@ int main() {
                     nk::widget::slider(w, 0, light_color.b, 1, 0.001);
                   });
 
-              object_color_uniform.bind(object_color);
-              light_color_uniform.bind(light_color);
               kmap.on(input::key::A, ignore([&] {
                         std::cout << "color: " << light_color.r << " "
                                   << light_color.g << " " << light_color.b
                                   << std::endl;
                       }));
 
-              object_prog_projection.bind(cam.projected_view());
-
               glm::mat4 model{1.0};
-              light_model.bind(model);
+              object_program.use(cam, model, object_color, light_color);
               object_vao.bind();
               gl::draw_arrays(gl::drawing_mode::triangles,
                               gl::index{0},
                               gl::element_count{36});
 
-              light_program.use();
-              light_object_color_uniform.bind(glm::vec4{light_color, 1.0});
-              light_prog_projection.bind(cam.projected_view());
               model = glm::translate(model, light_position);
               model = glm::scale(model, glm::vec3(0.2));
 
-              object_vao.bind();
-              object_model.bind(model);
+              light_program.use(cam, model, light_color);
 
+              object_vao.bind();
               gl::draw_arrays(gl::drawing_mode::triangles,
                               gl::index{0},
                               gl::element_count{36});
