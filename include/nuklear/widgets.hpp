@@ -4,7 +4,6 @@
 #include "./interfaces.hpp"
 #include "meta/mixin.hpp"
 
-
 namespace nk::widget {
 
 namespace detail {
@@ -50,6 +49,11 @@ inline bool slider(T& ctx,
                    float max,
                    float step) noexcept {
   return nk_slider_float(&ctx.ctx(), min, &value, max, step) == nk_true;
+}
+
+template <class T, std::enable_if_t<detail::is_window_v<T>, int> = 0>
+inline bool slider(T& ctx, int min, int& value, int max, int step) noexcept {
+  return nk_slider_int(&ctx.ctx(), min, &value, max, step) == nk_true;
 }
 
 }  // namespace nk::widget

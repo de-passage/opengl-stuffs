@@ -1,3 +1,4 @@
+#include <stdint.h>
 #define GLM_FORCE_SILENT_WARNINGS
 
 #include "glad/glad.h"
@@ -135,12 +136,18 @@ struct object_program : projection_program {
            const glm::vec3& object_color,
            const glm::vec3& light_color,
            float ambient,
-           const glm::vec3& light_position) const noexcept {
+           const glm::vec3& light_position,
+           const glm::vec3& camera_position,
+           float specular,
+           uint8_t shininess) const noexcept {
     projection_program::use(cam, glm::mat4{1.0});
     _object_color_uniform.bind(object_color);
     _light_color_uniform.bind(light_color);
     _ambient_uniform.bind(ambient);
     _light_position_uniform.bind(light_position);
+    _camera_position_uniform.bind(camera_position);
+    _specular_uniform.bind(specular);
+    _shininess_uniform.bind(1 << shininess);
   }
 
  private:
@@ -152,6 +159,12 @@ struct object_program : projection_program {
       uniform_location<float>("ambient")};
   dpsg::program::uniform<glm::vec3> _light_position_uniform{
       uniform_location<glm::vec3>("light_position")};
+  dpsg::program::uniform<glm::vec3> _camera_position_uniform{
+      uniform_location<glm::vec3>("camera_position")};
+  dpsg::program::uniform<float> _specular_uniform{
+      uniform_location<float>("specular")};
+  dpsg::program::uniform<int> _shininess_uniform{
+      uniform_location<int>("shininess")};
 };
 
 struct light_program : projection_program {
@@ -225,8 +238,10 @@ int main() {
             object_vao.bind();
             gl::vertex_attrib_pointer<float>(
                 gl::attrib_location{0}, gl::element_count{3}, gl::stride{6});
-            gl::vertex_attrib_pointer<float>(
-                gl::attrib_location{1}, gl::element_count{3}, gl::stride{6});
+            gl::vertex_attrib_pointer<float>(gl::attrib_location{1},
+                                             gl::element_count{3},
+                                             gl::stride{6},
+                                             gl::offset{3});
             gl::enable_vertex_attrib_array(gl::attrib_location{0},
                                            gl::attrib_location{1});
 
@@ -243,6 +258,8 @@ int main() {
             glm::vec3 object_color{1.0, 0.5, 0.31};
             glm::vec3 light_color{1.0, 1.0, 1.0};
             float ambient{0.1};
+            float specular{0.5};
+            int shininess{5};
             kmap.on(input::key::T, ignore([&] {
                       std::cout << std::setprecision(3)
                                 << "color: " << light_color.r << " "
@@ -269,9 +286,9 @@ int main() {
             const auto climb_up = ignore([&] { cam.climb(camera_speed); });
             const auto climb_down = ignore([&] { cam.climb(-camera_speed); });
             const auto rotate_left =
-                ignore([&] { cam.rotate(camera_speed, 0); });
-            const auto rotate_right =
                 ignore([&] { cam.rotate(-camera_speed, 0); });
+            const auto rotate_right =
+                ignore([&] { cam.rotate(camera_speed, 0); });
 
             kmap.while_(input::key::up, move_forward);
             kmap.while_(input::key::W, move_forward);
@@ -297,7 +314,7 @@ int main() {
 
               ctx.with_window(
                   "Colors",
-                  nk_rect(5, 5, 200, 165),
+                  nk_rect(5, 5, 230, 235),
                   nk::panel_flags::no_scrollbar,
                   [&](nk::window w) {
                     namespace nkw = nk::widget;
@@ -305,22 +322,38 @@ int main() {
                     nkw::label(
                         w, "Object", nk_text_alignment::NK_TEXT_CENTERED);
                     nkw::label(w, "Light", nk_text_alignment::NK_TEXT_CENTERED);
-                    w.row_dynamic(33, 2);
-                    nkw::slider(w, 0, object_color.r, 1, 0.001);
-                    nkw::slider(w, 0, light_color.r, 1, 0.001);
-                    w.row_dynamic(33, 2);
-                    nkw::slider(w, 0, object_color.g, 1, 0.001);
-                    nkw::slider(w, 0, light_color.g, 1, 0.001);
-                    w.row_dynamic(33, 2);
-                    nkw::slider(w, 0, object_color.b, 1, 0.001);
-                    nkw::slider(w, 0, light_color.b, 1, 0.001);
+                    const auto layout =
+                        [&](float& otarget, float& ltarget, const char* label) {
+                          w.with_row(NK_DYNAMIC, 33, 3, [&](nk::row r) {
+                            r.push(0.1);
+                            nkw::label(
+                                w, label, nk_text_alignment::NK_TEXT_CENTERED);
+                            r.push(0.45);
+                            nkw::slider(w, 0, otarget, 1, 0.001);
+                            r.push(0.45);
+                            nkw::slider(w, 0, ltarget, 1, 0.001);
+                          });
+                        };
+                    layout(object_color.r, light_color.r, "R");
+                    layout(object_color.g, light_color.g, "G");
+                    layout(object_color.b, light_color.b, "B");
                     w.row_dynamic(30, 2);
                     nkw::label(w, "Ambient");
                     nkw::slider(w, 0, ambient, 1, 0.001);
+                    nkw::label(w, "Specular");
+                    nkw::slider(w, 0, specular, 1, 0.001);
+                    nkw::label(w, "Shininess");
+                    nkw::slider(w, 1, shininess, 8, 1);
                   });
 
-              object_program.use(
-                  cam, object_color, light_color, ambient, light_position);
+              object_program.use(cam,
+                                 object_color,
+                                 light_color,
+                                 ambient,
+                                 light_position,
+                                 cam.position(),
+                                 specular,
+                                 shininess);
               object_vao.bind();
               gl::draw_arrays(gl::drawing_mode::triangles,
                               gl::index{0},

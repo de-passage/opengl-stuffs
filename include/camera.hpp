@@ -78,8 +78,8 @@ class camera : Traits {
   }
 
  public:
-  constexpr inline explicit camera(aspect_ratio ar)
-       noexcept: _aspect_ratio{ar},
+  constexpr inline explicit camera(aspect_ratio ar) noexcept
+      : _aspect_ratio{ar},
         _fov{default_fov},
         _z_near{default_z_near},
         _z_far{default_z_far},
@@ -88,26 +88,32 @@ class camera : Traits {
 
   constexpr value_type aspect_ratio() const noexcept { return _aspect_ratio; }
 
-  constexpr void aspect_ratio(width w, height h) noexcept { aspect_ratio(w / h); }
+  constexpr void aspect_ratio(width w, height h) noexcept {
+    aspect_ratio(w / h);
+  }
 
-  constexpr void aspect_ratio(struct aspect_ratio ar) noexcept { _aspect_ratio = ar; }
+  constexpr void aspect_ratio(struct aspect_ratio ar) noexcept {
+    _aspect_ratio = ar;
+  }
 
   inline mat_type projection() const noexcept { return _compute_projection(); }
   inline mat_type view() const noexcept { return _compute_view(); }
 
-  inline mat_type projected_view() const  noexcept{ return projection() * view(); }
+  inline mat_type projected_view() const noexcept {
+    return projection() * view();
+  }
 
-  inline void advance(value_type offset) noexcept { _position += offset * _front; }
+  inline void advance(value_type offset) noexcept {
+    _position += offset * _front;
+  }
 
-  inline void strafe(value_type offset)  noexcept{
+  inline void strafe(value_type offset) noexcept {
     _position += offset * normalize(cross(_front, _up));
   }
 
-  inline void climb(value_type offset) noexcept {
-    _position += offset * _up;
-  }
+  inline void climb(value_type offset) noexcept { _position += offset * _up; }
 
-  inline void reset(radians yaw, radians pitch, radians fov)  noexcept{
+  inline void reset(radians yaw, radians pitch, radians fov) noexcept {
     _yaw = yaw;
     _pitch = pitch;
     _fov = fov;
@@ -125,6 +131,9 @@ class camera : Traits {
   inline void zoom(value_type offset) noexcept {
     _fov.value = std::clamp(_fov.value + offset, min_fov.value, max_fov.value);
   }
+
+  inline const vec_type& position() const noexcept { return _position; }
+  inline vec_type& position() noexcept { return _position; }
 };
 }  // namespace dpsg
 
