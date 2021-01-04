@@ -124,18 +124,28 @@ struct context_bridge {
         std::is_nothrow_constructible_v<B, GLFWwindow*>)
         : B(win) {}
 
+    bool mouse_grabbing_enabled{true};
+
    public:
+    constexpr void mouse_grabbing(bool b) noexcept {
+      mouse_grabbing_enabled = b;
+    }
+    constexpr void enable_mouse_grabbing() noexcept { mouse_grabbing(true); }
+    constexpr void disable_mouse_grabbing() noexcept { mouse_grabbing(false); }
+
     void handle_input(nk::context& ctx) noexcept {
       ctx.handle_input([&](nk::input_handler handler) {
         for (std::size_t i = 0; i < this->text_max_len; ++i) {
           handler.unicode(this->text[i]);
         }
 
-        if (handler.mouse().grab == nk_true) {
-          this->set_input_mode(dpsg::cursor_mode::hidden);
-        }
-        else if (handler.mouse().ungrab == nk_true) {
-          this->set_input_mode(dpsg::cursor_mode::normal);
+        if (mouse_grabbing_enabled) {
+          if (handler.mouse().grab == nk_true) {
+            this->set_input_mode(dpsg::cursor_mode::hidden);
+          }
+          else if (handler.mouse().ungrab == nk_true) {
+            this->set_input_mode(dpsg::cursor_mode::normal);
+          }
         }
 
         using dpsg::input::key;
@@ -193,7 +203,8 @@ struct context_bridge {
         auto pos = this->cursor_position();
         handler.motion(static_cast<int>(pos.x.value),
                        static_cast<int>(pos.y.value));
-        if (handler.mouse().grabbed == nk_true) {
+
+        if (mouse_grabbing_enabled && handler.mouse().grabbed == nk_true) {
           this->set_cursor_position(dpsg::x{handler.mouse().prev.x},
                                     dpsg::y{handler.mouse().prev.y});
           handler.mouse().pos.x = handler.mouse().prev.x;

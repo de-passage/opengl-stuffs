@@ -1,16 +1,17 @@
-#include <type_traits>
 #define GLM_FORCE_SILENT_WARNINGS
 
 #include "glad/glad.h"
 
 #include "buffers.hpp"
 #include "camera.hpp"
+#include "common.hpp"
 #include "glfw_context.hpp"
 #include "glm/ext/matrix_float4x4.hpp"
 #include "glm/mat4x4.hpp"
 #include "glm/vec3.hpp"
 #include "glm_traits.hpp"
 #include "input/keys.hpp"
+#include "input_timer.hpp"
 #include "key_mapper.hpp"
 #include "load_shaders.hpp"
 #include "nk_glfw.hpp"
@@ -24,6 +25,10 @@
 #include "window/hints.hpp"
 #include "window/mixins.hpp"
 #include "with_window.hpp"
+
+#include <chrono>
+#include <iomanip>
+#include <type_traits>
 
 // clang-format off
 constexpr float vertices[] = {
@@ -123,12 +128,13 @@ struct object_program : projection_program {
 
   template <class T>
   void use(const dpsg::camera<T>& cam,
-           const glm::mat4& model,
            const glm::vec3& object_color,
-           const glm::vec3& light_color) const noexcept {
-    projection_program::use(cam, model);
+           const glm::vec3& light_color,
+           float ambient) const noexcept {
+    projection_program::use(cam, glm::mat4{1.0});
     _object_color_uniform.bind(object_color);
     _light_color_uniform.bind(light_color);
+    _ambient_uniform.bind(ambient);
   }
 
  private:
@@ -136,6 +142,8 @@ struct object_program : projection_program {
       uniform_location<glm::vec3>("object_color")};
   dpsg::program::uniform<glm::vec3> _light_color_uniform{
       uniform_location<glm::vec3>("light_color")};
+  dpsg::program::uniform<float> _ambient_uniform{
+      uniform_location<float>("ambient")};
 };
 
 struct light_program : projection_program {
@@ -145,9 +153,12 @@ struct light_program : projection_program {
 
   template <class T>
   void use(const dpsg::camera<T>& cam,
-           const glm::mat4& model,
+           const glm::vec3& light_position,
            const glm::vec3& light_color) const noexcept {
-    projection_program::use(cam, model);
+    projection_program::use(
+        cam,
+        glm::scale(glm::translate(glm::mat4{1.0}, light_position),
+                   glm::vec3{0.2}));
     _light_color_uniform.bind(glm::vec4{light_color, 1.0});
   }
 
@@ -215,9 +226,49 @@ int main() {
 
             gl::clear_color(gl::r{0.1}, gl::g{0.1}, gl::b{0.1});
 
+            // Colors
             glm::vec3 light_position{1.2, 1.0, 2.0};
             glm::vec3 object_color{1.0, 0.5, 0.31};
             glm::vec3 light_color{1.0, 1.0, 1.0};
+            float ambient{0.1};
+            kmap.on(input::key::T, ignore([&] {
+                      std::cout << std::setprecision(3)
+                                << "color: " << light_color.r << " "
+                                << light_color.g << " " << light_color.b
+                                << "\nambient: " << ambient << std::endl;
+                    }));
+
+            // Camera
+            using namespace std::literals::chrono_literals;
+            constexpr radians default_yaw{to_radians(degrees{-90})};
+            constexpr radians default_pitch{0};
+            constexpr radians default_fov{to_radians(degrees{45})};
+            constexpr auto interval = 10ms;
+            constexpr float camera_speed = .04;
+            input_timer timer{[&] { kmap.trigger_pressed_callbacks(wdw); },
+                              interval};
+
+            const auto move_forward =
+                ignore([&] { cam.advance(camera_speed); });
+            const auto move_backward =
+                ignore([&] { cam.advance(-camera_speed); });
+            const auto strafe_left = ignore([&] { cam.strafe(-camera_speed); });
+            const auto strafe_right = ignore([&] { cam.strafe(camera_speed); });
+
+            kmap.while_(input::key::up, move_forward);
+            kmap.while_(input::key::W, move_forward);
+            kmap.while_(input::key::down, move_backward);
+            kmap.while_(input::key::S, move_backward);
+            kmap.while_(input::key::left, strafe_left);
+            kmap.while_(input::key::A, strafe_left);
+            kmap.while_(input::key::right, strafe_right);
+            kmap.while_(input::key::D, strafe_right);
+
+            kmap.on(input::key::R, ignore([&] {
+                      cam.reset(default_yaw, default_pitch, default_fov);
+                    }));
+
+            using clock = std::chrono::steady_clock;
 
             wdw.render_loop([&]([[maybe_unused]] nk::context& ctx) {
               gl::enable(gl::capability::depth_test);
@@ -226,46 +277,42 @@ int main() {
 
               ctx.with_window(
                   "Colors",
-                  nk_rect(5, 5, 200, 135),
+                  nk_rect(5, 5, 200, 165),
                   nk::panel_flags::no_scrollbar,
                   [&](nk::window w) {
                     namespace nkw = nk::widget;
                     w.row_dynamic(20, 2);
-                    nkw::label(w, "Object");
-                    nkw::label(w, "Light");
+                    nkw::label(
+                        w, "Object", nk_text_alignment::NK_TEXT_CENTERED);
+                    nkw::label(w, "Light", nk_text_alignment::NK_TEXT_CENTERED);
                     w.row_dynamic(33, 2);
-                    nk::widget::slider(w, 0, object_color.r, 1, 0.001);
-                    nk::widget::slider(w, 0, light_color.r, 1, 0.001);
+                    nkw::slider(w, 0, object_color.r, 1, 0.001);
+                    nkw::slider(w, 0, light_color.r, 1, 0.001);
                     w.row_dynamic(33, 2);
-                    nk::widget::slider(w, 0, object_color.g, 1, 0.001);
-                    nk::widget::slider(w, 0, light_color.g, 1, 0.001);
+                    nkw::slider(w, 0, object_color.g, 1, 0.001);
+                    nkw::slider(w, 0, light_color.g, 1, 0.001);
                     w.row_dynamic(33, 2);
-                    nk::widget::slider(w, 0, object_color.b, 1, 0.001);
-                    nk::widget::slider(w, 0, light_color.b, 1, 0.001);
+                    nkw::slider(w, 0, object_color.b, 1, 0.001);
+                    nkw::slider(w, 0, light_color.b, 1, 0.001);
+                    w.row_dynamic(30, 2);
+                    nkw::label(w, "Ambient");
+                    nkw::slider(w, 0, ambient, 1, 0.001);
                   });
 
-              kmap.on(input::key::A, ignore([&] {
-                        std::cout << "color: " << light_color.r << " "
-                                  << light_color.g << " " << light_color.b
-                                  << std::endl;
-                      }));
-
-              glm::mat4 model{1.0};
-              object_program.use(cam, model, object_color, light_color);
+              object_program.use(cam, object_color, light_color, ambient);
               object_vao.bind();
               gl::draw_arrays(gl::drawing_mode::triangles,
                               gl::index{0},
                               gl::element_count{36});
 
-              model = glm::translate(model, light_position);
-              model = glm::scale(model, glm::vec3(0.2));
-
-              light_program.use(cam, model, light_color);
+              light_program.use(cam, light_position, light_color);
 
               object_vao.bind();
               gl::draw_arrays(gl::drawing_mode::triangles,
                               gl::index{0},
                               gl::element_count{36});
+
+              timer.trigger();
             });
           });
     });
