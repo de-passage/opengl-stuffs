@@ -266,6 +266,12 @@ int main() {
                 ignore([&] { cam.advance(-camera_speed); });
             const auto strafe_left = ignore([&] { cam.strafe(-camera_speed); });
             const auto strafe_right = ignore([&] { cam.strafe(camera_speed); });
+            const auto climb_up = ignore([&] { cam.climb(camera_speed); });
+            const auto climb_down = ignore([&] { cam.climb(-camera_speed); });
+            const auto rotate_left =
+                ignore([&] { cam.rotate(camera_speed, 0); });
+            const auto rotate_right =
+                ignore([&] { cam.rotate(-camera_speed, 0); });
 
             kmap.while_(input::key::up, move_forward);
             kmap.while_(input::key::W, move_forward);
@@ -275,12 +281,14 @@ int main() {
             kmap.while_(input::key::A, strafe_left);
             kmap.while_(input::key::right, strafe_right);
             kmap.while_(input::key::D, strafe_right);
+            kmap.while_(input::key::R, climb_up);
+            kmap.while_(input::key::F, climb_down);
+            kmap.while_(input::key::Q, rotate_left);
+            kmap.while_(input::key::E, rotate_right);
 
-            kmap.on(input::key::R, ignore([&] {
+            kmap.on(input::key::G, ignore([&] {
                       cam.reset(default_yaw, default_pitch, default_fov);
                     }));
-
-            using clock = std::chrono::steady_clock;
 
             wdw.render_loop([&]([[maybe_unused]] nk::context& ctx) {
               gl::enable(gl::capability::depth_test);

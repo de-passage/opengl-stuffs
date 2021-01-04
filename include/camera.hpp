@@ -49,11 +49,11 @@ class camera : Traits {
   vec_type _world_up{0, 1, 0};
   vec_type _right{0, 1, 0};
 
-  [[nodiscard]] constexpr mat_type _compute_projection() const {
+  [[nodiscard]] constexpr mat_type _compute_projection() const noexcept {
     return perspective(_fov, _aspect_ratio, _z_near, _z_far);
   }
 
-  [[nodiscard]] constexpr mat_type _compute_view() const {
+  [[nodiscard]] constexpr mat_type _compute_view() const noexcept {
     return look_at(_position, _position + _front, _up);
   }
 
@@ -63,15 +63,15 @@ class camera : Traits {
                               sin(_yaw.value) * cos(_pitch.value)});
   }
 
-  [[nodiscard]] constexpr vec_type _compute_right() const {
+  [[nodiscard]] constexpr vec_type _compute_right() const noexcept {
     return normalize(cross(_front, _world_up));
   }
 
-  [[nodiscard]] constexpr vec_type _compute_up() const {
+  [[nodiscard]] constexpr vec_type _compute_up() const noexcept {
     return normalize(cross(_right, _front));
   }
 
-  void _update_vecs() {
+  void _update_vecs() noexcept {
     _front = _compute_front();
     _right = _compute_right();
     _up = _compute_up();
@@ -79,31 +79,35 @@ class camera : Traits {
 
  public:
   constexpr inline explicit camera(aspect_ratio ar)
-      : _aspect_ratio{ar},
+       noexcept: _aspect_ratio{ar},
         _fov{default_fov},
         _z_near{default_z_near},
         _z_far{default_z_far},
         _pitch{default_pitch},
         _yaw{default_yaw} {}
 
-  constexpr value_type aspect_ratio() const { return _aspect_ratio; }
+  constexpr value_type aspect_ratio() const noexcept { return _aspect_ratio; }
 
-  constexpr void aspect_ratio(width w, height h) { aspect_ratio(w / h); }
+  constexpr void aspect_ratio(width w, height h) noexcept { aspect_ratio(w / h); }
 
-  constexpr void aspect_ratio(struct aspect_ratio ar) { _aspect_ratio = ar; }
+  constexpr void aspect_ratio(struct aspect_ratio ar) noexcept { _aspect_ratio = ar; }
 
-  inline mat_type projection() const { return _compute_projection(); }
-  inline mat_type view() const { return _compute_view(); }
+  inline mat_type projection() const noexcept { return _compute_projection(); }
+  inline mat_type view() const noexcept { return _compute_view(); }
 
-  inline mat_type projected_view() const { return projection() * view(); }
+  inline mat_type projected_view() const  noexcept{ return projection() * view(); }
 
-  inline void advance(value_type offset) { _position += offset * _front; }
+  inline void advance(value_type offset) noexcept { _position += offset * _front; }
 
-  inline void strafe(value_type offset) {
+  inline void strafe(value_type offset)  noexcept{
     _position += offset * normalize(cross(_front, _up));
   }
 
-  inline void reset(radians yaw, radians pitch, radians fov) {
+  inline void climb(value_type offset) noexcept {
+    _position += offset * _up;
+  }
+
+  inline void reset(radians yaw, radians pitch, radians fov)  noexcept{
     _yaw = yaw;
     _pitch = pitch;
     _fov = fov;
@@ -111,14 +115,14 @@ class camera : Traits {
     _update_vecs();
   }
 
-  inline void rotate(value_type x_offset, value_type y_offset) {
+  inline void rotate(value_type x_offset, value_type y_offset) noexcept {
     _yaw.value += x_offset;
     _pitch.value =
         std::clamp(_pitch.value + y_offset, min_pitch.value, max_pitch.value);
     _update_vecs();
   }
 
-  inline void zoom(value_type offset) {
+  inline void zoom(value_type offset) noexcept {
     _fov.value = std::clamp(_fov.value + offset, min_fov.value, max_fov.value);
   }
 };
