@@ -32,47 +32,47 @@
 
 // clang-format off
 constexpr float vertices[] = {
-    -0.5f, -0.5f, -0.5f, 
-    0.5f, -0.5f, -0.5f,  
-    0.5f,  0.5f, -0.5f,  
-    0.5f,  0.5f, -0.5f,  
-    -0.5f,  0.5f, -0.5f, 
-    -0.5f, -0.5f, -0.5f, 
+   -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+         0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
 
-    -0.5f, -0.5f,  0.5f, 
-    0.5f, -0.5f,  0.5f,  
-    0.5f,  0.5f,  0.5f,  
-    0.5f,  0.5f,  0.5f,  
-    -0.5f,  0.5f,  0.5f, 
-    -0.5f, -0.5f,  0.5f, 
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+         0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+         0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+         0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
 
-    -0.5f,  0.5f,  0.5f, 
-    -0.5f,  0.5f, -0.5f, 
-    -0.5f, -0.5f, -0.5f, 
-    -0.5f, -0.5f, -0.5f, 
-    -0.5f, -0.5f,  0.5f, 
-    -0.5f,  0.5f,  0.5f, 
+        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
 
-    0.5f,  0.5f,  0.5f,  
-    0.5f,  0.5f, -0.5f,  
-    0.5f, -0.5f, -0.5f,  
-    0.5f, -0.5f, -0.5f,  
-    0.5f, -0.5f,  0.5f,  
-    0.5f,  0.5f,  0.5f,  
+         0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+         0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+         0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+         0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+         0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+         0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
 
-    -0.5f, -0.5f, -0.5f, 
-    0.5f, -0.5f, -0.5f,  
-    0.5f, -0.5f,  0.5f,  
-    0.5f, -0.5f,  0.5f,  
-    -0.5f, -0.5f,  0.5f, 
-    -0.5f, -0.5f, -0.5f, 
+        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+         0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+         0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+         0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
 
-    -0.5f,  0.5f, -0.5f, 
-    0.5f,  0.5f, -0.5f,  
-    0.5f,  0.5f,  0.5f,  
-    0.5f,  0.5f,  0.5f,  
-    -0.5f,  0.5f,  0.5f, 
-    -0.5f,  0.5f, -0.5f, 
+        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+         0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+         0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+         0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
 };
 // clang-format on
 
@@ -87,11 +87,13 @@ constexpr static inline bool is_template_instance_v =
     is_template_instance<T, C>::value;
 
 struct projection_program {
-  template <
-      class T,
-      std::enable_if_t<is_template_instance_v<dpsg::fs_filename, T>, int> = 0>
-  explicit projection_program(T&& fragment_shader)
-      : _program{load(dpsg::vs_filename{"shaders/basic_projection.vs"},
+  template <class U,
+            class T,
+            std::enable_if_t<is_template_instance_v<dpsg::fs_filename, T> &&
+                                 is_template_instance_v<dpsg::vs_filename, U>,
+                             int> = 0>
+  explicit projection_program(U&& vertex_shader, T&& fragment_shader)
+      : _program{load(std::forward<U>(vertex_shader),
                       std::forward<T>(fragment_shader))
                      .value()},
         _projected_view{uniform_location<glm::mat4>("projected_view")},
@@ -124,17 +126,21 @@ struct projection_program {
 struct object_program : projection_program {
   using projection_program::uniform_location;
   object_program()
-      : projection_program{dpsg::fs_filename{"shaders/basic_lighting.fs"}} {}
+      : projection_program{
+            dpsg::vs_filename{"shaders/projection_with_normal.vs"},
+            dpsg::fs_filename{"shaders/basic_lighting.fs"}} {}
 
   template <class T>
   void use(const dpsg::camera<T>& cam,
            const glm::vec3& object_color,
            const glm::vec3& light_color,
-           float ambient) const noexcept {
+           float ambient,
+           const glm::vec3& light_position) const noexcept {
     projection_program::use(cam, glm::mat4{1.0});
     _object_color_uniform.bind(object_color);
     _light_color_uniform.bind(light_color);
     _ambient_uniform.bind(ambient);
+    _light_position_uniform.bind(light_position);
   }
 
  private:
@@ -144,12 +150,15 @@ struct object_program : projection_program {
       uniform_location<glm::vec3>("light_color")};
   dpsg::program::uniform<float> _ambient_uniform{
       uniform_location<float>("ambient")};
+  dpsg::program::uniform<glm::vec3> _light_position_uniform{
+      uniform_location<glm::vec3>("light_position")};
 };
 
 struct light_program : projection_program {
   using projection_program::uniform_location;
   light_program()
-      : projection_program{dpsg::fs_filename{"shaders/uniform.fs"}} {}
+      : projection_program{dpsg::vs_filename{"shaders/basic_projection.vs"},
+                           dpsg::fs_filename{"shaders/uniform.fs"}} {}
 
   template <class T>
   void use(const dpsg::camera<T>& cam,
@@ -215,13 +224,16 @@ int main() {
             vertex_array object_vao;
             object_vao.bind();
             gl::vertex_attrib_pointer<float>(
-                gl::attrib_location{0}, gl::element_count{3}, gl::stride{3});
-            gl::enable_vertex_attrib_array(gl::attrib_location{0});
+                gl::attrib_location{0}, gl::element_count{3}, gl::stride{6});
+            gl::vertex_attrib_pointer<float>(
+                gl::attrib_location{1}, gl::element_count{3}, gl::stride{6});
+            gl::enable_vertex_attrib_array(gl::attrib_location{0},
+                                           gl::attrib_location{1});
 
             vertex_array light_vao;
             light_vao.bind();
             gl::vertex_attrib_pointer<float>(
-                gl::attrib_location{0}, gl::element_count{3}, gl::stride{3});
+                gl::attrib_location{0}, gl::element_count{3}, gl::stride{6});
             gl::enable_vertex_attrib_array(gl::attrib_location{0});
 
             gl::clear_color(gl::r{0.1}, gl::g{0.1}, gl::b{0.1});
@@ -299,7 +311,8 @@ int main() {
                     nkw::slider(w, 0, ambient, 1, 0.001);
                   });
 
-              object_program.use(cam, object_color, light_color, ambient);
+              object_program.use(
+                  cam, object_color, light_color, ambient, light_position);
               object_vao.bind();
               gl::draw_arrays(gl::drawing_mode::triangles,
                               gl::index{0},
