@@ -2,7 +2,9 @@
 #define GUARD_DPSG_META_COMPOSITE_HEADER
 
 #include <tuple>
+#include <type_traits>
 #include <utility>
+#include "traversecpp/composite.hpp"
 
 namespace dpsg {
 
@@ -13,67 +15,30 @@ template <class T>
 constexpr static inline tag_t<T> tag{};
 
 template <class Tag, class... Components>
-struct composite {
+struct tagged_composite : composite<Components...> {
   using tag = Tag;
 
   template <class... Args>
-  constexpr explicit composite([[maybe_unused]] tag_t<tag> tag_, Args&&... args)
-      : components(std::forward<Args>(args)...) {}
-
-  std::tuple<Components...> components;
+  constexpr explicit tagged_composite([[maybe_unused]] tag_t<tag> tag_,
+                                      Args&&... args)
+      : composite<Components...>(std::forward<Args>(args)...) {}
 };
 
 template <class Tag, class... Components>
-composite(tag_t<Tag>, Components...) -> composite<Tag, Components...>;
+tagged_composite(tag_t<Tag>, Components...)
+    -> tagged_composite<Tag, Components...>;
 
 template <class H>
 struct is_composite : std::false_type {};
 template <class T, class... Cs>
-struct is_composite<composite<T, Cs...>> : std::true_type {};
+struct is_composite<tagged_composite<T, Cs...>> : std::true_type {};
 
 template <class H>
 constexpr static inline bool is_composite_v = is_composite<H>::value;
 
-struct traverse_t {
-  template <class H,
-            class F,
-            std::enable_if_t<is_composite_v<std::decay_t<H>>, int> = 0,
-            class... Args>
-  constexpr void operator()(H&& h, F f, Args&&... args) const {
-    f(h, next(h, f), std::forward<Args>(args)...);
-  }
-
-  template <class T,
-            class F,
-            std::enable_if_t<!is_composite_v<std::decay_t<T>>, int> = 0,
-            class... Args>
-  constexpr void operator()(T&& t, F&& f, Args&&... args) const {
-    std::forward<F>(f)(
-        std::forward<T>(t), [] {}, std::forward<Args>(args)...);
-  }
-
- private:
-  template <class Tag, class F, class... Cs>
-  constexpr static auto next(const composite<Tag, Cs...>& h, F f) {
-    return [&h, f](auto&&... args) {
-      (traverse_t{}(std::get<Cs>(h.components),
-                    f,
-                    std::forward<decltype(args)>(args)...),
-       ...);
-    };
-  }
-
-  template <class Tag, class F, class... Cs>
-  constexpr static auto next(composite<Tag, Cs...>& h, F f) {
-    return [&h, f](auto&&... args) {
-      (traverse_t{}(std::get<Cs>(h.components),
-                    f,
-                    std::forward<decltype(args)>(args)...),
-       ...);
-    };
-  }
-
-} constexpr traverse;
+using leaf = composite<>;
+template <class L>
+constexpr static inline bool is_leaf_v = std::is_base_of_v<leaf, L>;
 
 namespace detail {
 
@@ -91,8 +56,8 @@ struct find_similar<R, S, Args...> {
 };
 
 template <class R, class... Cs, class... Args>
-struct find_similar<R, composite<R, Cs...>, Args...> {
-  using type = composite<R, Cs...>;
+struct find_similar<R, tagged_composite<R, Cs...>, Args...> {
+  using type = tagged_composite<R, Cs...>;
 };
 
 template <class R, class... Args>
@@ -105,7 +70,7 @@ template <class H>
 struct components;
 
 template <class T, class... Args>
-struct components<composite<T, Args...>> {
+struct components<tagged_composite<T, Args...>> {
   using type = tuple<Args...>;
 };
 

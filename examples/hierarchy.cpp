@@ -18,12 +18,13 @@
 #include <chrono>
 #include <type_traits>
 
-struct scale {
+using dpsg::leaf;
+struct scale : leaf {
   constexpr explicit scale(float x, float y, float z) : value{x, y, z} {}
   glm::vec3 value;
 };
 
-struct rotation {
+struct rotation : leaf {
   constexpr explicit rotation(float x, float y, float z, float a)
       : value{x, y, z}, angle{dpsg::to_radians(dpsg::degrees{a})} {}
   glm::vec3 value;
@@ -42,113 +43,114 @@ struct z_rotation : rotation {
   constexpr explicit z_rotation(float angle) : rotation(0, 0, 1, angle) {}
 };
 
-struct position {
+struct position : leaf {
   constexpr explicit position(float x, float y, float z) : value{x, y, z} {}
   glm::vec3 value;
 };
 
-struct draw_t {
+struct draw_t : leaf {
 } constexpr draw;
 
-using dpsg::composite;
 using dpsg::tag;
+using dpsg::tagged_composite;
 
 constexpr float finger_length = 2;
 constexpr float finger_width = 0.25;
 constexpr float angle_lower_finger = 45;
 constexpr float angle_upper_finger = 9;
-constexpr composite finger_segment{
+constexpr tagged_composite finger_segment{
     tag<struct finger_segment>,
     position{0, 0, finger_length / 2},
     scale{finger_width, finger_width, finger_length / 2},
     draw};
 
-constexpr composite left_lower_finger{tag<struct left_lower_finger>,
-                                      position{0, 0, finger_length},
-                                      y_rotation{-angle_lower_finger},
-                                      finger_segment};
+constexpr tagged_composite left_lower_finger{tag<struct left_lower_finger>,
+                                             position{0, 0, finger_length},
+                                             y_rotation{-angle_lower_finger},
+                                             finger_segment};
 
-constexpr composite right_lower_finger{tag<struct right_lower_finger>,
-                                       position{0, 0, finger_length},
-                                       y_rotation{angle_lower_finger},
-                                       finger_segment};
+constexpr tagged_composite right_lower_finger{tag<struct right_lower_finger>,
+                                              position{0, 0, finger_length},
+                                              y_rotation{angle_lower_finger},
+                                              finger_segment};
 
-constexpr composite left_finger{tag<struct left_finger>,
-                                position{1, 0, 1},
-                                y_rotation{angle_upper_finger},
-                                finger_segment,
-                                left_lower_finger};
+constexpr tagged_composite left_finger{tag<struct left_finger>,
+                                       position{1, 0, 1},
+                                       y_rotation{angle_upper_finger},
+                                       finger_segment,
+                                       left_lower_finger};
 
-constexpr composite right_finger{tag<struct right_finger>,
-                                 position{-1, 0, 1},
-                                 y_rotation{-angle_upper_finger},
-                                 finger_segment,
-                                 right_lower_finger};
+constexpr tagged_composite right_finger{tag<struct right_finger>,
+                                        position{-1, 0, 1},
+                                        y_rotation{-angle_upper_finger},
+                                        finger_segment,
+                                        right_lower_finger};
 
 constexpr float wrist_length = 1;
 constexpr float wrist_width = 1;
 constexpr float wrist_roll_angle = 0;
 constexpr float wrist_pitch_angle = 67.5;
-constexpr composite wrist_segment{tag<struct wrist_segment>,
-                                  scale{wrist_width, wrist_width, wrist_length},
-                                  draw};
+constexpr tagged_composite wrist_segment{
+    tag<struct wrist_segment>,
+    scale{wrist_width, wrist_width, wrist_length},
+    draw};
 
-constexpr composite wrist{tag<struct wrist>,
-                          position{0, 0, 5},
-                          z_rotation{wrist_roll_angle},
-                          x_rotation{wrist_pitch_angle},
-                          wrist_segment,
-                          left_finger,
-                          right_finger};
+constexpr tagged_composite wrist{tag<struct wrist>,
+                                 position{0, 0, 5},
+                                 z_rotation{wrist_roll_angle},
+                                 x_rotation{wrist_pitch_angle},
+                                 wrist_segment,
+                                 left_finger,
+                                 right_finger};
 
 constexpr float lower_arm_angle = 146.25;
 constexpr float lower_arm_length = 2.5;
 constexpr float lower_arm_width = 0.75;
-constexpr composite lower_arm_segment{
+constexpr tagged_composite lower_arm_segment{
     tag<struct lower_arm_segment>,
     position{0, 0, lower_arm_length},
     scale{lower_arm_width, lower_arm_width, lower_arm_length},
     draw};
 
-constexpr composite lower_arm{tag<struct lower_arm>,
-                              position{0, 0, 8},
-                              x_rotation{lower_arm_angle},
-                              lower_arm_segment,
-                              wrist};
+constexpr tagged_composite lower_arm{tag<struct lower_arm>,
+                                     position{0, 0, 8},
+                                     x_rotation{lower_arm_angle},
+                                     lower_arm_segment,
+                                     wrist};
 
 constexpr float upper_arm_size = 4.5;
 constexpr float upper_arm_angle = -33.75;
-constexpr composite upper_arm_segment{tag<struct upper_arm_segment>,
-                                      position{0, 0, upper_arm_size - 1},
-                                      scale{1, 1, upper_arm_size},
-                                      draw};
+constexpr tagged_composite upper_arm_segment{tag<struct upper_arm_segment>,
+                                             position{0, 0, upper_arm_size - 1},
+                                             scale{1, 1, upper_arm_size},
+                                             draw};
 
-constexpr composite upper_arm{tag<struct upper_arm>,
-                              x_rotation{upper_arm_angle},
-                              upper_arm_segment,
-                              lower_arm};
+constexpr tagged_composite upper_arm{tag<struct upper_arm>,
+                                     x_rotation{upper_arm_angle},
+                                     upper_arm_segment,
+                                     lower_arm};
 
 constexpr float base_scale = 3;
 constexpr float base_angle = -45;
-constexpr composite left_base{tag<struct left_base>,
-                              position{2, 0, 0},
-                              scale{1, 1, base_scale},
-                              draw};
-constexpr composite right_base{tag<struct right_base>,
-                               position{-2, 0, 0},
-                               scale{1, 1, base_scale},
-                               draw};
-constexpr composite crane{tag<struct crane>,
-                          position{3, -5, -40},
-                          y_rotation{base_angle},
-                          left_base,
-                          right_base,
-                          upper_arm};
+constexpr tagged_composite left_base{tag<struct left_base>,
+                                     position{2, 0, 0},
+                                     scale{1, 1, base_scale},
+                                     draw};
+constexpr tagged_composite right_base{tag<struct right_base>,
+                                      position{-2, 0, 0},
+                                      scale{1, 1, base_scale},
+                                      draw};
+constexpr tagged_composite crane{tag<struct crane>,
+                                 position{3, -5, -40},
+                                 y_rotation{base_angle},
+                                 left_base,
+                                 right_base,
+                                 upper_arm};
 
 template <class T>
 struct name;
 template <class Tag, class... Cs>
-struct name<composite<Tag, Cs...>> {
+struct name<dpsg::tagged_composite<Tag, Cs...>> {
   constexpr static inline const char* value = name<Tag>::value;
 };
 #define GEN_SPECIALIZATION(name_)                        \
@@ -200,7 +202,7 @@ constexpr auto print(H& model) noexcept {
         std::cout << "draw required\n";
       }
       else {
-        static_assert(std::is_same_v<value_type, void>, "Non exhaustive");
+        static_assert(dpsg::is_leaf_v<value_type>, "Non exhaustive");
       }
     };
 
@@ -232,7 +234,7 @@ constexpr auto gl_draw =
           elements.draw();
         }
         else {
-          static_assert(std::is_same_v<value_type, void>, "Non exhaustive");
+          static_assert(dpsg::is_leaf_v<value_type>, "Non exhaustive");
         }
       };
     };
