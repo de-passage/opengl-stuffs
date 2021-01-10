@@ -65,7 +65,7 @@ struct traverse_t {
 
   template <class Tag, class F, class... Cs>
   constexpr static auto next(composite<Tag, Cs...>& h, F f) {
-    return [&h, f](auto&&... args) mutable {
+    return [&h, f](auto&&... args) {
       (traverse_t{}(std::get<Cs>(h.components),
                     f,
                     std::forward<decltype(args)>(args)...),
