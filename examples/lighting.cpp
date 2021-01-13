@@ -215,16 +215,6 @@ int main() {
 
             wdw.set_framebuffer_size_callback(camera_resize(cam));
 
-            wdw.on(input::key::space, [b = true, &cam](auto& window) mutable {
-              if (b) {
-                window.set_cursor_pos_callback(nullptr);
-              }
-              else {
-                window.set_cursor_pos_callback(camera_tracks_cursor{cam});
-              }
-              b = !b;
-            });
-
             object_program object_program;
 
             light_program light_program;

@@ -115,6 +115,18 @@ constexpr static inline auto close_window = []([[maybe_unused]] auto&) {
   return close;
 };
 
+constexpr static inline auto toggle_cursor_tracking = [](auto& camera) {
+  return [b = true, &camera](auto& window) mutable {
+    if (b) {
+      window.set_cursor_pos_callback(nullptr);
+    }
+    else {
+      window.set_cursor_pos_callback(camera_tracks_cursor{camera});
+    }
+    b = !b;
+  };
+};
+
 }  // namespace actions
 
 namespace inputs {
@@ -229,8 +241,10 @@ constexpr static inline auto free_camera_movement = [] {
 constexpr static inline auto reset_camera =
     control::input{actions::reset_camera, inputs::key{dpsg::input::key::G}};
 
-constexpr static inline auto free_camera_rotation =
-    control::input{actions::track_cursor, inputs::cursor_movement};
+constexpr static inline auto free_camera_rotation = control::control_scheme{
+    control::input{actions::track_cursor, inputs::cursor_movement},
+    control::input{actions::toggle_cursor_tracking,
+                   inputs::key{dpsg::input::key::space}}};
 
 constexpr static inline auto kb_camera_rotation = [] {
   using namespace control;
