@@ -77,21 +77,13 @@ constexpr float vertices[] = {
 };
 // clang-format on
 
-template <template <class...> class T, class C>
-struct is_template_instance : std::false_type {};
-
-template <template <class...> class T, class... Args>
-struct is_template_instance<T, T<Args...>> : std::true_type {};
-
-template <template <class...> class T, class C>
-constexpr static inline bool is_template_instance_v =
-    is_template_instance<T, C>::value;
+using dpsg::is_template_instance_v;
 
 struct projection_program {
   template <class U,
             class T,
-            std::enable_if_t<is_template_instance_v<dpsg::fs_filename, T> &&
-                                 is_template_instance_v<dpsg::vs_filename, U>,
+            std::enable_if_t<is_template_instance_v<T, dpsg::fs_filename> &&
+                                 is_template_instance_v<U, dpsg::vs_filename>,
                              int> = 0>
   explicit projection_program(U&& vertex_shader, T&& fragment_shader)
       : _program{load(std::forward<U>(vertex_shader),

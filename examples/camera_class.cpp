@@ -1,7 +1,8 @@
-#include "common.hpp"
 #define GLM_FORCE_SILENT_WARNINGS
 
 #include "camera.hpp"
+#include "common.hpp"
+#include "glfw_controls.hpp"
 #include "glm_traits.hpp"
 #include "input_timer.hpp"
 #include "load_shaders.hpp"
@@ -17,7 +18,7 @@
 
 #include <algorithm>
 
-void camera_class(dpsg::window& wdw, key_mapper& kmap) {
+void camera_class(kmap_window& wdw) {
   // NOLINTNEXTLINE
   constexpr float vertices[] = {
       -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,  // NOLINT
@@ -83,15 +84,12 @@ void camera_class(dpsg::window& wdw, key_mapper& kmap) {
 
   using camera = dpsg::camera<dpsg::traits::glm>;
 
-  constexpr radians default_yaw{to_radians(degrees{-90})};
-  constexpr radians default_pitch{0};
-  constexpr radians default_fov{to_radians(degrees{45})};
-
   gl::enable(gl::capability::depth_test);
 
   // Shader program
   auto prog = load(vs_filename("shaders/projected.vs"),
-                   fs_filename("shaders/two_textures_mixed.fs")).value();
+                   fs_filename("shaders/two_textures_mixed.fs"))
+                  .value();
   prog.use();
 
   auto texture1_u = prog.uniform_location<sampler2D>("texture1").value();
@@ -123,48 +121,11 @@ void camera_class(dpsg::window& wdw, key_mapper& kmap) {
     glViewport(0, 0, w.value, h.value);
   }));
 
-  // Input
-  constexpr auto interval = 10ms;
-  constexpr float camera_speed = .04;
-  input_timer timer{[&] { kmap.trigger_pressed_callbacks(wdw); }, interval};
-
-  const auto move_forward = ignore([&] { cam.advance(camera_speed); });
-  const auto move_backward = ignore([&] { cam.advance(-camera_speed); });
-  const auto strafe_left = ignore([&] { cam.strafe(-camera_speed); });
-  const auto strafe_right = ignore([&] { cam.strafe(camera_speed); });
-
-  kmap.while_(key::up, move_forward);
-  kmap.while_(key::W, move_forward);
-  kmap.while_(key::down, move_backward);
-  kmap.while_(key::S, move_backward);
-  kmap.while_(key::left, strafe_left);
-  kmap.while_(key::A, strafe_left);
-  kmap.while_(key::right, strafe_right);
-  kmap.while_(key::D, strafe_right);
-
-  kmap.on(key::R,
-          ignore([&] { cam.reset(default_yaw, default_pitch, default_fov); }));
-
   wdw.set_input_mode(cursor_mode::disabled);
-  double last_x{0};
-  double last_y{0};
-  wdw.set_cursor_pos_callback([&](window& wdw, double x, double y) {
-    last_x = x;
-    last_y = y;
-    const auto callback = [&](double x, double y) {
-      constexpr float sensitivity = glm::radians(0.1F);
-      double x_offset = (x - last_x) * sensitivity;
-      double y_offset = (last_y - y) * sensitivity;
-      last_x = x;
-      last_y = y;
-      cam.rotate(x_offset, y_offset);
-    };
-    callback(x, y);
-    wdw.set_cursor_pos_callback(ignore(callback));
-  });
 
-  wdw.set_scroll_callback(
-      ignore([&]([[maybe_unused]] double x, double y) { cam.zoom(y); }));
+  // Input
+  glfw_controls::bind_control_scheme(
+      glfw_controls::standard_controls, cam, wdw);
 
   // Render loop
   gl::clear_color({0.2F, 0.3F, 0.3F});  // NOLINT
@@ -184,8 +145,6 @@ void camera_class(dpsg::window& wdw, key_mapper& kmap) {
       model_u.bind(model);
       buffer.draw();
     }
-
-    timer.trigger();
   });
 }
 

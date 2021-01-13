@@ -13,28 +13,15 @@ void moving_polygon(dpsg::window& wdw, key_mapper& kmap) {
                      fs_filename{"shaders/yellow.fs"})
                     .value();
 
+  // clang-format off
   // NOLINTNEXTLINE
   constexpr float vertices[] = {
-      // positions         // colors
-      0.0F,
-      0.5F,
-      0.0F,
-      0.0F,
-      0.0F,
-      1.0F,  // top
-      -0.5F,
-      -0.5F,
-      0.0F,
-      0.0F,
-      1.0F,
-      0.0F,  // bottom leFt
-      0.5F,
-      -0.5F,
-      0.0F,
-      1.0F,
-      0.0F,
-      0.0F,  // bottom right
+      // positions        // colors
+       0.0F,  0.5F, 0.0F, 0.0F, 0.0F, 1.0F,  // top
+      -0.5F, -0.5F, 0.0F, 0.0F, 1.0F, 0.0F,  // bottom leFt 
+       0.5F, -0.5F, 0.0F, 1.0F, 0.0F, 0.0F,  // bottom right
   };
+  // clang-format on
   using packed_layout = packed<group<3>, group<3>>;
   fixed_size_structured_buffer b(packed_layout{}, vertices);
   b.enable();

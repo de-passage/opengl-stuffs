@@ -4,6 +4,7 @@
 #include "camera.hpp"
 #include "common.hpp"
 #include "fixed_size_element_buffer.hpp"
+#include "glfw_controls.hpp"
 #include "glm_traits.hpp"
 #include "input_timer.hpp"
 #include "load_shaders.hpp"
@@ -405,7 +406,7 @@ const dpsg::gl::float_t vertex_data[] =
 };
 // clang-format on
 
-void hierarchy(dpsg::window& wdw, key_mapper& kmap) {
+void hierarchy(kmap_window& wdw) {
   using namespace dpsg;
   using namespace dpsg::input;
 
@@ -433,67 +434,31 @@ void hierarchy(dpsg::window& wdw, key_mapper& kmap) {
   vertex_array.enable();
   fixed_size_element_buffer element_buffer{index_data};
 
-  auto model{crane};
+  auto model = crane;  // runtime copy, so we can modify it
 
-  kmap.on(key::enter, print(model));
+  // Inputs
+  glfw_controls::bind_control_scheme(
+      glfw_controls::standard_controls, camera, wdw);
+  wdw.on(key::enter, print(model));
   constexpr float standard_angle_increment = 6.25;
   constexpr float small_angle_increment = 3;
-  kmap.while_(key::M, rotate_base(model, +standard_angle_increment));
-  kmap.while_(key::N, rotate_base(model, -standard_angle_increment));
-  kmap.while_(key::H, rotate_upper_arm(model, +standard_angle_increment));
-  kmap.while_(key::Y, rotate_upper_arm(model, -standard_angle_increment));
-  kmap.while_(key::J, rotate_lower_arm(model, +standard_angle_increment));
-  kmap.while_(key::U, rotate_lower_arm(model, -standard_angle_increment));
-  kmap.while_(key::O, roll_wrist(model, +standard_angle_increment));
-  kmap.while_(key::P, roll_wrist(model, -standard_angle_increment));
-  kmap.while_(key::K, pitch_wrist(model, +standard_angle_increment));
-  kmap.while_(key::I, pitch_wrist(model, -standard_angle_increment));
-  kmap.while_(key::L, rotate_fingers(model, +small_angle_increment));
-  kmap.while_(key::semicolon, rotate_fingers(model, -small_angle_increment));
-
-  constexpr float camera_speed = 0.4;
-  kmap.while_(key::W, ignore([&] { camera.advance(camera_speed); }));
-  kmap.while_(key::S, ignore([&] { camera.advance(-camera_speed); }));
-  kmap.while_(key::D, ignore([&] { camera.strafe(camera_speed); }));
-  kmap.while_(key::A, ignore([&] { camera.strafe(-camera_speed); }));
-
-  using namespace std::literals::chrono_literals;
-  constexpr auto interval = 30ms;
-  input_timer timer{[&kmap, &wdw] { kmap.trigger_pressed_callbacks(wdw); },
-                    interval};
-
-  double last_x{0};
-  double last_y{0};
-  wdw.set_input_mode(cursor_mode::hidden);
-  kmap.on(key::space, [](window& wdw) {
-    auto mode = wdw.get_cursor_mode();
-    if (mode == cursor_mode::hidden) {
-      wdw.set_input_mode(cursor_mode::disabled);
-    }
-    else {
-      wdw.set_input_mode(cursor_mode::hidden);
-    }
-  });
-  wdw.set_cursor_pos_callback([&](window& wdw, double x, double y) {
-    last_x = x;
-    last_y = y;
-    const auto callback = [&](double x, double y) {
-      constexpr float sensitivity = glm::radians(0.1F);
-      double x_offset = (x - last_x) * sensitivity;
-      double y_offset = (last_y - y) * sensitivity;
-      last_x = x;
-      last_y = y;
-      camera.rotate(x_offset, y_offset);
-    };
-    callback(x, y);
-    wdw.set_cursor_pos_callback(ignore(callback));
-  });
+  wdw.while_(key::M, rotate_base(model, +standard_angle_increment));
+  wdw.while_(key::N, rotate_base(model, -standard_angle_increment));
+  wdw.while_(key::H, rotate_upper_arm(model, +standard_angle_increment));
+  wdw.while_(key::Y, rotate_upper_arm(model, -standard_angle_increment));
+  wdw.while_(key::J, rotate_lower_arm(model, +standard_angle_increment));
+  wdw.while_(key::U, rotate_lower_arm(model, -standard_angle_increment));
+  wdw.while_(key::O, roll_wrist(model, +standard_angle_increment));
+  wdw.while_(key::P, roll_wrist(model, -standard_angle_increment));
+  wdw.while_(key::K, pitch_wrist(model, +standard_angle_increment));
+  wdw.while_(key::I, pitch_wrist(model, -standard_angle_increment));
+  wdw.while_(key::L, rotate_fingers(model, +small_angle_increment));
+  wdw.while_(key::semicolon, rotate_fingers(model, -small_angle_increment));
 
   wdw.render_loop([&] {
     gl::clear(gl::buffer_bit::color | gl::buffer_bit::depth);
     projection_u.bind(camera.projected_view());
     traverse(model, gl_draw(stack, model_u, element_buffer), stack.top());
-    timer.trigger();
   });
 }
 

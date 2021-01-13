@@ -180,6 +180,12 @@ template <template <class...> class Mixin, class... Args1, class... Args2>
 struct prepend<Mixin<Args1...>, Args2...> {
   using type = Mixin<Args2..., Args1...>;
 };
+
+template <class T, class... Args1, class... Args2>
+struct prepend<mixin<T, Args1...>, Args2...> {
+  using type = mixin<T, Args1..., Args2...>;
+};
+
 template <class Mixin, class... Args>
 using prepend_t = typename prepend<Mixin, Args...>::type;
 
