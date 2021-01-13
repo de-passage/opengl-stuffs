@@ -18,6 +18,7 @@
 
 namespace glfw_controls {
 
+namespace actions {
 enum class direction { forward, backward, left, right, up, down };
 enum class rotation_axis : unsigned char { x = 1, y = 2, both = x | y };
 
@@ -73,6 +74,28 @@ struct rotate : control::action {
   }
 };
 
+constexpr static inline auto reset_camera = [](auto& cam) {
+  return ignore([&] {
+    using namespace dpsg;
+    constexpr radians default_yaw{to_radians(degrees{-90})};
+    constexpr radians default_pitch{0};
+    constexpr radians default_fov{to_radians(degrees{45})};
+    cam.reset(default_yaw, default_pitch, default_fov);
+  });
+};
+
+constexpr static inline auto track_cursor = [](auto& camera) {
+  return camera_tracks_cursor{camera};
+};
+
+constexpr static inline auto zoom_camera = [](auto& camera) {
+  return ignore(
+      [&]([[maybe_unused]] double x, double y) { camera.zoom(y * 0.01); });
+};
+
+}  // namespace actions
+
+namespace inputs {
 struct key {
   constexpr explicit key(dpsg::input::key k) noexcept : value{k} {}
   dpsg::input::key value;
@@ -90,37 +113,40 @@ struct key {
   }
 };
 
-constexpr static inline auto reset_camera = [](auto& cam) {
-  return ignore([&] {
-    using namespace dpsg;
-    constexpr radians default_yaw{to_radians(degrees{-90})};
-    constexpr radians default_pitch{0};
-    constexpr radians default_fov{to_radians(degrees{45})};
-    cam.reset(default_yaw, default_pitch, default_fov);
-  });
-};
+constexpr static inline auto cursor_movement =
+    []([[maybe_unused]] auto marker, auto&& op, auto& window) {
+      window.set_cursor_pos_callback(std::forward<decltype(op)>(op));
+    };
+
+constexpr static inline auto mouse_scroll =
+    []([[maybe_unused]] auto marker, auto&& op, auto& window) {
+      window.set_scroll_callback(std::forward<decltype(op)>(op));
+    };
+}  // namespace inputs
 
 constexpr static inline auto free_camera_movement = [] {
   using namespace control;
   using k = dpsg::input::key;
+  using namespace actions;
   using d = direction;
+  using namespace inputs;
   return control_scheme{repeat{move<d::forward>{}, key{k::W}, key{k::up}},
                         repeat{move<d::backward>{}, key{k::S}, key{k::down}},
                         repeat{move<d::left>{}, key{k::A}, key{k::left}},
                         repeat{move<d::right>{}, key{k::D}, key{k::right}},
                         repeat{move<d::up>{}, key{k::R}},
                         repeat{move<d::down>{}, key{k::F}},
-                        control::input{reset_camera, key{k::G}}};
+                        input{reset_camera, key{k::G}}};
 }();
 
-constexpr static inline auto free_camera_rotation = control::input{
-    [](auto& camera) { return camera_tracks_cursor{camera}; },
-    []([[maybe_unused]] auto marker, auto&& op, auto& window) {
-      window.set_cursor_pos_callback(std::forward<decltype(op)>(op));
-    }};
+constexpr static inline auto free_camera_rotation =
+    control::input{actions::track_cursor, inputs::cursor_movement};
+
+constexpr static inline auto zoom =
+    control::input{actions::zoom_camera, inputs::mouse_scroll};
 
 constexpr static inline auto free_camera =
-    control::combine(free_camera_movement, free_camera_rotation);
+    control::combine(free_camera_movement, free_camera_rotation, zoom);
 
 namespace detail {
 constexpr static inline auto bind_inputs =
@@ -187,7 +213,6 @@ struct key_mapper {
 };
 
 }  // namespace mixin
-
 }  // namespace glfw_controls
 
 #endif  // GUARD_GLFW_CONTROLS_HEADER

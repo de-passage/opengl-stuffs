@@ -194,6 +194,7 @@ int main() {
   using window_t = prepend_t<append_t<nk_glfw::window,
                                       framebuffer_size_cb,
                                       function_key_cb,
+                                      scroll_cb,
                                       cursor_pos_cb>,
                              glfw_controls::mixin::key_mapper>;
 
