@@ -111,6 +111,10 @@ constexpr static inline auto zoom_camera = [](auto& camera) {
       [&]([[maybe_unused]] double x, double y) { camera.zoom(y * 0.01); });
 };
 
+constexpr static inline auto close_window = []([[maybe_unused]] auto&) {
+  return close;
+};
+
 }  // namespace actions
 
 namespace inputs {
@@ -141,40 +145,6 @@ constexpr static inline auto mouse_scroll =
       window.set_scroll_callback(std::forward<decltype(op)>(op));
     };
 }  // namespace inputs
-
-constexpr static inline auto free_camera_movement = [] {
-  using namespace control;
-  using k = dpsg::input::key;
-  using namespace actions;
-  using d = direction;
-  using namespace inputs;
-  return control_scheme{repeat{move<d::forward>{}, key{k::W}, key{k::up}},
-                        repeat{move<d::backward>{}, key{k::S}, key{k::down}},
-                        repeat{move<d::left>{}, key{k::A}, key{k::left}},
-                        repeat{move<d::right>{}, key{k::D}, key{k::right}},
-                        repeat{move<d::up>{}, key{k::R}},
-                        repeat{move<d::down>{}, key{k::F}},
-                        input{reset_camera, key{k::G}}};
-}();
-
-constexpr static inline auto free_camera_rotation =
-    control::input{actions::track_cursor, inputs::cursor_movement};
-
-constexpr static inline auto kb_camera_rotation = [] {
-  using namespace control;
-  using namespace actions;
-  using d = direction;
-  using k = dpsg::input::key;
-  return control_scheme{repeat{rotate<d::left>{}, inputs::key{k::Q}},
-                        repeat{rotate<d::right>{}, inputs::key{k::E}}};
-}();
-
-constexpr static inline auto zoom =
-    control::input{actions::zoom_camera, inputs::mouse_scroll};
-
-constexpr static inline auto free_camera = control::combine(
-    control::combine(free_camera_movement, free_camera_rotation, zoom),
-    kb_camera_rotation);
 
 namespace detail {
 constexpr static inline auto bind_inputs =
@@ -241,6 +211,52 @@ struct key_mapper {
 };
 
 }  // namespace mixin
+
+constexpr static inline auto free_camera_movement = [] {
+  using namespace control;
+  using k = dpsg::input::key;
+  using namespace actions;
+  using d = direction;
+  using namespace inputs;
+  return control_scheme{repeat{move<d::forward>{}, key{k::W}, key{k::up}},
+                        repeat{move<d::backward>{}, key{k::S}, key{k::down}},
+                        repeat{move<d::left>{}, key{k::A}, key{k::left}},
+                        repeat{move<d::right>{}, key{k::D}, key{k::right}},
+                        repeat{move<d::up>{}, key{k::R}},
+                        repeat{move<d::down>{}, key{k::F}}};
+}();
+
+constexpr static inline auto reset_camera =
+    control::input{actions::reset_camera, inputs::key{dpsg::input::key::G}};
+
+constexpr static inline auto free_camera_rotation =
+    control::input{actions::track_cursor, inputs::cursor_movement};
+
+constexpr static inline auto kb_camera_rotation = [] {
+  using namespace control;
+  using namespace actions;
+  using d = direction;
+  using k = dpsg::input::key;
+  return control_scheme{repeat{rotate<d::left>{}, inputs::key{k::Q}},
+                        repeat{rotate<d::right>{}, inputs::key{k::E}}};
+}();
+
+constexpr static inline auto zoom =
+    control::input{actions::zoom_camera, inputs::mouse_scroll};
+
+constexpr static inline auto free_camera =
+    control::combine(free_camera_movement,
+                     free_camera_rotation,
+                     zoom,
+                     reset_camera,
+                     kb_camera_rotation);
+
+constexpr static inline auto close_window =
+    control::input{actions::close_window,
+                   inputs::key{dpsg::input::key::escape}};
+
+constexpr static inline auto standard_controls =
+    control::combine(free_camera, close_window);
 }  // namespace glfw_controls
 
 #endif  // GUARD_GLFW_CONTROLS_HEADER

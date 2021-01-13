@@ -211,7 +211,7 @@ int main() {
             wdw.load_font("assets/fonts/ProggyClean.ttf", 14);
             camera<traits::glm> cam{SCR_WIDTH / SCR_HEIGHT};
             glfw_controls::bind_control_scheme(
-                glfw_controls::free_camera, cam, wdw);
+                glfw_controls::standard_controls, cam, wdw);
 
             wdw.set_framebuffer_size_callback(camera_resize(cam));
 
@@ -224,7 +224,6 @@ int main() {
               }
               b = !b;
             });
-            wdw.on(input::key::escape, close);
 
             object_program object_program;
 

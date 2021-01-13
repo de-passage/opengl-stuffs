@@ -134,6 +134,16 @@ constexpr auto combine(C1&& c1, C2&& c2) noexcept {
                      std::forward<C2>(c2).controls));
 }
 
+template <class T1,
+          class T2,
+          class... Args,
+          std::enable_if_t<std::disjunction_v<std::negation<is_input<T2>>,
+                                              std::negation<is_input<Args>>...>,
+                           int> = 0>
+constexpr auto combine(T1&& t1, T2&& t2, Args&&... args) noexcept {
+  return combine(combine(std::forward<T1>(t1), std::forward<T2>(t2)),
+                 std::forward<Args>(args)...);
+}
 }  // namespace control
 
 #endif  // GUARD_DPSG_CONTROL_SCHEME_HPP
