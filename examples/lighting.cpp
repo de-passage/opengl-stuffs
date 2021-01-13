@@ -213,7 +213,6 @@ int main() {
                 glfw_controls::free_camera, cam, wdw);
 
             wdw.set_framebuffer_size_callback(camera_resize(cam));
-            wdw.set_cursor_pos_callback(camera_tracks_cursor{cam});
 
             wdw.on(input::key::space, [b = true, &cam](auto& window) mutable {
               if (b) {
@@ -270,13 +269,6 @@ int main() {
 
             // Camera
             using namespace std::literals::chrono_literals;
-            constexpr radians default_yaw{to_radians(degrees{-90})};
-            constexpr radians default_pitch{0};
-            constexpr radians default_fov{to_radians(degrees{45})};
-
-            wdw.on(input::key::G, ignore([&] {
-                     cam.reset(default_yaw, default_pitch, default_fov);
-                   }));
 
             wdw.render_loop([&]([[maybe_unused]] nk::context& ctx) {
               gl::enable(gl::capability::depth_test);

@@ -22,7 +22,7 @@ constexpr static inline bool is_input_v = is_input<T>::value;
 struct repeated {};
 struct one_time {};
 
-template <class CRTP, class Action, class... Bindings>
+template <class Action, class... Bindings>
 struct input : base_input {
   static_assert(sizeof...(Bindings) > 0, "Actions need at least 1 binding");
   template <class A, class... Bs>
@@ -31,6 +31,8 @@ struct input : base_input {
         bindings{std::forward<Bs>(bindings)...} {}
   Action action;
   std::tuple<Bindings...> bindings;
+
+  constexpr static inline one_time marker{};
 
   template <
       class I,
@@ -51,8 +53,8 @@ template <class A, class... Bs>
 input(A&&, Bs&&...) -> input<std::decay_t<A>, std::decay_t<Bs>...>;
 
 template <class Action, class... Args>
-struct repeat : input<repeat<Action, Args...>, Action, Args...> {
-  using base = input<repeat<Action, Args...>, Action, Args...>;
+struct repeat : input<Action, Args...> {
+  using base = input<Action, Args...>;
   template <class A, class... As, std::enable_if_t<is_action_v<A>, int> = 0>
   constexpr explicit repeat(A&& a, As&&... as)
       : base{std::forward<A>(a), std::forward<As>(as)...} {}
@@ -77,7 +79,7 @@ struct control_scheme {
   template <class S,
             class F,
             class... Args2,
-            std::enable_if_t<std::is_same_v<control_scheme, std::decay_t<S>>,
+            std::enable_if_t<std::is_base_of_v<control_scheme, std::decay_t<S>>,
                              int> = 0>
   friend constexpr void dpsg_traverse(S&& s, F&& f, Args2&&... rest) noexcept {
     dpsg::traverse(
@@ -90,8 +92,47 @@ struct control_scheme {
         std::forward<Args2>(rest)...);
   }
 };
+
 template <class... Args>
 control_scheme(Args&&...) -> control_scheme<std::decay_t<Args>...>;
+
+template <class Cs,
+          class... Args,
+          std::enable_if_t<std::conjunction_v<is_input<Args>...>, int> = 0>
+constexpr auto combine(Cs&& cs, Args&&... args) noexcept {
+  return std::apply(
+      [&args...](auto&&... ctls) {
+        return control_scheme{std::forward<decltype(ctls)>(ctls)...,
+                              std::forward<Args>(args)...};
+      },
+      std::forward<Cs>(cs).controls);
+}
+
+namespace detail {
+template <class T, class = void>
+struct has_controls : std::false_type {};
+
+template <class T>
+struct has_controls<T, std::void_t<decltype(std::declval<T>().controls)>>
+    : std::true_type {};
+
+template <class T>
+constexpr static inline bool has_controls_v = has_controls<T>::value;
+}  // namespace detail
+
+template <class C1,
+          class C2,
+          std::enable_if_t<detail::has_controls_v<C1> &&
+                           detail::has_controls_v<C2>> = 0>
+constexpr auto combine(C1&& c1, C2&& c2) noexcept {
+  return std::apply(
+      [](auto&&... cs) {
+        return control_scheme{std::forward<decltype(cs)>(cs)...};
+      },
+      std::tuple_cat(std::forward<C1>(c1).controls,
+                     std::forward<C2>(c2).controls));
+}
+
 }  // namespace control
 
 #endif  // GUARD_DPSG_CONTROL_SCHEME_HPP

@@ -90,7 +90,17 @@ struct key {
   }
 };
 
-constexpr static inline auto free_camera = [] {
+constexpr static inline auto reset_camera = [](auto& cam) {
+  return ignore([&] {
+    using namespace dpsg;
+    constexpr radians default_yaw{to_radians(degrees{-90})};
+    constexpr radians default_pitch{0};
+    constexpr radians default_fov{to_radians(degrees{45})};
+    cam.reset(default_yaw, default_pitch, default_fov);
+  });
+};
+
+constexpr static inline auto free_camera_movement = [] {
   using namespace control;
   using k = dpsg::input::key;
   using d = direction;
@@ -99,8 +109,18 @@ constexpr static inline auto free_camera = [] {
                         repeat{move<d::left>{}, key{k::A}, key{k::left}},
                         repeat{move<d::right>{}, key{k::D}, key{k::right}},
                         repeat{move<d::up>{}, key{k::R}},
-                        repeat{move<d::down>{}, key{k::F}}};
+                        repeat{move<d::down>{}, key{k::F}},
+                        control::input{reset_camera, key{k::G}}};
 }();
+
+constexpr static inline auto free_camera_rotation = control::input{
+    [](auto& camera) { return camera_tracks_cursor{camera}; },
+    []([[maybe_unused]] auto marker, auto&& op, auto& window) {
+      window.set_cursor_pos_callback(std::forward<decltype(op)>(op));
+    }};
+
+constexpr static inline auto free_camera =
+    control::combine(free_camera_movement, free_camera_rotation);
 
 namespace detail {
 constexpr static inline auto bind_inputs =
