@@ -1,4 +1,3 @@
-#include <stdint.h>
 #define GLM_FORCE_SILENT_WARNINGS
 
 #include "glad/glad.h"
@@ -7,6 +6,7 @@
 #include "camera.hpp"
 #include "common.hpp"
 #include "glfw_context.hpp"
+#include "glfw_controls.hpp"
 #include "glm/ext/matrix_float4x4.hpp"
 #include "glm/mat4x4.hpp"
 #include "glm/vec3.hpp"
@@ -191,10 +191,11 @@ struct light_program : projection_program {
 
 int main() {
   using namespace dpsg;
-  using window_t = append_t<nk_glfw::window,
-                            framebuffer_size_cb,
-                            function_key_cb,
-                            cursor_pos_cb>;
+  using window_t = prepend_t<append_t<nk_glfw::window,
+                                      framebuffer_size_cb,
+                                      function_key_cb,
+                                      cursor_pos_cb>,
+                             glfw_controls::mixin::key_mapper>;
 
   ExecutionStatus r = dpsg::ExecutionStatus::Failure;
 
@@ -208,13 +209,13 @@ int main() {
           [](auto& wdw) {
             wdw.load_font("assets/fonts/ProggyClean.ttf", 14);
             camera<traits::glm> cam{SCR_WIDTH / SCR_HEIGHT};
-            basic_key_mapper<window_t> kmap;
+            glfw_controls::bind_control_scheme(
+                glfw_controls::free_camera, cam, wdw);
 
-            wdw.set_key_callback(std::ref(kmap));
             wdw.set_framebuffer_size_callback(camera_resize(cam));
             wdw.set_cursor_pos_callback(camera_tracks_cursor{cam});
 
-            kmap.on(input::key::space, [b = true, &cam](auto& window) mutable {
+            wdw.on(input::key::space, [b = true, &cam](auto& window) mutable {
               if (b) {
                 window.set_cursor_pos_callback(nullptr);
               }
@@ -223,7 +224,7 @@ int main() {
               }
               b = !b;
             });
-            kmap.on(input::key::escape, close);
+            wdw.on(input::key::escape, close);
 
             object_program object_program;
 
@@ -260,52 +261,22 @@ int main() {
             float ambient{0.1};
             float specular{0.5};
             int shininess{5};
-            kmap.on(input::key::T, ignore([&] {
-                      std::cout << std::setprecision(3)
-                                << "color: " << light_color.r << " "
-                                << light_color.g << " " << light_color.b
-                                << "\nambient: " << ambient << std::endl;
-                    }));
+            wdw.on(input::key::T, ignore([&] {
+                     std::cout << std::setprecision(3)
+                               << "color: " << light_color.r << " "
+                               << light_color.g << " " << light_color.b
+                               << "\nambient: " << ambient << std::endl;
+                   }));
 
             // Camera
             using namespace std::literals::chrono_literals;
             constexpr radians default_yaw{to_radians(degrees{-90})};
             constexpr radians default_pitch{0};
             constexpr radians default_fov{to_radians(degrees{45})};
-            constexpr auto interval = 10ms;
-            constexpr float camera_speed = .04;
-            input_timer timer{[&] { kmap.trigger_pressed_callbacks(wdw); },
-                              interval};
 
-            const auto move_forward =
-                ignore([&] { cam.advance(camera_speed); });
-            const auto move_backward =
-                ignore([&] { cam.advance(-camera_speed); });
-            const auto strafe_left = ignore([&] { cam.strafe(-camera_speed); });
-            const auto strafe_right = ignore([&] { cam.strafe(camera_speed); });
-            const auto climb_up = ignore([&] { cam.climb(camera_speed); });
-            const auto climb_down = ignore([&] { cam.climb(-camera_speed); });
-            const auto rotate_left =
-                ignore([&] { cam.rotate(-camera_speed, 0); });
-            const auto rotate_right =
-                ignore([&] { cam.rotate(camera_speed, 0); });
-
-            kmap.while_(input::key::up, move_forward);
-            kmap.while_(input::key::W, move_forward);
-            kmap.while_(input::key::down, move_backward);
-            kmap.while_(input::key::S, move_backward);
-            kmap.while_(input::key::left, strafe_left);
-            kmap.while_(input::key::A, strafe_left);
-            kmap.while_(input::key::right, strafe_right);
-            kmap.while_(input::key::D, strafe_right);
-            kmap.while_(input::key::R, climb_up);
-            kmap.while_(input::key::F, climb_down);
-            kmap.while_(input::key::Q, rotate_left);
-            kmap.while_(input::key::E, rotate_right);
-
-            kmap.on(input::key::G, ignore([&] {
-                      cam.reset(default_yaw, default_pitch, default_fov);
-                    }));
+            wdw.on(input::key::G, ignore([&] {
+                     cam.reset(default_yaw, default_pitch, default_fov);
+                   }));
 
             wdw.render_loop([&]([[maybe_unused]] nk::context& ctx) {
               gl::enable(gl::capability::depth_test);
@@ -365,8 +336,6 @@ int main() {
               gl::draw_arrays(gl::drawing_mode::triangles,
                               gl::index{0},
                               gl::element_count{36});
-
-              timer.trigger();
             });
           });
     });
