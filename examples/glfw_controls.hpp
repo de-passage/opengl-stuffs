@@ -20,7 +20,6 @@ namespace glfw_controls {
 
 namespace actions {
 enum class direction { forward, backward, left, right, up, down };
-enum class rotation_axis : unsigned char { x = 1, y = 2, both = x | y };
 
 template <direction Direction>
 struct move : control::action {
@@ -60,17 +59,36 @@ struct move : control::action {
   }
 };
 
-template <rotation_axis Axis>
+template <direction Axis>
 struct rotate : control::action {
-  constexpr explicit inline rotate(
-      dpsg::degrees speed = dpsg::degrees{glm::degrees(0.1)})
-      : speed{speed} {}
-  constexpr static inline rotation_axis axis{Axis};
-  dpsg::degrees speed;
+  constexpr explicit inline rotate(float speed = 0.02) : speed{speed} {}
+  constexpr static inline direction axis{Axis};
+  float speed;
 
   template <class Camera>
-  constexpr auto operator()(Camera& camera) noexcept {
-    return ignore([&camera] { camera.strafe(0); });
+  constexpr auto operator()(Camera& camera) const noexcept {
+    constexpr auto rotate_horizontally = [](Camera& camera, float speed) {
+      return ignore([&camera, speed] { camera.rotate(speed, 0); });
+    };
+    constexpr auto rotate_vertically = [](Camera& camera, float speed) {
+      return ignore([&camera, speed] { camera.rotate(0, speed); });
+    };
+
+    if constexpr (axis == direction::left) {
+      return rotate_horizontally(camera, -speed);
+    }
+    else if constexpr (axis == direction::right) {
+      return rotate_horizontally(camera, speed);
+    }
+    else if constexpr (axis == direction::up) {
+      return rotate_vertically(camera, speed);
+    }
+    else if constexpr (axis == direction::down) {
+      return rotate_vertically(camera, -speed);
+    }
+    else {
+      static_assert(std::is_same_v<Camera, void>, "Unhandled direction");
+    }
   }
 };
 
@@ -142,11 +160,21 @@ constexpr static inline auto free_camera_movement = [] {
 constexpr static inline auto free_camera_rotation =
     control::input{actions::track_cursor, inputs::cursor_movement};
 
+constexpr static inline auto kb_camera_rotation = [] {
+  using namespace control;
+  using namespace actions;
+  using d = direction;
+  using k = dpsg::input::key;
+  return control_scheme{repeat{rotate<d::left>{}, inputs::key{k::Q}},
+                        repeat{rotate<d::right>{}, inputs::key{k::E}}};
+}();
+
 constexpr static inline auto zoom =
     control::input{actions::zoom_camera, inputs::mouse_scroll};
 
-constexpr static inline auto free_camera =
-    control::combine(free_camera_movement, free_camera_rotation, zoom);
+constexpr static inline auto free_camera = control::combine(
+    control::combine(free_camera_movement, free_camera_rotation, zoom),
+    kb_camera_rotation);
 
 namespace detail {
 constexpr static inline auto bind_inputs =

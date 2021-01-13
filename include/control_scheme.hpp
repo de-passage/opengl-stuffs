@@ -122,8 +122,9 @@ constexpr static inline bool has_controls_v = has_controls<T>::value;
 
 template <class C1,
           class C2,
-          std::enable_if_t<detail::has_controls_v<C1> &&
-                           detail::has_controls_v<C2>> = 0>
+          std::enable_if_t<std::conjunction_v<detail::has_controls<C1>,
+                                              detail::has_controls<C2>>,
+                           int> = 0>
 constexpr auto combine(C1&& c1, C2&& c2) noexcept {
   return std::apply(
       [](auto&&... cs) {
