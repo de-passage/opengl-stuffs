@@ -18,11 +18,34 @@
 
 namespace glfw_controls {
 
+struct repeated {};
+struct one_time {};
+
+template <class Action, class... Args>
+struct repeat : control::input<repeated, Action, Args...> {
+  using base = control::input<repeated, Action, Args...>;
+  template <class A, class... As>
+  constexpr explicit repeat(A&& a, As&&... as)
+      : base{std::forward<A>(a), std::forward<As>(as)...} {}
+};
+template <class A, class... As>
+repeat(A&&, As&&...) -> repeat<std::decay_t<A>, std::decay_t<As>...>;
+
+template <class Action, class... Args>
+struct input : control::input<one_time, Action, Args...> {
+  using base = control::input<one_time, Action, Args...>;
+  template <class A, class... As>
+  constexpr explicit input(A&& a, As&&... as)
+      : base{std::forward<A>(a), std::forward<As>(as)...} {}
+};
+template <class A, class... As>
+input(A&&, As&&...) -> input<std::decay_t<A>, std::decay_t<As>...>;
+
 namespace actions {
 enum class direction { forward, backward, left, right, up, down };
 
 template <direction Direction>
-struct move : control::action {
+struct move {
   constexpr explicit inline move(float speed = 0.04) noexcept : speed{speed} {}
   constexpr static inline direction direction{Direction};
   float speed;
@@ -60,7 +83,7 @@ struct move : control::action {
 };
 
 template <direction Axis>
-struct rotate : control::action {
+struct rotate {
   constexpr explicit inline rotate(float speed = 0.02) : speed{speed} {}
   constexpr static inline direction axis{Axis};
   float speed;
@@ -138,10 +161,10 @@ struct key {
   constexpr void operator()([[maybe_unused]] Tag tag,
                             Op&& operation,
                             W&& wdw) const noexcept {
-    if constexpr (std::is_same_v<Tag, control::repeated>) {
+    if constexpr (std::is_same_v<Tag, repeated>) {
       wdw.while_(value, std::forward<Op>(operation));
     }
-    else if constexpr (std::is_same_v<Tag, control::one_time>) {
+    else if constexpr (std::is_same_v<Tag, one_time>) {
       wdw.on(value, std::forward<Op>(operation));
     }
   }
@@ -239,12 +262,12 @@ constexpr static inline auto free_camera_movement = [] {
 }();
 
 constexpr static inline auto reset_camera =
-    control::input{actions::reset_camera, inputs::key{dpsg::input::key::G}};
+    input{actions::reset_camera, inputs::key{dpsg::input::key::G}};
 
 constexpr static inline auto free_camera_rotation = control::control_scheme{
-    control::input{actions::track_cursor, inputs::cursor_movement},
-    control::input{actions::toggle_cursor_tracking,
-                   inputs::key{dpsg::input::key::space}}};
+    input{actions::track_cursor, inputs::cursor_movement},
+    input{actions::toggle_cursor_tracking,
+          inputs::key{dpsg::input::key::space}}};
 
 constexpr static inline auto kb_camera_rotation = [] {
   using namespace control;
@@ -256,7 +279,7 @@ constexpr static inline auto kb_camera_rotation = [] {
 }();
 
 constexpr static inline auto zoom =
-    control::input{actions::zoom_camera, inputs::mouse_scroll};
+    input{actions::zoom_camera, inputs::mouse_scroll};
 
 constexpr static inline auto free_camera =
     control::combine(free_camera_movement,
@@ -266,8 +289,7 @@ constexpr static inline auto free_camera =
                      kb_camera_rotation);
 
 constexpr static inline auto close_window =
-    control::input{actions::close_window,
-                   inputs::key{dpsg::input::key::escape}};
+    input{actions::close_window, inputs::key{dpsg::input::key::escape}};
 
 constexpr static inline auto standard_controls =
     control::combine(free_camera, close_window);

@@ -7,24 +7,21 @@
 #include "traversecpp/traverse.hpp"
 
 namespace control {
-struct action {};
-template <class T>
-using is_action = std::is_base_of<action, std::decay_t<T>>;
-template <class T>
-constexpr static inline bool is_action_v = is_action<T>::value;
-
 struct base_input {};
 template <class T>
 using is_input = std::is_base_of<base_input, std::decay_t<T>>;
 template <class T>
 constexpr static inline bool is_input_v = is_input<T>::value;
 
-struct repeated {};
-struct one_time {};
-
-template <class Action, class... Bindings>
+template <class Marker, class Action, class... Bindings>
 struct input : base_input {
   static_assert(sizeof...(Bindings) > 0, "Actions need at least 1 binding");
+  template <class A, class... Bs>
+  constexpr explicit input([[maybe_unused]] Marker marker,
+                           A&& action,
+                           Bs&&... bindings) noexcept
+      : action{std::forward<A>(action)},
+        bindings{std::forward<Bs>(bindings)...} {}
   template <class A, class... Bs>
   constexpr explicit input(A&& action, Bs&&... bindings) noexcept
       : action{std::forward<A>(action)},
@@ -32,7 +29,7 @@ struct input : base_input {
   Action action;
   std::tuple<Bindings...> bindings;
 
-  constexpr static inline one_time marker{};
+  constexpr static inline Marker marker{};
 
   template <
       class I,
@@ -44,25 +41,13 @@ struct input : base_input {
                                       Args&&... args) noexcept {
     dpsg::traverse(std::forward<I>(input).bindings,
                    std::forward<F>(f),
-                   std::decay_t<I>::marker,
+                   std::forward<I>(input).marker,
                    std::forward<I>(input).action,
                    std::forward<Args>(args)...);
   }
 };
-template <class A, class... Bs>
-input(A&&, Bs&&...) -> input<std::decay_t<A>, std::decay_t<Bs>...>;
-
-template <class Action, class... Args>
-struct repeat : input<Action, Args...> {
-  using base = input<Action, Args...>;
-  template <class A, class... As, std::enable_if_t<is_action_v<A>, int> = 0>
-  constexpr explicit repeat(A&& a, As&&... as)
-      : base{std::forward<A>(a), std::forward<As>(as)...} {}
-
-  constexpr static inline repeated marker{};
-};
-template <class A, class... As>
-repeat(A&&, As&&...) -> repeat<std::decay_t<A>, std::decay_t<As>...>;
+template <class M, class A, class... Bs>
+input(M, A&&, Bs&&...) -> input<M, std::decay_t<A>, std::decay_t<Bs>...>;
 
 template <class... Args>
 struct control_scheme {
