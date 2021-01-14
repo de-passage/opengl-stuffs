@@ -3,8 +3,8 @@
 
 #include "glad/glad.h"
 
-#include "./glfw_controls.hpp"
 #include "glfw_context.hpp"
+#include "input_timer.hpp"
 #include "key_mapper.hpp"
 #include "meta/mixin.hpp"
 #include "utility.hpp"
@@ -16,6 +16,55 @@
 // settings
 constexpr static inline dpsg::width SCR_WIDTH{800};
 constexpr static inline dpsg::height SCR_HEIGHT{600};
+
+namespace mixin {
+struct key_mapper {
+  template <class B>
+  struct type : B {
+    using base = B;
+
+   private:
+    using kmap_t = basic_key_mapper<dpsg::real_type_t<B>>;
+    constexpr static auto interval = std::chrono::milliseconds(10);
+    kmap_t kmap;
+    input_timer<std::function<void()>> timer;
+
+   public:
+    using key_pressed_callback = typename kmap_t::key_pressed_callback;
+    template <class... Args>
+    constexpr explicit type(Args&&... args) noexcept(
+        std::is_nothrow_constructible_v<base, Args...>)
+        : base{std::forward<Args>(args)...},
+          timer{[this] {
+                  kmap.trigger_pressed_callbacks(
+                      *static_cast<dpsg::real_type_t<B>*>(this));
+                },
+                interval} {
+      base::set_key_callback(std::ref(kmap));
+    }
+
+    inline void on(dpsg::input::key k, key_pressed_callback cb) {
+      kmap.on(k, std::move(cb));
+    }
+
+    inline void while_(dpsg::input::key k, key_pressed_callback cb) {
+      kmap.while_(k, std::move(cb));
+    }
+
+    template <class F>
+    inline auto render_loop(F&& f) noexcept(
+        noexcept(base::render_loop(std::forward<F>(f)))) {
+      base::render_loop([this, &f](auto&&... args) {
+        std::forward<F>(f)(std::forward<decltype(args)>(args)...);
+        timer.trigger();
+        kmap.trigger_pressed_callbacks(
+            *static_cast<dpsg::real_type_t<B>*>(this));
+      });
+    }
+  };
+};
+
+}  // namespace mixin
 
 namespace detail {
 template <class T>
@@ -34,7 +83,7 @@ void invoke(F&& f, dpsg::window& window, [[maybe_unused]] key_mapper& unused) {
 }
 
 using kmap_window = dpsg::base_window<glad_loader,
-                                      glfw_controls::mixin::key_mapper,
+                                      ::mixin::key_mapper,
                                       dpsg::function_key_cb,
                                       dpsg::framebuffer_size_cb,
                                       dpsg::scroll_cb,

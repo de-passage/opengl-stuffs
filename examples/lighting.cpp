@@ -188,7 +188,7 @@ int main() {
                                       function_key_cb,
                                       scroll_cb,
                                       cursor_pos_cb>,
-                             glfw_controls::mixin::key_mapper>;
+                             ::mixin::key_mapper>;
 
   ExecutionStatus r = dpsg::ExecutionStatus::Failure;
 

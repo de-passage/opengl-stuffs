@@ -1,15 +1,11 @@
 #ifndef GUARD_GLFW_CONTROLS_HEADER
 #define GUARD_GLFW_CONTROLS_HEADER
 
-#include "camera.hpp"
 #include "common.hpp"
 #include "control_scheme.hpp"
 #include "glm/trigonometric.hpp"
 #include "input/keys.hpp"
-#include "input_timer.hpp"
-#include "key_mapper.hpp"
 #include "traversecpp/traverse.hpp"
-#include "window.hpp"
 
 #include "./utils.hpp"
 
@@ -20,27 +16,6 @@ namespace glfw_controls {
 
 struct repeated {};
 struct one_time {};
-
-template <class Action, class... Args>
-struct repeat : control::input<repeated, Action, Args...> {
-  using base = control::input<repeated, Action, Args...>;
-  template <class A, class... As>
-  constexpr explicit repeat(A&& a, As&&... as)
-      : base{std::forward<A>(a), std::forward<As>(as)...} {}
-};
-template <class A, class... As>
-repeat(A&&, As&&...) -> repeat<std::decay_t<A>, std::decay_t<As>...>;
-
-template <class Action, class... Args>
-struct input : control::input<one_time, Action, Args...> {
-  using base = control::input<one_time, Action, Args...>;
-  template <class A, class... As>
-  constexpr explicit input(A&& a, As&&... as)
-      : base{std::forward<A>(a), std::forward<As>(as)...} {}
-};
-template <class A, class... As>
-input(A&&, As&&...) -> input<std::decay_t<A>, std::decay_t<As>...>;
-
 namespace actions {
 enum class direction { forward, backward, left, right, up, down };
 
@@ -154,7 +129,7 @@ constexpr static inline auto toggle_cursor_tracking = [](auto& camera) {
 
 namespace inputs {
 struct key {
-  constexpr explicit key(dpsg::input::key k) noexcept : value{k} {}
+  constexpr key(dpsg::input::key k) noexcept : value{k} {}
   dpsg::input::key value;
 
   template <class Tag, class Op, class W>
@@ -193,89 +168,67 @@ constexpr static inline auto bind_inputs =
 
 template <class... Ss, class C, class W>
 void bind_control_scheme(const control::control_scheme<Ss...>& scheme,
-                         dpsg::camera<C>& camera,
+                         C& camera,
                          W& window) noexcept {
   dpsg::traverse(scheme, detail::bind_inputs, camera, window);
 }
 
-namespace mixin {
-struct key_mapper {
-  template <class B>
-  struct type : B {
-    using base = B;
+namespace detail {
+template <class T>
+using adapt =
+    std::conditional_t<std::is_same_v<std::decay_t<T>, dpsg::input::key>,
+                       inputs::key,
+                       std::decay_t<T>>;
+}
 
-   private:
-    using kmap_t = basic_key_mapper<dpsg::real_type_t<B>>;
-    constexpr static auto interval = std::chrono::milliseconds(10);
-    kmap_t kmap;
-    input_timer<std::function<void()>> timer;
-
-   public:
-    using key_pressed_callback = typename kmap_t::key_pressed_callback;
-    template <class... Args>
-    constexpr explicit type(Args&&... args) noexcept(
-        std::is_nothrow_constructible_v<base, Args...>)
-        : base{std::forward<Args>(args)...},
-          timer{[this] {
-                  kmap.trigger_pressed_callbacks(
-                      *static_cast<dpsg::real_type_t<B>*>(this));
-                },
-                interval} {
-      base::set_key_callback(std::ref(kmap));
-    }
-
-    inline void on(dpsg::input::key k, key_pressed_callback cb) {
-      kmap.on(k, std::move(cb));
-    }
-
-    inline void while_(dpsg::input::key k, key_pressed_callback cb) {
-      kmap.while_(k, std::move(cb));
-    }
-
-    template <class F>
-    inline auto render_loop(F&& f) noexcept(
-        noexcept(base::render_loop(std::forward<F>(f)))) {
-      base::render_loop([this, &f](auto&&... args) {
-        std::forward<F>(f)(std::forward<decltype(args)>(args)...);
-        timer.trigger();
-        kmap.trigger_pressed_callbacks(
-            *static_cast<dpsg::real_type_t<B>*>(this));
-      });
-    }
-  };
+template <class Action, class... Args>
+struct repeat : control::input<repeated, Action, Args...> {
+  using base = control::input<repeated, Action, Args...>;
+  template <class A, class... As>
+  constexpr explicit repeat(A&& a, As&&... as)
+      : base{std::forward<A>(a), std::forward<As>(as)...} {}
 };
+template <class A, class... As>
+repeat(A&&, As&&...) -> repeat<std::decay_t<A>, detail::adapt<As>...>;
 
-}  // namespace mixin
+template <class Action, class... Args>
+struct input : control::input<one_time, Action, Args...> {
+  using base = control::input<one_time, Action, Args...>;
+  template <class A, class... As>
+  constexpr explicit input(A&& a, As&&... as)
+      : base{std::forward<A>(a), std::forward<As>(as)...} {}
+};
+template <class A, class... As>
+input(A&&, As&&...) -> input<std::decay_t<A>, detail::adapt<As>...>;
 
 constexpr static inline auto free_camera_movement = [] {
   using namespace control;
-  using k = dpsg::input::key;
+  using key = dpsg::input::key;
   using namespace actions;
   using d = direction;
   using namespace inputs;
-  return control_scheme{repeat{move<d::forward>{}, key{k::W}, key{k::up}},
-                        repeat{move<d::backward>{}, key{k::S}, key{k::down}},
-                        repeat{move<d::left>{}, key{k::A}, key{k::left}},
-                        repeat{move<d::right>{}, key{k::D}, key{k::right}},
-                        repeat{move<d::up>{}, key{k::R}},
-                        repeat{move<d::down>{}, key{k::F}}};
+  return control_scheme{repeat{move<d::forward>{}, key::W, key::up},
+                        repeat{move<d::backward>{}, key::S, key::down},
+                        repeat{move<d::left>{}, key::A, key::left},
+                        repeat{move<d::right>{}, key::D, key::right},
+                        repeat{move<d::up>{}, key::R},
+                        repeat{move<d::down>{}, key::F}};
 }();
 
 constexpr static inline auto reset_camera =
-    input{actions::reset_camera, inputs::key{dpsg::input::key::G}};
+    input{actions::reset_camera, dpsg::input::key::G};
 
 constexpr static inline auto free_camera_rotation = control::control_scheme{
     input{actions::track_cursor, inputs::cursor_movement},
-    input{actions::toggle_cursor_tracking,
-          inputs::key{dpsg::input::key::space}}};
+    input{actions::toggle_cursor_tracking, dpsg::input::key::space}};
 
 constexpr static inline auto kb_camera_rotation = [] {
   using namespace control;
   using namespace actions;
   using d = direction;
-  using k = dpsg::input::key;
-  return control_scheme{repeat{rotate<d::left>{}, inputs::key{k::Q}},
-                        repeat{rotate<d::right>{}, inputs::key{k::E}}};
+  using key = dpsg::input::key;
+  return control_scheme{repeat{rotate<d::left>{}, key::Q},
+                        repeat{rotate<d::right>{}, key::E}};
 }();
 
 constexpr static inline auto zoom =
@@ -289,7 +242,7 @@ constexpr static inline auto free_camera =
                      kb_camera_rotation);
 
 constexpr static inline auto close_window =
-    input{actions::close_window, inputs::key{dpsg::input::key::escape}};
+    input{actions::close_window, dpsg::input::key::escape};
 
 constexpr static inline auto standard_controls =
     control::combine(free_camera, close_window);
